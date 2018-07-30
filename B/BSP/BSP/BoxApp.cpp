@@ -50,8 +50,8 @@ private:
 	void BuildConstantBuffers();
     void BuildRootSignature();
     void BuildShadersAndInputLayout();
-    void BuildBoxGeometry();
-    void BuildPSO();
+    void BuildBoxGeometry(); // 박스 생성 ( 디폴트버퍼 / 업로드버퍼 / 매쉬데이터 )
+    void BuildPSO(); // 파이프라인 스테이트 생성
 
 private:
     
@@ -95,6 +95,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
             return 0;
 
         return theApp.Run();
+		//  Run에서 실행되는 함수
+		//	CalculateFrameStats();
+		//	Update(mTimer); 가상함수
+		//	Draw(mTimer); 가상함수
+		
     }
     catch(DxException& e)
     {
@@ -409,13 +414,16 @@ void BoxApp::BuildBoxGeometry()
 	mBoxGeo->Name = "boxGeo";
 
 	ThrowIfFailed(D3DCreateBlob(vbByteSize, &mBoxGeo->VertexBufferCPU));
+	// 버퍼를 생성하여 포인터를 받아옴
 	CopyMemory(mBoxGeo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+	// 버퍼의 포인터를 이용하여 데이터를 복사함
 
 	ThrowIfFailed(D3DCreateBlob(ibByteSize, &mBoxGeo->IndexBufferCPU));
 	CopyMemory(mBoxGeo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
 	mBoxGeo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
 		mCommandList.Get(), vertices.data(), vbByteSize, mBoxGeo->VertexBufferUploader);
+	// 기본형의 버텍스 버퍼를 생성하여 포인터를 만들어주며 또한 업로드 버퍼를 생성하여 포인터를 준다.
 
 	mBoxGeo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
 		mCommandList.Get(), indices.data(), ibByteSize, mBoxGeo->IndexBufferUploader);
