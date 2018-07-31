@@ -296,8 +296,10 @@ void BoxApp::BuildDescriptorHeaps()
 void BoxApp::BuildConstantBuffers()
 {
 	mObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(md3dDevice.Get(), 1, true);
+	// 업로드 버퍼 생성 256바이트의 배수로 생성
 
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
+	// 업로드 버퍼의 사이즈를 구함
 
 	D3D12_GPU_VIRTUAL_ADDRESS cbAddress = mObjectCB->Resource()->GetGPUVirtualAddress();
     // Offset to the ith object constant buffer in the buffer.
@@ -311,6 +313,7 @@ void BoxApp::BuildConstantBuffers()
 	md3dDevice->CreateConstantBufferView(
 		&cbvDesc,
 		mCbvHeap->GetCPUDescriptorHandleForHeapStart());
+	// 업로드 버퍼를 이용하여 상수 버퍼 생성
 }
 
 void BoxApp::BuildRootSignature()
@@ -327,6 +330,7 @@ void BoxApp::BuildRootSignature()
 	// Create a single descriptor table of CBVs.
 	CD3DX12_DESCRIPTOR_RANGE cbvTable;
 	cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+	// 셰이더에서 사용하는 레지스터랑 슬롯 숫자가 일치해야함 ( 마지막 숫자 )
 	slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable);
 
 	// A root signature is an array of root parameters.
@@ -445,8 +449,8 @@ void BoxApp::BuildPSO()
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc;
     ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-    psoDesc.InputLayout = { mInputLayout.data(), (UINT)mInputLayout.size() };
     psoDesc.pRootSignature = mRootSignature.Get();
+    psoDesc.InputLayout = { mInputLayout.data(), (UINT)mInputLayout.size() };
     psoDesc.VS = 
 	{ 
 		reinterpret_cast<BYTE*>(mvsByteCode->GetBufferPointer()), 
