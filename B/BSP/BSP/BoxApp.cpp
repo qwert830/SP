@@ -25,6 +25,8 @@ struct Vertex
 struct ObjectConstants
 {
     XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();
+	XMFLOAT4 gPulseColor{1,1,1,1};
+	float gTime;
 };
 
 class BoxApp : public D3DApp
@@ -125,7 +127,9 @@ bool BoxApp::Initialize()
     // Reset the command list to prep for initialization commands.
     ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
  
-    BuildDescriptorHeaps();
+	//mScreenViewport.Width = mScreenViewport.Width / 2; 뷰포트 왼쪽 절반 설정 예제12번
+    
+	BuildDescriptorHeaps();
 	BuildConstantBuffers();
     BuildRootSignature();
     BuildShadersAndInputLayout();
@@ -174,6 +178,7 @@ void BoxApp::Update(const GameTimer& gt)
 	// Update the constant buffer with the latest worldViewProj matrix.
 	ObjectConstants objConstants;
     XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(worldViewProj));
+	objConstants.gTime = gt.TotalTime();
     mObjectCB->CopyData(0, objConstants);
 }
 
@@ -186,6 +191,7 @@ void BoxApp::Draw(const GameTimer& gt)
 	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
     // Reusing the command list reuses memory.
     ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), mPSO.Get()));
+
 
     mCommandList->RSSetViewports(1, &mScreenViewport);
     mCommandList->RSSetScissorRects(1, &mScissorRect);
@@ -462,6 +468,7 @@ void BoxApp::BuildPSO()
 		mpsByteCode->GetBufferSize() 
 	};
     psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
     psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     psoDesc.SampleMask = UINT_MAX;
