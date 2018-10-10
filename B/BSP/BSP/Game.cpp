@@ -1,26 +1,13 @@
-
 #include "d3dApp.h"
 #include "Camera.h"
 #include "MathHelper.h"
 #include "UploadBuffer.h"
+#include "FrameResource.h"
+#include <fstream>
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
-
-
-struct Vertex
-{
-    XMFLOAT3 Pos;
-    XMFLOAT4 Color;
-};
-
-struct ObjectConstants
-{
-    XMFLOAT4X4 WorldViewProj = MathHelper::Identity4x4();
-	XMFLOAT4 gPulseColor{1,1,1,1};
-	float gTime;
-};
 
 class Game : public D3DApp
 {
@@ -375,51 +362,104 @@ void Game::BuildShadersAndInputLayout()
 
     mInputLayout =
     {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+
     };
 }
 
 void Game::BuildBoxGeometry()
 {
-    std::array<Vertex, 8> vertices =
-    {
-        Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) }),
-		Vertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black) }),
-		Vertex({ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red) }),
-		Vertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
-		Vertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) }),
-		Vertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow) }),
-		Vertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan) }),
-		Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) })
-    };
+	std::ifstream fin;
+	char input;
+	int i;
+	int m_vertexCount;
+	int m_indexCount;
 
-	std::array<std::uint16_t, 36> indices =
+	fin.open("Resource/model.txt");
+	if (fin.fail())
 	{
-		// front face
-		0, 1, 2,
-		0, 2, 3,
+		return;
+	}
 
-		// back face
-		4, 6, 5,
-		4, 7, 6,
+	fin.get(input);
+	while (input != ':')
+	{
+		fin.get(input);
+	}
 
-		// left face
-		4, 5, 1,
-		4, 1, 0,
+	fin >> m_vertexCount;
+	m_indexCount = m_vertexCount;
 
-		// right face
-		3, 2, 6,
-		3, 6, 7,
+	struct modeltype { float x,y,z,tu,tv,nx,ny,nz; };
 
-		// top face
-		1, 5, 6,
-		1, 6, 2,
+	modeltype* tempModelType = new modeltype[m_vertexCount];
+	
+	fin.get(input);
+	while (input != ':')
+	{
+		fin.get(input);
+	}
+	fin.get(input);
+	fin.get(input);
+	float x = 0;
+	// Read in the vertex data. 
+	for (i = 0; i<m_vertexCount; i++)
+	{
+		fin >> tempModelType[i].x >> tempModelType[i].y >> tempModelType[i].z;
+		fin >> tempModelType[i].tu >> tempModelType[i].tv;
+		fin >> tempModelType[i].nx >> tempModelType[i].ny >> tempModelType[i].nz;
+	}
+	// Close the model file.
+	fin.close();
 
-		// bottom face
-		4, 0, 3,
-		4, 3, 7
-	};
+	std::vector<Vertex> vertices;
+	std::vector<uint16_t> indices;
+	vertices.resize(m_vertexCount);
+	indices.resize(m_indexCount);
+	for (int i = 0; i < m_vertexCount; i++)
+	{
+		vertices[i].Pos = XMFLOAT4(tempModelType[i].x, tempModelType[i].y, tempModelType[i].z, 1.0f);
+		vertices[i].Color = XMFLOAT4(tempModelType[i].tu, tempModelType[i].tv, 0.5f, 1.0f);
+		vertices[i].Normal = XMFLOAT3(tempModelType[i].nx, tempModelType[i].ny, tempModelType[i].nz);
+
+		indices[i] = i;
+	}
+
+ //   std::array<Vertex, 8> vertices =
+ //   {
+ //       Vertex({ XMFLOAT4(-1.0f, -1.0f, -1.0f,1.0f), XMFLOAT4(Colors::White) }),
+	//	Vertex({ XMFLOAT4(-1.0f, +1.0f, -1.0f,1.0f), XMFLOAT4(Colors::Black) }),
+	//	Vertex({ XMFLOAT4(+1.0f, +1.0f, -1.0f,1.0f), XMFLOAT4(Colors::Red) }),
+	//	Vertex({ XMFLOAT4(+1.0f, -1.0f, -1.0f,1.0f), XMFLOAT4(Colors::Green) }),
+	//	Vertex({ XMFLOAT4(-1.0f, -1.0f, +1.0f,1.0f), XMFLOAT4(Colors::Blue) }),
+	//	Vertex({ XMFLOAT4(-1.0f, +1.0f, +1.0f,1.0f), XMFLOAT4(Colors::Yellow) }),
+	//	Vertex({ XMFLOAT4(+1.0f, +1.0f, +1.0f,1.0f), XMFLOAT4(Colors::Cyan) }),
+	//	Vertex({ XMFLOAT4(+1.0f, -1.0f, +1.0f,1.0f), XMFLOAT4(Colors::Magenta) })
+ //   };
+
+	//std::array<std::uint16_t, 36> indices =
+	//{
+	//	// front face
+	//	0, 1, 2,
+	//	0, 2, 3,
+	//	// back face
+	//	4, 6, 5,
+	//	4, 7, 6,
+	//	// left face
+	//	4, 5, 1,
+	//	4, 1, 0,
+	//	// right face
+	//	3, 2, 6,
+	//	3, 6, 7,
+	//	// top face
+	//	1, 5, 6,
+	//	1, 6, 2,
+	//	// bottom face
+	//	4, 0, 3,
+	//	4, 3, 7
+	//};
 
     const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
@@ -472,7 +512,7 @@ void Game::BuildPSO()
 		mpsByteCode->GetBufferSize() 
 	};
     psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
     psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     psoDesc.SampleMask = UINT_MAX;
