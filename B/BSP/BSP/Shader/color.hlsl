@@ -12,18 +12,20 @@ cbuffer cbPerObject : register(b0)
     float gTime;
 };
 
+Texture2D gDiffuseMap : register(t0);
+
 struct VertexIn
 {
 	float4 PosL  : POSITION;
-    float4 Color : COLOR;
-    float4 Normal : NORMAL;
+    float2 Tex : TEXCOORD;
+    float3 Normal : NORMAL;
 };
 
 struct VertexOut
 {
 	float4 PosH  : SV_POSITION;
-    float4 Color : COLOR;
-    float4 Normal : NORMAL;
+    float2 Tex : TEXCOORD;
+    float3 Normal : NORMAL;
 };
 
 VertexOut VS(VertexIn vin)
@@ -36,15 +38,14 @@ VertexOut VS(VertexIn vin)
 	vout.PosH = mul(vin.PosL, gWorldViewProj);
 	
 	// Just pass vertex color into the pixel shader.
-    vout.Color = vin.Color;
+    vout.Tex = vin.Tex;
     
     return vout;
 }
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    float4 c = pin.Color;
-    //float4 c = float4(0.5f, 0.5f, 0.5f, 0.5f);
+    float4 c = float4(1.0f, 0.5f, 0.5f, 0.5f);
     return c;
 }
 
