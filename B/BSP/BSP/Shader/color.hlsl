@@ -17,15 +17,15 @@ Texture2D gDiffuseMap : register(t0);
 struct VertexIn
 {
 	float4 PosL  : POSITION;
-    float2 Tex : TEXCOORD;
     float3 Normal : NORMAL;
+    float2 Tex : TEXCOORD;
 };
 
 struct VertexOut
 {
 	float4 PosH  : SV_POSITION;
-    float2 Tex : TEXCOORD;
     float3 Normal : NORMAL;
+    float2 Tex : TEXCOORD;
 };
 
 VertexOut VS(VertexIn vin)

@@ -17,8 +17,8 @@ struct ObjectConstants
 struct Vertex
 {
 	XMFLOAT4 Pos;
-	XMFLOAT2 Tex;
 	XMFLOAT3 Normal;
+	XMFLOAT2 Tex;
 };
 
 
