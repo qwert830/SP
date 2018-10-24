@@ -3,6 +3,7 @@
 #include "MathHelper.h"
 #include "UploadBuffer.h"
 #include "FrameResource.h"
+#include "GeometryGenerator.h"
 #include <fstream>
 
 using Microsoft::WRL::ComPtr;
@@ -235,27 +236,18 @@ void Game::Draw(const GameTimer& gt)
 {
 	auto cmdListAlloc = mCurrFrameResource->CmdListAlloc;
 
-    // Reuse the memory associated with command recording.
-    // We can only reset when the associated command lists have finished execution on the GPU.
 	ThrowIfFailed(cmdListAlloc->Reset());
-
-	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
-    // Reusing the command list reuses memory.
 	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
-
 
     mCommandList->RSSetViewports(1, &mScreenViewport);
     mCommandList->RSSetScissorRects(1, &mScissorRect);
 
-    // Indicate a state transition on the resource usage.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-    // Clear the back buffer and depth buffer.
     mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::LightSteelBlue, 0, nullptr);
     mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 	
-    // Specify the buffers we are going to render to.
 	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 
 	ID3D12DescriptorHeap* descriptorHeaps[] = { mSrvDescriptorHeap.Get() };
@@ -268,27 +260,19 @@ void Game::Draw(const GameTimer& gt)
 
 	DrawRenderItems(mCommandList.Get(), mOpaqueRitems);
 	
-    // Indicate a state transition on the resource usage.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
-    // Done recording commands.
 	ThrowIfFailed(mCommandList->Close());
- 
-	// Add the command list to the queue for execution.
+
 	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
-	// Swap the back and front buffers
 	ThrowIfFailed(mSwapChain->Present(0, 0));
 	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
 
-	// Advance the fence value to mark commands up to this fence point.
 	mCurrFrameResource->Fence = ++mCurrentFence;
 
-	// Add an instruction to the command queue to set a new fence point. 
-	// Because we are on the GPU timeline, the new fence point won't be 
-	// set until the GPU finishes processing all the commands prior to this Signal().
 	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
 }
 
@@ -426,6 +410,7 @@ void Game::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
 	mMainPassCB.Lights[2].Strength = { 0.2f, 0.2f, 0.2f };
 
+
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
 }
@@ -439,7 +424,15 @@ void Game::LoadTextures()
 		mCommandList.Get(), seaFloorTex->Filename.c_str(),
 		seaFloorTex->Resource, seaFloorTex->UploadHeap));
 
+	auto tileTex = std::make_unique<Texture>();
+	tileTex->Name = "tileTex";
+	tileTex->Filename = L"Resource/tile.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), tileTex->Filename.c_str(),
+		tileTex->Resource, tileTex->UploadHeap));
+
 	mTextures[seaFloorTex->Name] = std::move(seaFloorTex);
+	mTextures[tileTex->Name] = std::move(tileTex);
 }
 
 void Game::BuildRootSignature()
@@ -490,7 +483,7 @@ void Game::BuildDescriptorHeaps()
 	// Create the SRV heap.
 	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 3;
+	srvHeapDesc.NumDescriptors = 2;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -501,7 +494,7 @@ void Game::BuildDescriptorHeaps()
 	CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 	auto seaFloorTex = mTextures["seaFloorTex"]->Resource;
-
+	auto tileTex = mTextures["tileTex"]->Resource;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -512,6 +505,11 @@ void Game::BuildDescriptorHeaps()
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 	md3dDevice->CreateShaderResourceView(seaFloorTex.Get(), &srvDesc, hDescriptor);
 
+	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+
+	srvDesc.Format = tileTex->GetDesc().Format;
+	srvDesc.Texture2D.MipLevels = tileTex->GetDesc().MipLevels;
+	md3dDevice->CreateShaderResourceView(tileTex.Get(), &srvDesc, hDescriptor);
 }
 
 void Game::BuildShadersAndInputLayout()
@@ -540,6 +538,9 @@ void Game::BuildShapeGeometry()
 	int i;
 	int m_vertexCount;
 	int m_indexCount;
+
+	GeometryGenerator geoGen;
+	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 30.0f, 60, 40);
 
 	// 모델 로딩
 	fin.open("Resource/model.txt");
@@ -581,21 +582,39 @@ void Game::BuildShapeGeometry()
 
 
 	// 모델 데이터 입력
-	std::vector<Vertex> vertices;
+	auto totalVertexCount = (size_t)m_vertexCount + grid.Vertices.size();
+	
+	std::vector<Vertex> vertices(totalVertexCount);
 	std::vector<uint16_t> indices;
-	vertices.resize(m_vertexCount);
-	indices.resize(m_indexCount);
-	for (int i = 0; i < m_vertexCount; i++)
-	{
-		vertices[i].Pos = XMFLOAT4(tempModelType[i].x, tempModelType[i].y, tempModelType[i].z, 1.0f);
-		vertices[i].Tex = XMFLOAT2(tempModelType[i].tu, tempModelType[i].tv);
-		vertices[i].Normal = XMFLOAT3(tempModelType[i].nx, tempModelType[i].ny, tempModelType[i].nz);
 
-		indices[i] = i;
+	int k = 0;
+
+	for (int i = 0; i < m_vertexCount; ++i, ++k)
+	{
+		vertices[k].Pos = XMFLOAT4(tempModelType[i].x, tempModelType[i].y, tempModelType[i].z, 1.0f);
+		vertices[k].Tex = XMFLOAT2(tempModelType[i].tu, tempModelType[i].tv);
+		vertices[k].Normal = XMFLOAT3(tempModelType[i].nx, tempModelType[i].ny, tempModelType[i].nz);
+
+		indices.insert(indices.end(), i);
 	}
+	UINT modelIndexCount = indices.size();
+
+	for (int i = 0; i < grid.Vertices.size(); ++i, ++k)
+	{
+		vertices[k].Pos = XMFLOAT4(grid.Vertices[i].Position.x, grid.Vertices[i].Position.y, grid.Vertices[i].Position.z,1.0f);
+		vertices[k].Tex = grid.Vertices[i].TexC;
+		vertices[k].Normal = grid.Vertices[i].Normal;
+	}
+	indices.insert(indices.end(), grid.Indices32.begin(), grid.Indices32.end());
 
     const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+	UINT modelVertexOffset = 0;
+	UINT gridVertexOffset = m_vertexCount;
+
+	UINT modelIndexOffset = 0;
+	UINT gridIndexOffset = modelIndexCount;
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = "shapeGeo";
@@ -621,12 +640,18 @@ void Game::BuildShapeGeometry()
 	geo->IndexBufferByteSize = ibByteSize;
 
 	SubmeshGeometry submesh;
-	submesh.IndexCount = (UINT)indices.size();
-	submesh.StartIndexLocation = 0;
-	submesh.BaseVertexLocation = 0;
+	submesh.IndexCount = (UINT)modelIndexCount;
+	submesh.StartIndexLocation = modelIndexOffset;
+	submesh.BaseVertexLocation = modelVertexOffset;
+
+	SubmeshGeometry gridSubmesh;
+	gridSubmesh.IndexCount = (UINT)grid.Indices32.size();
+	gridSubmesh.StartIndexLocation = gridIndexOffset;
+	gridSubmesh.BaseVertexLocation = gridVertexOffset;
 
 	geo->DrawArgs["box"] = submesh;
-	
+	geo->DrawArgs["grid"] = gridSubmesh;
+
 	mGeometries[geo->Name] = std::move(geo);
 }
 
@@ -679,7 +704,16 @@ void Game::BuildMaterials()
 	seafloor0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
 	seafloor0->Roughness = 0.1f;
 
+	auto tile0 = std::make_unique<Material>();
+	tile0->Name = "tile0";
+	tile0->MatCBIndex = 1;
+	tile0->DiffuseSrvHeapIndex = 1;
+	tile0->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	tile0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
+	tile0->Roughness = 0.3f;
+
 	mMaterials["seafloor0"] = std::move(seafloor0);
+	mMaterials["tile0"] = std::move(tile0);
 }
 
 void Game::BuildRenderItems()
@@ -694,7 +728,23 @@ void Game::BuildRenderItems()
 	boxRitem->IndexCount = boxRitem->Geo->DrawArgs["box"].IndexCount;
 	boxRitem->StartIndexLocation = boxRitem->Geo->DrawArgs["box"].StartIndexLocation;
 	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["box"].BaseVertexLocation;
+
+	XMStoreFloat4x4(&boxRitem->World, XMMatrixTranslation(0, 10, 0));
+
 	mAllRitems.push_back(std::move(boxRitem));
+
+	auto gridRitem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 1.0f, 0.0f));
+	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+	gridRitem->ObjCBIndex = 1;
+	gridRitem->Mat = mMaterials["tile0"].get();
+	gridRitem->Geo = mGeometries["shapeGeo"].get();
+	gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
+	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
+	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(gridRitem));
+
 
 	// All the render items are opaque.
 	for (auto& e : mAllRitems)

@@ -49,10 +49,6 @@ cbuffer cbPass : register(b1)
     float gDeltaTime;
     float4 gAmbientLight;
 
-    // Indices [0, NUM_DIR_LIGHTS) are directional lights;
-    // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
-    // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
-    // are spot lights for a maximum of MaxLights per object.
     Light gLights[MaxLights];
 };
 
@@ -81,7 +77,7 @@ struct VertexOut
 
 VertexOut VS(VertexIn vin)
 {
-	VertexOut vout;
+    VertexOut vout = (VertexOut) 0.0f;
 	
 	float4 posW = mul(vin.PosL, gWorld);
     vout.PosW = posW.xyz;
@@ -91,7 +87,8 @@ VertexOut VS(VertexIn vin)
     
     vout.PosH = mul(posW, gViewProj);
 
-    vout.TexC = mul(mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform), gMatTransform).xy;
+    float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
+    vout.TexC = mul(texC, gMatTransform).xy;
 
     return vout;
 }
@@ -117,7 +114,6 @@ float4 PS(VertexOut pin) : SV_Target
 
     float4 litColor = ambient + directLight;
 
-    // Common convention to take alpha from diffuse albedo.
     litColor.a = diffuseAlbedo.a;
 
     return litColor;
