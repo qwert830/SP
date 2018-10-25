@@ -3,7 +3,7 @@
 //
 // Transforms and colors geometry.
 //***************************************************************************************
-#include "LightingUtil.hlsl"
+
 #ifndef NUM_DIR_LIGHTS
     #define NUM_DIR_LIGHTS 3
 #endif
@@ -15,6 +15,9 @@
 #ifndef NUM_SPOT_LIGHTS
     #define NUM_SPOT_LIGHTS 0
 #endif
+
+#include "LightingUtil.hlsl"
+
 Texture2D gDiffuseMap : register(t0);
 
 SamplerState gsamPointWrap : register(s0);
@@ -82,7 +85,6 @@ VertexOut VS(VertexIn vin)
 	float4 posW = mul(vin.PosL, gWorld);
     vout.PosW = posW.xyz;
 
-	// Just pass vertex color into the pixel shader.
     vout.NormalW = mul(vin.NormalL, (float3x3) gWorld);
     
     vout.PosH = mul(posW, gViewProj);
@@ -97,17 +99,16 @@ float4 PS(VertexOut pin) : SV_Target
 {
     float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC) * gDiffuseAlbedo;
 	
-    // Interpolating normal can unnormalize it, so renormalize it.
     pin.NormalW = normalize(pin.NormalW);
 
-    // Vector from point being lit to eye. 
-    float3 toEyeW = normalize(gEyePosW - pin.PosW);
+    float3 toEyeW = normalize(pin.PosW - gEyePosW);
 
-    // Light terms.
     float4 ambient = gAmbientLight * diffuseAlbedo;
 
     const float shininess = 1.0f - gRoughness;
+
     Material mat = { diffuseAlbedo, gFresnelR0, shininess };
+
     float3 shadowFactor = 1.0f;
     float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
         pin.NormalW, toEyeW, shadowFactor);
@@ -118,5 +119,7 @@ float4 PS(VertexOut pin) : SV_Target
 
     return litColor;
 }
+
+
 
 
