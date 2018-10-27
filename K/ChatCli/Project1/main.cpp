@@ -22,6 +22,9 @@ char	packet_buffer[BUF_SIZE];
 DWORD		in_packet_size = 0;
 int		saved_packet_size = 0;
 int		g_myid;
+wchar_t displaybuff[100];
+int idx(0);
+bool gosign(false);
 
 BOOL CALLBACK DlgProc(HWND, UINT, WPARAM, LPARAM);
 
@@ -38,6 +41,10 @@ PLAYER other[MAX_USER];
 inline void ProcessPacket(char *ptr)
 {
 	static bool first_time = true;
+
+	sc_packet_chat* sc_chat_packet;
+	sc_chat_packet = reinterpret_cast<sc_packet_chat*>(ptr);
+
 	switch (ptr[1])
 	{
 	case SC_PUT_PLAYER:
@@ -52,7 +59,12 @@ inline void ProcessPacket(char *ptr)
 	}
 	case SC_CHAT:
 	{
-
+		displaybuff[idx++] = sc_chat_packet->message;
+		if (sc_chat_packet->message == L'\0') {
+			idx = 0;
+			gosign = true;
+		}
+		
 		break;
 
 	}
@@ -107,7 +119,6 @@ BOOL CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	static HWND hList, hButton;
 	static WSADATA wsadata;
-
 	switch (uMsg) {
 	case WM_INITDIALOG:
 	{
@@ -159,14 +170,18 @@ BOOL CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			SetDlgItemText(hDlg, IDC_EDIT1, L"");
 			//여기서 채팅내용 전송
 			cs_packet_chat *chatpacket = reinterpret_cast<cs_packet_chat *>(send_buffer);
-
 			chatpacket->size = sizeof(cs_packet_chat);
 			send_wsabuf.len = sizeof(cs_packet_chat);
 			chatpacket->type = CS_CHAT;
-			memcpy_s(chatpacket->message, sizeof(chatpacket->message), chatbuff, sizeof(chatbuff));
 			DWORD iobyte;
-			WSASend(g_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
-
+			for (int i = 0; i < MAX_STR_SIZE; ++i) {
+				chatpacket->message = chatbuff[i];
+				WSASend(g_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
+				if (chatbuff[i] == L'\0') {
+					break;
+				}
+			}
+			
 			return TRUE;
 		}
 		return FALSE;
@@ -182,6 +197,10 @@ BOOL CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		case FD_CLOSE:
 			closesocket((SOCKET)wParam);
 			break;
+		}
+		if (gosign) {
+			SetDlgItemText(hDlg, IDC_EDIT2, displaybuff);
+			gosign = false;
 		}
 		break;
 	case WM_CLOSE:

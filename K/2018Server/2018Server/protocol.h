@@ -1,6 +1,6 @@
 
 #define MAX_BUFF_SIZE   4000
-#define MAX_PACKET_SIZE  255
+#define MAX_PACKET_SIZE  513
 
 #define MAX_USER 2000
 
@@ -32,7 +32,7 @@ struct cs_packet_regist {
 struct cs_packet_chat {
 	unsigned char size;
 	unsigned char type;
-	wchar_t message[MAX_STR_SIZE];
+	wchar_t message;
 };
 //-------------------------------------------
 
@@ -50,8 +50,7 @@ struct sc_packet_remove_player {
 struct sc_packet_chat {
 	unsigned char size;
 	unsigned char type;
-	wchar_t nickname[MAX_NICK_SIZE];
-	wchar_t message[MAX_STR_SIZE];
+	wchar_t message;
 };
 
 #pragma pack (pop)

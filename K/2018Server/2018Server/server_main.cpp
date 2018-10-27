@@ -206,8 +206,8 @@ void DisconnectPlayer(int id)
 void ProcessPacket(int id, char *packet)
 {
 	cs_packet_regist* regpacket;
-	cs_packet_chat* cschatpacket;
-	sc_packet_chat chat_packet;
+	cs_packet_chat* cs_chat_packet;
+	sc_packet_chat sc_chat_packet;
 	cout << "프로세스 패킷 들어옴" << endl;
 
 	switch (packet[1])
@@ -228,11 +228,12 @@ void ProcessPacket(int id, char *packet)
 	case CS_CHAT:
 		cout << "채팅 패킷 옴" << endl;
 
-		cschatpacket = reinterpret_cast<cs_packet_chat*>(packet);
-		memcpy(chat_packet.message, cschatpacket->message, sizeof(cschatpacket->message));
-		memcpy(chat_packet.nickname, g_clients[id].m_name, sizeof(g_clients[id].m_name));
+		cs_chat_packet = reinterpret_cast<cs_packet_chat*>(packet);
+		sc_chat_packet.size = sizeof(sc_chat_packet);
+		sc_chat_packet.type = SC_CHAT;
+		sc_chat_packet.message = cs_chat_packet->message;
 		for (auto d : g_rooms[g_clients[id].m_roomnumber].m_userid) {
-			SendPacket(d, &chat_packet);
+			SendPacket(d, &sc_chat_packet);
 		}
 		break;
 	default:
