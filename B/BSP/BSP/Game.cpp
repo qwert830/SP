@@ -116,6 +116,7 @@ private:
 
 	// Render items divided by PSO.
 	std::vector<RenderItem*> mOpaqueRitems;
+	std::vector<RenderItem*> mTransparentRitems;
 
 	PassConstants mMainPassCB;
 
@@ -245,7 +246,7 @@ void Game::Draw(const GameTimer& gt)
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-    mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::LightSteelBlue, 0, nullptr);
+    mCommandList->ClearRenderTargetView(CurrentBackBufferView(), XMVECTORF32{ { { 0.700000000f, 0.700000000f, 0.700000000f, 1.000000000f } } } , 0, nullptr);
     mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 	
 	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
@@ -259,6 +260,7 @@ void Game::Draw(const GameTimer& gt)
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
 	DrawRenderItems(mCommandList.Get(), mOpaqueRitems);
+	DrawRenderItems(mCommandList.Get(), mTransparentRitems);
 	
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -431,8 +433,16 @@ void Game::LoadTextures()
 		mCommandList.Get(), tileTex->Filename.c_str(),
 		tileTex->Resource, tileTex->UploadHeap));
 
+	auto fogTex = std::make_unique<Texture>();
+	fogTex->Name = "fogTex";
+	fogTex->Filename = L"Resource/fog.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), fogTex->Filename.c_str(),
+		fogTex->Resource, fogTex->UploadHeap));
+
 	mTextures[seaFloorTex->Name] = std::move(seaFloorTex);
 	mTextures[tileTex->Name] = std::move(tileTex);
+	mTextures[fogTex->Name] = std::move(fogTex);
 }
 
 void Game::BuildRootSignature()
@@ -483,7 +493,7 @@ void Game::BuildDescriptorHeaps()
 	// Create the SRV heap.
 	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 2;
+	srvHeapDesc.NumDescriptors = 3;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -495,6 +505,7 @@ void Game::BuildDescriptorHeaps()
 
 	auto seaFloorTex = mTextures["seaFloorTex"]->Resource;
 	auto tileTex = mTextures["tileTex"]->Resource;
+	auto fogTex = mTextures["fogTex"]->Resource;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -510,7 +521,15 @@ void Game::BuildDescriptorHeaps()
 	srvDesc.Format = tileTex->GetDesc().Format;
 	srvDesc.Texture2D.MipLevels = tileTex->GetDesc().MipLevels;
 	md3dDevice->CreateShaderResourceView(tileTex.Get(), &srvDesc, hDescriptor);
+
+
+	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+
+	srvDesc.Format = fogTex->GetDesc().Format;
+	srvDesc.Texture2D.MipLevels = fogTex->GetDesc().MipLevels;
+	md3dDevice->CreateShaderResourceView(fogTex.Get(), &srvDesc, hDescriptor);
 }
+
 
 void Game::BuildShadersAndInputLayout()
 {
@@ -522,6 +541,9 @@ void Game::BuildShadersAndInputLayout()
 
 	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shader\\color.hlsl", nullptr, "VS", "vs_5_0");
 	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shader\\color.hlsl", nullptr, "PS", "ps_5_0");
+
+	mShaders["fogVS"] = d3dUtil::CompileShader(L"Shader\\color.hlsl", nullptr, "fogVS", "vs_5_0");
+	mShaders["fogPS"] = d3dUtil::CompileShader(L"Shader\\color.hlsl", nullptr, "fogPS", "ps_5_0");
 
     mInputLayout =
     {
@@ -541,7 +563,7 @@ void Game::BuildShapeGeometry()
 
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 30.0f, 60, 40);
-
+	GeometryGenerator::MeshData fog = geoGen.CreateGrid(2.0f, 2.0f, 2, 2);
 	// 모델 로딩
 	fin.open("Resource/model.txt");
 	if (fin.fail())
@@ -584,7 +606,7 @@ void Game::BuildShapeGeometry()
 	// 모델 데이터 입력
 	auto totalVertexCount = (size_t)m_vertexCount + grid.Vertices.size();
 	
-	std::vector<Vertex> vertices(totalVertexCount);
+	std::vector<Vertex> vertices(1000000);
 	std::vector<uint16_t> indices;
 
 	int k = 0;
@@ -607,14 +629,24 @@ void Game::BuildShapeGeometry()
 	}
 	indices.insert(indices.end(), grid.Indices32.begin(), grid.Indices32.end());
 
+	for (int i = 0; i < fog.Vertices.size(); ++i, ++k)
+	{
+		vertices[k].Pos = XMFLOAT4(fog.Vertices[i].Position.x, fog.Vertices[i].Position.y, fog.Vertices[i].Position.z, 1.0f);
+		vertices[k].Tex = fog.Vertices[i].TexC;
+		vertices[k].Normal = fog.Vertices[i].Normal;
+	}
+	indices.insert(indices.end(), fog.Indices32.begin(), fog.Indices32.end());
+
     const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
 	UINT modelVertexOffset = 0;
 	UINT gridVertexOffset = m_vertexCount;
+	UINT fogVertexOffset = gridVertexOffset + (UINT)grid.Vertices.size();
 
 	UINT modelIndexOffset = 0;
 	UINT gridIndexOffset = modelIndexCount;
+	UINT fogIndexOffset = gridIndexOffset + (UINT)grid.Indices32.size();
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = "shapeGeo";
@@ -649,8 +681,14 @@ void Game::BuildShapeGeometry()
 	gridSubmesh.StartIndexLocation = gridIndexOffset;
 	gridSubmesh.BaseVertexLocation = gridVertexOffset;
 
+	SubmeshGeometry fogSubmesh;
+	fogSubmesh.IndexCount = (UINT)fog.Indices32.size();
+	fogSubmesh.StartIndexLocation = fogIndexOffset;
+	fogSubmesh.BaseVertexLocation = fogVertexOffset;
+
 	geo->DrawArgs["box"] = submesh;
 	geo->DrawArgs["grid"] = gridSubmesh;
+	geo->DrawArgs["fog"] = fogSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
 }
@@ -684,23 +722,34 @@ void Game::BuildPSOs()
 	opaquePsoDesc.DSVFormat = mDepthStencilFormat;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPsoDesc = opaquePsoDesc;
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC fogPsoDesc = opaquePsoDesc;
+	fogPsoDesc.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["fogVS"]->GetBufferPointer()),
+		mShaders["fogVS"]->GetBufferSize()
+	};
+	fogPsoDesc.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["fogPS"]->GetBufferPointer()),
+		mShaders["fogPS"]->GetBufferSize()
+	};
+	fogPsoDesc.DepthStencilState.DepthEnable = FALSE;
 
-	D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
-	transparencyBlendDesc.BlendEnable = true;
-	transparencyBlendDesc.LogicOpEnable = false;
-	transparencyBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	transparencyBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-	transparencyBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
-	transparencyBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
-	transparencyBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
-	transparencyBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP; // 렌더대상에 대한 작업을 수행안함
-	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	D3D12_RENDER_TARGET_BLEND_DESC fogBlendDesc;
+	fogBlendDesc.BlendEnable = true;
+	fogBlendDesc.LogicOpEnable = false;
+	fogBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	fogBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	fogBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+	fogBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+	fogBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
+	fogBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	fogBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP; // 렌더대상에 대한 작업을 수행안함
+	fogBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-	transparentPsoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
+	fogPsoDesc.BlendState.RenderTarget[0] = fogBlendDesc;
 
-	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&mPSOs["transparent"])));
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&fogPsoDesc, IID_PPV_ARGS(&mPSOs["fog"])));
 }
 
 void Game::BuildFrameResources()
@@ -730,14 +779,23 @@ void Game::BuildMaterials()
 	tile0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
 	tile0->Roughness = 0.3f;
 
+	auto fog0 = std::make_unique<Material>();
+	fog0->Name = "fog0";
+	fog0->MatCBIndex = 2;
+	fog0->DiffuseSrvHeapIndex = 2;
+	fog0->DiffuseAlbedo = XMFLOAT4(0.3f, 0.3f, 0.3f, 0.5f);
+	fog0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
+	fog0->Roughness = 0.7f;
+
 	mMaterials["seafloor0"] = std::move(seafloor0);
 	mMaterials["tile0"] = std::move(tile0);
+	mMaterials["fog0"] = std::move(fog0);
 }
 
 void Game::BuildRenderItems()
 {
 	auto boxRitem = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 1.0f, 0.0f));
+	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 10.0f, 0.0f));
 	XMStoreFloat4x4(&boxRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	boxRitem->ObjCBIndex = 0;
 	boxRitem->Mat = mMaterials["seafloor0"].get();
@@ -747,12 +805,12 @@ void Game::BuildRenderItems()
 	boxRitem->StartIndexLocation = boxRitem->Geo->DrawArgs["box"].StartIndexLocation;
 	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["box"].BaseVertexLocation;
 
-	XMStoreFloat4x4(&boxRitem->World, XMMatrixTranslation(0, 10, 0));
+	//XMStoreFloat4x4(&boxRitem->World, XMMatrixTranslation(0, 10, 0));
 
 	mAllRitems.push_back(std::move(boxRitem));
 
 	auto gridRitem = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 1.0f, 0.0f));
+	XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
 	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	gridRitem->ObjCBIndex = 1;
 	gridRitem->Mat = mMaterials["tile0"].get();
@@ -762,11 +820,24 @@ void Game::BuildRenderItems()
 	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 	mAllRitems.push_back(std::move(gridRitem));
-
-
+	
 	// All the render items are opaque.
 	for (auto& e : mAllRitems)
 		mOpaqueRitems.push_back(e.get());
+
+	auto fogRitem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&fogRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixRotationRollPitchYaw(-90*3.14/180,0,0));
+	XMStoreFloat4x4(&fogRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+	fogRitem->ObjCBIndex = 2;
+	fogRitem->Mat = mMaterials["fog0"].get();
+	fogRitem->Geo = mGeometries["shapeGeo"].get();
+	fogRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	fogRitem->IndexCount = fogRitem->Geo->DrawArgs["fog"].IndexCount;
+	fogRitem->StartIndexLocation = fogRitem->Geo->DrawArgs["fog"].StartIndexLocation;
+	fogRitem->BaseVertexLocation = fogRitem->Geo->DrawArgs["fog"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(fogRitem));
+
+	mTransparentRitems.push_back(mAllRitems[mAllRitems.size()-1].get());
 }
 
 void Game::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)

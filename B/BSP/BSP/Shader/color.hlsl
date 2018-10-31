@@ -82,7 +82,7 @@ VertexOut VS(VertexIn vin)
 {
     VertexOut vout = (VertexOut) 0.0f;
 	
-	float4 posW = mul(vin.PosL, gWorld);
+    float4 posW = mul(vin.PosL, gWorld);
     vout.PosW = posW.xyz;
 
     vout.NormalW = mul(vin.NormalL, (float3x3) gWorld);
@@ -93,7 +93,7 @@ VertexOut VS(VertexIn vin)
     vout.TexC = mul(texC, gMatTransform).xy;
 
     return vout;
-}
+};
 
 float4 PS(VertexOut pin) : SV_Target
 {
@@ -101,25 +101,55 @@ float4 PS(VertexOut pin) : SV_Target
 	
     pin.NormalW = normalize(pin.NormalW);
 
-    float3 toEyeW = normalize(pin.PosW - gEyePosW);
+    float3 toEyeW = pin.PosW - gEyePosW;
+    float distToEye = length(toEyeW);
+    toEyeW /= distToEye;
 
     float4 ambient = gAmbientLight * diffuseAlbedo;
 
     const float shininess = 1.0f - gRoughness;
-
     Material mat = { diffuseAlbedo, gFresnelR0, shininess };
-
     float3 shadowFactor = 1.0f;
     float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
         pin.NormalW, toEyeW, shadowFactor);
 
     float4 litColor = ambient + directLight;
 
+    float4 fogColor = float4(0.7f, 0.7f, 0.7f, 1.0f);
+
+    // 조명계산까지 완료
+    // ex) 1,0,0,0 * 0.5 = 0.5 0 0 0;
+    litColor = lerp(litColor, fogColor, saturate((distToEye - 5.0f) / 150.0f));
+    //if(pin.PosH.z <= 1)
+    //    litColor = 1;
+    //else
+    //    litColor = 0;
+    // 0은 검은색 1은 흰색
+    // 드로우 할 때 픽셀셰이더에서 안개효과를 줄 시 빈공간은 안개효과가 없기 때문에 안개효과가 안느껴진다.
     litColor.a = diffuseAlbedo.a;
+    
+    return litColor;
+};
+
+VertexOut fogVS(VertexIn vin)
+{
+    VertexOut vout = (VertexOut) 0.0f;
+
+    vout.PosH = vin.PosL.xzyw;
+
+    float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
+    vout.TexC = mul(texC, gMatTransform).xy;
+
+    return vout;
+};
+
+float4 fogPS(VertexOut pin) : SV_Target
+{
+    float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC) * gDiffuseAlbedo;
+    diffuseAlbedo.a = 0.3f;
+
+    float4 litColor = 0;
 
     return litColor;
-}
-
-
-
+};
 
