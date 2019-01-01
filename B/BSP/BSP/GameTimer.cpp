@@ -6,7 +6,7 @@
 #include "GameTimer.h"
 
 GameTimer::GameTimer()
-: mSecondsPerCount(0.0), mDeltaTime(-1.0), mBaseTime(0), 
+: mSecondsPerCount(0.0),mFrameTime(0.0), mDeltaTime(-1.0), mBaseTime(0), 
   mPausedTime(0), mPrevTime(0), mCurrTime(0), mStopped(false)
 {
 	__int64 countsPerSec;
@@ -53,6 +53,16 @@ float GameTimer::DeltaTime()const
 	return (float)mDeltaTime;
 }
 
+bool GameTimer::FrameTime()
+{
+	if (mFrameTime >= FPS)
+	{
+		mFrameTime -= FPS;
+		return true;
+	}
+	return false;
+}
+
 void GameTimer::Reset()
 {
 	__int64 currTime;
@@ -60,6 +70,7 @@ void GameTimer::Reset()
 
 	mBaseTime = currTime;
 	mPrevTime = currTime;
+	mFrameTime = 0;
 	mStopTime = 0;
 	mStopped  = false;
 }
@@ -106,15 +117,17 @@ void GameTimer::Tick()
 		return;
 	}
 
-	__int64 currTime;
-	QueryPerformanceCounter((LARGE_INTEGER*)&currTime);
-	mCurrTime = currTime;
-
-	// Time difference between this frame and the previous.
-	mDeltaTime = (mCurrTime - mPrevTime)*mSecondsPerCount;
-
-	// Prepare for next frame.
-	mPrevTime = mCurrTime;
+    __int64 currTime;
+    QueryPerformanceCounter((LARGE_INTEGER*)&currTime);
+    mCurrTime = currTime;
+    
+    // Time difference between this frame and the previous.
+    mDeltaTime = (mCurrTime - mPrevTime)*mSecondsPerCount;
+    
+    mFrameTime += mDeltaTime;
+    
+    // Prepare for next frame.
+    mPrevTime = mCurrTime;
 
 	// Force nonnegative.  The DXSDK's CDXUTTimer mentions that if the 
 	// processor goes into a power save mode or we get shuffled to another

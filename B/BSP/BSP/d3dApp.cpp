@@ -81,11 +81,14 @@ int D3DApp::Run()
         {	
 			mTimer.Tick();
 
-			if( !mAppPaused )
+			if(!mAppPaused )
 			{
-				CalculateFrameStats();
 				Update(mTimer);	
-                Draw(mTimer);
+				if (mTimer.FrameTime())
+				{
+					Draw(mTimer);
+					CalculateFrameStats();
+				}
 			}
 			else
 			{
