@@ -126,6 +126,7 @@ float4 PS(VertexOut pin) : SV_Target
     //    litColor = 0;
     // 0은 검은색 1은 흰색
     // 드로우 할 때 픽셀셰이더에서 안개효과를 줄 시 빈공간은 안개효과가 없기 때문에 안개효과가 안느껴진다.
+    // 배경색을 안개색과 동일하게 할 시 안개효과를 느낄 수 있음, 스카이박스를 사용하면 해결될 것으로 예상
     litColor.a = diffuseAlbedo.a;
     
     return litColor;
@@ -148,7 +149,7 @@ float4 fogPS(VertexOut pin) : SV_Target
     float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC) * gDiffuseAlbedo;
     diffuseAlbedo.a = 0.3f;
 
-    float4 litColor = 0;
+    float4 litColor = diffuseAlbedo;
 
     return litColor;
 };
