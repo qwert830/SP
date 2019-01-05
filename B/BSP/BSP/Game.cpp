@@ -31,6 +31,7 @@ struct RenderItem
 	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
 	UINT IndexCount = 0;
+	UINT InstanceCount = 0;
 	UINT StartIndexLocation = 0;
 	int BaseVertexLocation = 0;
 };
@@ -542,6 +543,7 @@ void Game::BuildShadersAndInputLayout()
     };
 }
 
+//메쉬 데이터 생성
 void Game::BuildShapeGeometry()
 {
 	std::ifstream fin;
@@ -682,6 +684,7 @@ void Game::BuildShapeGeometry()
 	mGeometries[geo->Name] = std::move(geo);
 }
 
+//파이프라인 생성
 void Game::BuildPSOs()
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc;
@@ -750,6 +753,7 @@ void Game::BuildFrameResources()
 	}
 }
 
+//재질 데이터 생성
 void Game::BuildMaterials()
 {
 	auto seafloor0 = std::make_unique<Material>();

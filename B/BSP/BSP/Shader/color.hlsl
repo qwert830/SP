@@ -1,9 +1,3 @@
-//***************************************************************************************
-// color.hlsl by Frank Luna (C) 2015 All Rights Reserved.
-//
-// Transforms and colors geometry.
-//***************************************************************************************
-
 #ifndef NUM_DIR_LIGHTS
     #define NUM_DIR_LIGHTS 3
 #endif
@@ -28,12 +22,14 @@ SamplerState gsamAnisotropicWrap : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
 
 // 셰이더 레지스터 = 루트시그니쳐 cbv테이블
+
+// 인스턴싱 -> b0, b2 -> 버퍼로 묶어서 쉐이더에 올린다. t0,t1 .... DiffuseMap과 겹치지않게 공간은 다르게
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
     float4x4 gTexTransform;
 };
-
+// const buffer
 cbuffer cbPass : register(b1)
 {
     float4x4 gView;
