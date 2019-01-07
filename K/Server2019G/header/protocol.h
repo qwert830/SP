@@ -14,18 +14,25 @@
 #define MAX_ROOMLIMIT 10
 
 
-#define CS_REGIST 100
 
-#define SC_PUT_PLAYER    99
-#define SC_REMOVE_PLAYER 100
+#define CS_JOIN 99
+#define CS_QUIT 100
+
+#define SC_JOIN_PLAYER    99
+#define SC_QUIT_PLAYER 100
 
 #pragma pack (push, 1)
 // 클라이언트 -> 서버------------------------
 
-struct cs_packet_regist {
+struct cs_join_packet {
 	unsigned char size;
 	unsigned char type;
 	unsigned int roomnumber;
+};
+
+struct cs_exit_packet {
+	unsigned char size;
+	unsigned char type;
 };
 
 struct cs_attack_packet {
@@ -51,13 +58,13 @@ struct cs_status_packet {
 };
 // 서버 -> 클라이언트------------------------
 
-struct sc_packet_put_player {
+struct sc_player_join_packet {
 	unsigned char size;
 	unsigned char type;
 	unsigned int id;
 };
 
-struct sc_packet_remove_player {
+struct sc_player_quit_packet {
 	unsigned char size;
 	unsigned char type;
 	unsigned int id;
@@ -66,11 +73,13 @@ struct sc_packet_remove_player {
 struct sc_status_packet {
 	unsigned char size;
 	unsigned char type;
+	unsigned char status;
 };
 
 struct sc_timer_packet {
 	unsigned char size;
 	unsigned char type;
+	unsigned int timer;
 };
 
 struct sc_angle_packet {

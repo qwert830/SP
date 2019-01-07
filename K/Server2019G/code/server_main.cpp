@@ -14,8 +14,6 @@
 #include "../header/protocol.h"
 #include <chrono>
 
-
-#define UNICODE  
 #include <sqlext.h>  
 #include <locale.h>
 
@@ -60,14 +58,14 @@ public:
 class Room {
 public:
 	unordered_set<int> m_userid;
-	char m_currentnum;
+	unsigned char m_currentnum;
 
 	Room() {
 		m_userid.clear();
 		m_currentnum = 0;
 	}
 
-	bool insert(int id) {
+	bool join(const int id) {
 		if (m_currentnum < MAX_ROOMLIMIT) {
 			m_userid.insert(id);
 			m_currentnum++;
@@ -76,7 +74,7 @@ public:
 		return false;
 	}
 
-	void exit(int id) {
+	void quit(const int id) {
 		m_userid.erase(id);
 		m_currentnum--;
 	}
@@ -148,7 +146,6 @@ void StartRecv(int id)
 
 void SendPacket(int id, void * ptr)
 {
-	if (!g_clients[id].m_isconnected) return;
 	char *packet = reinterpret_cast<char *>(ptr);
 	EXOVER *s_over = new EXOVER;
 	s_over->work = -1;
@@ -164,37 +161,16 @@ void SendPacket(int id, void * ptr)
 	}
 }
 
-void SendPutObjectPacket(int client, int object)
-{
-	sc_packet_put_player p;
-	p.id = object;
-	p.size = sizeof(p);
-	p.type = SC_PUT_PLAYER;
-
-	SendPacket(client, &p);
-}
-
-void SendRemoveObjectPacket(int client, int object)
-{
-	sc_packet_remove_player p;
-	p.id = object;
-	p.size = sizeof(p);
-	p.type = SC_REMOVE_PLAYER;
-
-	SendPacket(client, &p);
-}
-
 void DisconnectPlayer(int id)
 {
-	sc_packet_remove_player p;
+	sc_player_quit_packet p;
 	p.id = id;
-	p.type = SC_REMOVE_PLAYER;
+	p.type = SC_QUIT_PLAYER;
 	p.size = sizeof(p);
-	for (int i = 0; i < MAX_USER; ++i)
-	{
-		if (g_clients[i].m_isconnected == false) continue;
-		if (i == id) continue;
-		SendPacket(i, &p);
+	if (g_clients[id].m_roomnumber != -1) {
+		for (int d : g_rooms[g_clients[id].m_roomnumber].m_userid) {
+			SendPacket(d, &p);
+		}
 	}
 	closesocket(g_clients[id].m_s);
 	g_clients[id].m_isconnected = false;
@@ -202,22 +178,39 @@ void DisconnectPlayer(int id)
 
 void ProcessPacket(int id, char *packet)
 {
-	cs_packet_regist* regpacket;
-	cout << "프로세스 패킷 들어옴" << endl;
+	cs_join_packet* packet_join;
 
 	switch (packet[1])
 	{
-	case CS_REGIST:
-		cout << "레지스트 패킷 옴" << endl;
-		regpacket = reinterpret_cast<cs_packet_regist*>(packet);
-		if (0 <= regpacket->roomnumber < MAX_ROOMNUMBER) {
-			if (g_rooms[regpacket->roomnumber].insert(id)) {
-				g_clients[id].m_roomnumber = regpacket->roomnumber;
-				cout << id << " 가" << regpacket->roomnumber << " 방 접속함" << endl;
+	case CS_JOIN:
+		packet_join = reinterpret_cast<cs_join_packet*>(packet);
+		if (0 <= packet_join->roomnumber < MAX_ROOMNUMBER) {
+			if (g_rooms[packet_join->roomnumber].join(id)) {
+				g_clients[id].m_roomnumber = packet_join->roomnumber;
+				sc_player_join_packet p;
+				p.id = id;
+				p.type = SC_JOIN_PLAYER;
+				p.size = sizeof(p);
+				for (int d : g_rooms[g_clients[id].m_roomnumber].m_userid) {
+					SendPacket(d, &p);
+				}
+				cout << id << " 가" << packet_join->roomnumber << " 방 접속함" << endl;
 			}
 			else
-				cout << "방이 꽉참" << endl;
+				cout << packet_join->roomnumber << " 방이 꽉참" << endl;
 		}
+		break;
+	case CS_QUIT:
+		g_rooms[g_clients[id].m_roomnumber].quit(id);
+		g_clients[id].m_roomnumber = -1;
+		sc_player_quit_packet p;
+		p.id = id;
+		p.type = SC_QUIT_PLAYER;
+		p.size = sizeof(p);
+		for (int d : g_rooms[g_clients[id].m_roomnumber].m_userid) {
+			SendPacket(d, &p);
+		}
+		cout << id << " 가" << packet_join->roomnumber << " 방 나감" << endl;
 		break;
 	default:
 		cout << "Unkown Packet Type from Client [" << id << "]\n";
@@ -241,12 +234,12 @@ void worker_thread()
 			DisconnectPlayer(key);
 			continue;
 		}
-		else if (0 == io_size)
-		{
-			cout << "Error in GQCS?" << endl;
-			DisconnectPlayer(key);
-			continue;
-		}
+		//else if (0 == io_size)
+		//{
+		//	cout << "Error in GQCS?" << endl;
+		//	DisconnectPlayer(key);
+		//	continue;
+		//}
 		
 		EXOVER *p_over = reinterpret_cast<EXOVER*>(over);
 		if (RECV == p_over->work)
@@ -345,13 +338,6 @@ void Accept_Threads()
 		CreateIoCompletionPort(reinterpret_cast<HANDLE>(cs), ghiocp, id, 0);
 		g_clients[id].m_isconnected = true;
 		StartRecv(id);
-
-		sc_packet_put_player p;
-		p.id = id;
-		p.size = sizeof(p);
-		p.type = SC_PUT_PLAYER;
-
-		SendPacket(id, &p);
 	}
 }
 
