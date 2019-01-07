@@ -128,25 +128,3 @@ float4 PS(VertexOut pin) : SV_Target
     return litColor;
 };
 
-VertexOut fogVS(VertexIn vin)
-{
-    VertexOut vout = (VertexOut) 0.0f;
-
-    vout.PosH = vin.PosL.xzyw;
-
-    float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), gTexTransform);
-    vout.TexC = mul(texC, gMatTransform).xy;
-
-    return vout;
-};
-
-float4 fogPS(VertexOut pin) : SV_Target
-{
-    float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC) * gDiffuseAlbedo;
-    diffuseAlbedo.a = 0.3f;
-
-    float4 litColor = diffuseAlbedo;
-
-    return litColor;
-};
-

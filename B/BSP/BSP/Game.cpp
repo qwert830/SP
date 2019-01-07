@@ -30,6 +30,8 @@ struct RenderItem
 
 	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
+	std::vector<InstanceData> Instances;
+
 	UINT IndexCount = 0;
 	UINT InstanceCount = 0;
 	UINT StartIndexLocation = 0;
@@ -66,6 +68,7 @@ private:
 	void LoadTextures();
     void BuildDescriptorHeaps();
     void BuildRootSignature();
+	void BuildInstancingRootSignature();
     void BuildShadersAndInputLayout();
     void BuildShapeGeometry(); // 박스 생성 ( 디폴트버퍼 / 업로드버퍼 / 매쉬데이터 )
     void BuildPSOs(); // 파이프라인 스테이트 생성
@@ -73,6 +76,7 @@ private:
 	void BuildMaterials();
 	void BuildRenderItems();
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
+	void DrawInstancingRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
 private:
@@ -86,6 +90,7 @@ private:
 	UINT mCbvSrvDescriptorSize = 0;
 
     ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
+	ComPtr<ID3D12RootSignature> mInstancingRootSignature = nullptr;
 
 	ComPtr<ID3D12DescriptorHeap> mSrvDescriptorHeap = nullptr;
 
@@ -98,7 +103,7 @@ private:
 	std::unordered_map<std::string, std::unique_ptr<Material>> mMaterials;
 	std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
 	std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
-    std::unordered_map<std::string,ComPtr<ID3D12PipelineState>> mPSOs;
+    std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> mPSOs;
 
     std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 
@@ -172,6 +177,7 @@ bool Game::Initialize()
 	LoadTextures();
 	BuildDescriptorHeaps();
     BuildRootSignature();
+	BuildInstancingRootSignature();
     BuildShadersAndInputLayout();
     BuildShapeGeometry();
 	BuildMaterials();
@@ -249,8 +255,8 @@ void Game::Draw(const GameTimer& gt)
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
-	DrawRenderItems(mCommandList.Get(), mOpaqueRitems);
-	DrawRenderItems(mCommandList.Get(), mTransparentRitems);
+	DrawRenderItems(mCommandList.Get(), mOpaqueRitems); // 불투명 렌더 아이템 
+	DrawRenderItems(mCommandList.Get(), mTransparentRitems); // 반투명 렌더 아이템
 	
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -423,25 +429,14 @@ void Game::LoadTextures()
 		mCommandList.Get(), tileTex->Filename.c_str(),
 		tileTex->Resource, tileTex->UploadHeap));
 
-	auto fogTex = std::make_unique<Texture>();
-	fogTex->Name = "fogTex";
-	fogTex->Filename = L"Resource/fog.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
-		mCommandList.Get(), fogTex->Filename.c_str(),
-		fogTex->Resource, fogTex->UploadHeap));
-
 	mTextures[seaFloorTex->Name] = std::move(seaFloorTex);
 	mTextures[tileTex->Name] = std::move(tileTex);
-	mTextures[fogTex->Name] = std::move(fogTex);
 }
 
 void Game::BuildRootSignature()
 {
 	CD3DX12_DESCRIPTOR_RANGE texTable;
-	texTable.Init(
-		D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-		1,  // number of descriptors
-		0); // register t0
+	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,1,0); 
 
 	// Root parameter can be a table, root descriptor or root constants.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[4];
@@ -474,28 +469,57 @@ void Game::BuildRootSignature()
 		0,
 		serializedRootSig->GetBufferPointer(),
 		serializedRootSig->GetBufferSize(),
-		IID_PPV_ARGS(&mRootSignature)));
+		IID_PPV_ARGS(mRootSignature.GetAddressOf())));
+}
+
+void Game::BuildInstancingRootSignature()
+{
+	CD3DX12_DESCRIPTOR_RANGE texTable;
+	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0);
+
+	CD3DX12_ROOT_PARAMETER slotRootParameter[4];
+
+	slotRootParameter[0].InitAsShaderResourceView(0, 1); // instancing
+	slotRootParameter[1].InitAsShaderResourceView(1, 1); // instancing
+	slotRootParameter[2].InitAsConstantBufferView(0); // cbpass
+	slotRootParameter[3].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
+
+	auto staticSamplers = GetStaticSamplers();
+
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter,
+		(UINT)staticSamplers.size(), staticSamplers.data(),
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+	ComPtr<ID3DBlob> serializedRootSig = nullptr;
+	ComPtr<ID3DBlob> errorBlob = nullptr;
+	HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+		serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
+
+	if (errorBlob != nullptr)
+	{
+		::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+	}
+	ThrowIfFailed(hr);
+
+	ThrowIfFailed(md3dDevice->CreateRootSignature(
+		0,
+		serializedRootSig->GetBufferPointer(),
+		serializedRootSig->GetBufferSize(),
+		IID_PPV_ARGS(mInstancingRootSignature.GetAddressOf())));
 }
 
 void Game::BuildDescriptorHeaps()
 {
-	//
-	// Create the SRV heap.
-	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 3;
+	srvHeapDesc.NumDescriptors = 2;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
 
-	//
-	// Fill out the heap with actual descriptors.
-	//
 	CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 	auto seaFloorTex = mTextures["seaFloorTex"]->Resource;
 	auto tileTex = mTextures["tileTex"]->Resource;
-	auto fogTex = mTextures["fogTex"]->Resource;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -512,12 +536,6 @@ void Game::BuildDescriptorHeaps()
 	srvDesc.Texture2D.MipLevels = tileTex->GetDesc().MipLevels;
 	md3dDevice->CreateShaderResourceView(tileTex.Get(), &srvDesc, hDescriptor);
 
-
-	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
-
-	srvDesc.Format = fogTex->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = fogTex->GetDesc().MipLevels;
-	md3dDevice->CreateShaderResourceView(fogTex.Get(), &srvDesc, hDescriptor);
 }
 
 
@@ -532,8 +550,8 @@ void Game::BuildShadersAndInputLayout()
 	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shader\\color.hlsl", nullptr, "VS", "vs_5_0");
 	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shader\\color.hlsl", nullptr, "PS", "ps_5_0");
 
-	mShaders["fogVS"] = d3dUtil::CompileShader(L"Shader\\color.hlsl", nullptr, "fogVS", "vs_5_0");
-	mShaders["fogPS"] = d3dUtil::CompileShader(L"Shader\\color.hlsl", nullptr, "fogPS", "ps_5_0");
+	mShaders["instancingVS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "VS", "vs_5_1");
+	mShaders["instancingOpaquePS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "PS", "ps_5_1");
 
     mInputLayout =
     {
@@ -554,7 +572,6 @@ void Game::BuildShapeGeometry()
 
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 30.0f, 60, 40);
-	GeometryGenerator::MeshData fog = geoGen.CreateGrid(2.0f, 2.0f, 2, 2);
 	// 모델 로딩
 	fin.open("Resource/model.txt");
 	if (fin.fail())
@@ -620,24 +637,14 @@ void Game::BuildShapeGeometry()
 	}
 	indices.insert(indices.end(), grid.Indices32.begin(), grid.Indices32.end());
 
-	for (int i = 0; i < fog.Vertices.size(); ++i, ++k)
-	{
-		vertices[k].Pos = XMFLOAT4(fog.Vertices[i].Position.x, fog.Vertices[i].Position.y, fog.Vertices[i].Position.z, 1.0f);
-		vertices[k].Tex = fog.Vertices[i].TexC;
-		vertices[k].Normal = fog.Vertices[i].Normal;
-	}
-	indices.insert(indices.end(), fog.Indices32.begin(), fog.Indices32.end());
-
     const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
-	UINT modelVertexOffset = 0;
-	UINT gridVertexOffset = m_vertexCount;
-	UINT fogVertexOffset = gridVertexOffset + (UINT)grid.Vertices.size();
-
 	UINT modelIndexOffset = 0;
+	UINT modelVertexOffset = 0;
+
 	UINT gridIndexOffset = modelIndexCount;
-	UINT fogIndexOffset = gridIndexOffset + (UINT)grid.Indices32.size();
+	UINT gridVertexOffset = m_vertexCount;
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = "shapeGeo";
@@ -672,14 +679,9 @@ void Game::BuildShapeGeometry()
 	gridSubmesh.StartIndexLocation = gridIndexOffset;
 	gridSubmesh.BaseVertexLocation = gridVertexOffset;
 
-	SubmeshGeometry fogSubmesh;
-	fogSubmesh.IndexCount = (UINT)fog.Indices32.size();
-	fogSubmesh.StartIndexLocation = fogIndexOffset;
-	fogSubmesh.BaseVertexLocation = fogVertexOffset;
 
 	geo->DrawArgs["box"] = submesh;
 	geo->DrawArgs["grid"] = gridSubmesh;
-	geo->DrawArgs["fog"] = fogSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
 }
@@ -713,35 +715,23 @@ void Game::BuildPSOs()
 	opaquePsoDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
 	opaquePsoDesc.DSVFormat = mDepthStencilFormat;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
+	
+	// 인스턴싱용 PSO 작성
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC instancingPsoDesc = opaquePsoDesc;
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC fogPsoDesc = opaquePsoDesc;
-	fogPsoDesc.VS =
+	instancingPsoDesc.pRootSignature = mInstancingRootSignature.Get();
+	instancingPsoDesc.VS =
 	{
-		reinterpret_cast<BYTE*>(mShaders["fogVS"]->GetBufferPointer()),
-		mShaders["fogVS"]->GetBufferSize()
+		reinterpret_cast<BYTE*>(mShaders["instancingVS"]->GetBufferPointer()),
+		mShaders["instancingVS"]->GetBufferSize()
 	};
-	fogPsoDesc.PS =
+	instancingPsoDesc.PS =
 	{
-		reinterpret_cast<BYTE*>(mShaders["fogPS"]->GetBufferPointer()),
-		mShaders["fogPS"]->GetBufferSize()
+		reinterpret_cast<BYTE*>(mShaders["instancingOpaquePS"]->GetBufferPointer()),
+		mShaders["instancingOpaquePS"]->GetBufferSize()
 	};
-	fogPsoDesc.DepthStencilState.DepthEnable = FALSE;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&instancingPsoDesc, IID_PPV_ARGS(&mPSOs["instancingOpaque"])));
 
-	D3D12_RENDER_TARGET_BLEND_DESC fogBlendDesc;
-	fogBlendDesc.BlendEnable = true;
-	fogBlendDesc.LogicOpEnable = false;
-	fogBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	fogBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-	fogBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
-	fogBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
-	fogBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
-	fogBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	fogBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP; // 렌더대상에 대한 작업을 수행안함
-	fogBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-	fogPsoDesc.BlendState.RenderTarget[0] = fogBlendDesc;
-
-	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&fogPsoDesc, IID_PPV_ARGS(&mPSOs["fog"])));
 }
 
 void Game::BuildFrameResources()
@@ -798,8 +788,6 @@ void Game::BuildRenderItems()
 	boxRitem->StartIndexLocation = boxRitem->Geo->DrawArgs["box"].StartIndexLocation;
 	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["box"].BaseVertexLocation;
 
-	//XMStoreFloat4x4(&boxRitem->World, XMMatrixTranslation(0, 10, 0));
-
 	mAllRitems.push_back(std::move(boxRitem));
 
 	auto gridRitem = std::make_unique<RenderItem>();
@@ -812,25 +800,11 @@ void Game::BuildRenderItems()
 	gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
 	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
+	
 	mAllRitems.push_back(std::move(gridRitem));
 	
-	// All the render items are opaque.
 	for (auto& e : mAllRitems)
 		mOpaqueRitems.push_back(e.get());
-
-	auto fogRitem = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&fogRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixRotationRollPitchYaw(-90*3.14/180,0,0));
-	XMStoreFloat4x4(&fogRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-	fogRitem->ObjCBIndex = 2;
-	fogRitem->Mat = mMaterials["fog0"].get();
-	fogRitem->Geo = mGeometries["shapeGeo"].get();
-	fogRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	fogRitem->IndexCount = fogRitem->Geo->DrawArgs["fog"].IndexCount;
-	fogRitem->StartIndexLocation = fogRitem->Geo->DrawArgs["fog"].StartIndexLocation;
-	fogRitem->BaseVertexLocation = fogRitem->Geo->DrawArgs["fog"].BaseVertexLocation;
-	mAllRitems.push_back(std::move(fogRitem));
-
-	mTransparentRitems.push_back(mAllRitems[mAllRitems.size()-1].get());
 }
 
 void Game::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
@@ -859,6 +833,23 @@ void Game::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector
 		cmdList->SetGraphicsRootDescriptorTable(0, tex);
 		cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
 		cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
+
+		cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+	}
+}
+
+void Game::DrawInstancingRenderItems(ID3D12GraphicsCommandList * cmdList, const std::vector<RenderItem*>& ritems)
+{
+	for (size_t i = 0; i < ritems.size(); ++i)
+	{
+		auto ri = ritems[i];
+
+		cmdList->IASetVertexBuffers(0, 1, &ri->Geo->VertexBufferView());
+		cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
+		cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
+
+		auto instanceBuffer = mCurrFrameResource->InstanceBuffer->Resource();
+		mCommandList->SetGraphicsRootShaderResourceView(0, instanceBuffer->GetGPUVirtualAddress());
 
 		cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
 	}
