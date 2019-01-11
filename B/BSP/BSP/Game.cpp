@@ -33,7 +33,7 @@ struct RenderItem
 	std::vector<InstanceData> Instances;
 
 	UINT IndexCount = 0;
-	UINT InstanceCount = 0;
+	UINT InstanceCount = -1;
 	UINT StartIndexLocation = 0;
 	int BaseVertexLocation = 0;
 };
@@ -60,6 +60,7 @@ private:
 	
 	void AnimateMaterials(const GameTimer& gt);
 	void UpdateObjectCBs(const GameTimer& gt);
+	void UpdateInstanceData(const GameTimer& gt);
 	void UpdateMaterialCBs(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
 
@@ -75,6 +76,7 @@ private:
 	void BuildFrameResources();
 	void BuildMaterials();
 	void BuildRenderItems();
+	void BuildInstancingRenderItems();
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 	void DrawInstancingRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 
@@ -113,6 +115,7 @@ private:
 	// Render items divided by PSO.
 	std::vector<RenderItem*> mOpaqueRitems;
 	std::vector<RenderItem*> mTransparentRitems;
+	std::vector<RenderItem*> mInstancingRitems;
 
 	PassConstants mMainPassCB;
 
@@ -182,10 +185,11 @@ bool Game::Initialize()
     BuildShapeGeometry();
 	BuildMaterials();
 	BuildRenderItems();
+	BuildInstancingRenderItems();
 	BuildFrameResources();
     BuildPSOs();
 
-	mCamera.SetPosition(0.0f, 2.0f, -15.0f);
+	mCamera.SetPosition(0.0f, 5.0f, -15.0f);
 
     ThrowIfFailed(mCommandList->Close());
 	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
@@ -225,6 +229,7 @@ void Game::Update(const GameTimer& gt)
 
 	AnimateMaterials(gt);
 	UpdateObjectCBs(gt);
+	UpdateInstanceData(gt);
 	UpdateMaterialCBs(gt);
 	UpdateMainPassCB(gt);
 }
@@ -256,8 +261,25 @@ void Game::Draw(const GameTimer& gt)
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
 	DrawRenderItems(mCommandList.Get(), mOpaqueRitems); // 불투명 렌더 아이템 
-	DrawRenderItems(mCommandList.Get(), mTransparentRitems); // 반투명 렌더 아이템
 	
+	// 인스턴싱 그리기 
+	mCommandList->SetPipelineState(mPSOs["instancingOpaque"].Get());
+
+	mCommandList->SetGraphicsRootSignature(mInstancingRootSignature.Get());
+
+	auto matBuffer = mCurrFrameResource->MaterialBuffer->Resource();
+	mCommandList->SetGraphicsRootShaderResourceView(1, matBuffer->GetGPUVirtualAddress());
+
+	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+
+	mCommandList->SetGraphicsRootDescriptorTable(3, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
+	//DrawInstancingRenderItems(mCommandList.Get(), mInstancingRitems);
+
+	// 인스턴싱 그리기 끝
+
+
+
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
@@ -332,8 +354,6 @@ void Game::UpdateObjectCBs(const GameTimer& gt)
 	auto currObjectCB = mCurrFrameResource->ObjectCB.get();
 	for (auto& e : mAllRitems)
 	{
-		// Only update the cbuffer data if the constants have changed.  
-		// This needs to be tracked per frame resource.
 		if (e->NumFramesDirty > 0)
 		{
 			XMMATRIX world = XMLoadFloat4x4(&e->World);
@@ -345,19 +365,45 @@ void Game::UpdateObjectCBs(const GameTimer& gt)
 
 			currObjectCB->CopyData(e->ObjCBIndex, objConstants);
 
-			// Next FrameResource need to be updated too.
 			e->NumFramesDirty--;
 		}
 	}
 }
+
+void Game::UpdateInstanceData(const GameTimer & gt)
+{
+	//인스턴싱 객체가 항상 변한다면 항상 그려줘야한다. 
+	//인스턴싱에 사용할 객체 = 플레이어 캐릭터 끝? 
+	auto currInstanceBuffer = mCurrFrameResource->InstanceBuffer.get();
+	int copyCount = 0;
+	for(auto& e : mAllRitems)
+	{
+		int drawCount = 0;
+		const auto& data = e->Instances; // 2개 라면 인덱스는 0,1
+		if (!data.empty())
+		{
+			for (int i = 0; i < data.size(); ++i)
+			{
+				InstanceData d;
+				d.World = data[i].World;
+				d.TexTransform = data[i].TexTransform;
+				d.MaterialIndex = data[i].MaterialIndex;
+
+				currInstanceBuffer->CopyData(copyCount++, d);
+				drawCount++;
+			}
+		}
+
+		e->InstanceCount = drawCount;
+	}
+}
+
 
 void Game::UpdateMaterialCBs(const GameTimer& gt)
 {
 	auto currMaterialCB = mCurrFrameResource->MaterialCB.get();
 	for (auto& e : mMaterials)
 	{
-		// Only update the cbuffer data if the constants have changed.  If the cbuffer
-		// data changes, it needs to be updated for each FrameResource.
 		Material* mat = e.second.get();
 		if (mat->NumFramesDirty > 0)
 		{
@@ -368,10 +414,10 @@ void Game::UpdateMaterialCBs(const GameTimer& gt)
 			matConstants.FresnelR0 = mat->FresnelR0;
 			matConstants.Roughness = mat->Roughness;
 			XMStoreFloat4x4(&matConstants.MatTransform, XMMatrixTranspose(matTransform));
+			matConstants.DiffuseMapIndex = mat->MatCBIndex;
 
 			currMaterialCB->CopyData(mat->MatCBIndex, matConstants);
 
-			// Next FrameResource need to be updated too.
 			mat->NumFramesDirty--;
 		}
 	}
@@ -679,8 +725,7 @@ void Game::BuildShapeGeometry()
 	gridSubmesh.StartIndexLocation = gridIndexOffset;
 	gridSubmesh.BaseVertexLocation = gridVertexOffset;
 
-
-	geo->DrawArgs["box"] = submesh;
+	geo->DrawArgs["testModel"] = submesh;
 	geo->DrawArgs["grid"] = gridSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
@@ -762,17 +807,8 @@ void Game::BuildMaterials()
 	tile0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
 	tile0->Roughness = 0.3f;
 
-	auto fog0 = std::make_unique<Material>();
-	fog0->Name = "fog0";
-	fog0->MatCBIndex = 2;
-	fog0->DiffuseSrvHeapIndex = 2;
-	fog0->DiffuseAlbedo = XMFLOAT4(0.3f, 0.3f, 0.3f, 0.5f);
-	fog0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
-	fog0->Roughness = 0.7f;
-
 	mMaterials["seafloor0"] = std::move(seafloor0);
 	mMaterials["tile0"] = std::move(tile0);
-	mMaterials["fog0"] = std::move(fog0);
 }
 
 void Game::BuildRenderItems()
@@ -784,9 +820,9 @@ void Game::BuildRenderItems()
 	boxRitem->Mat = mMaterials["seafloor0"].get();
 	boxRitem->Geo = mGeometries["shapeGeo"].get();
 	boxRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	boxRitem->IndexCount = boxRitem->Geo->DrawArgs["box"].IndexCount;
-	boxRitem->StartIndexLocation = boxRitem->Geo->DrawArgs["box"].StartIndexLocation;
-	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["box"].BaseVertexLocation;
+	boxRitem->IndexCount = boxRitem->Geo->DrawArgs["testModel"].IndexCount;
+	boxRitem->StartIndexLocation = boxRitem->Geo->DrawArgs["testModel"].StartIndexLocation;
+	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["testModel"].BaseVertexLocation;
 
 	mAllRitems.push_back(std::move(boxRitem));
 
@@ -807,6 +843,56 @@ void Game::BuildRenderItems()
 		mOpaqueRitems.push_back(e.get());
 }
 
+void Game::BuildInstancingRenderItems()
+{
+	auto testRitem = std::make_unique<RenderItem>();
+	testRitem->World = MathHelper::Identity4x4();
+	testRitem->TexTransform = MathHelper::Identity4x4();
+	testRitem->ObjCBIndex = 2;
+	testRitem->Mat = mMaterials["seafloor0"].get();
+	testRitem->Geo = mGeometries["shapeGeo"].get();
+	testRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	testRitem->InstanceCount = 0;
+	testRitem->IndexCount = testRitem->Geo->DrawArgs["testModel"].IndexCount;
+	testRitem->StartIndexLocation = testRitem->Geo->DrawArgs["testModel"].StartIndexLocation;
+	testRitem->BaseVertexLocation = testRitem->Geo->DrawArgs["testModel"].BaseVertexLocation;
+
+	const int n = 2;
+	testRitem->Instances.resize(n*n*n);
+
+	float width = 200.0f;
+	float height = 200.0f;
+	float depth = 200.0f;
+
+	float x = -0.5f*width;
+	float y = -0.5f*height;
+	float z = -0.5f*depth;
+	float dx = width / (n - 1);
+	float dy = height / (n - 1);
+	float dz = depth / (n - 1);
+	for (int k = 0; k < n; ++k)
+	{
+		for (int i = 0; i < n; ++i)
+		{
+			for (int j = 0; j < n; ++j)
+			{
+				int index = k * n*n + i * n + j;
+				testRitem->Instances[index].World = XMFLOAT4X4(
+					1.0f, 0.0f, 0.0f, 0.0f,
+					0.0f, 1.0f, 0.0f, 0.0f,
+					0.0f, 0.0f, 1.0f, 0.0f,
+					x + j * dx, y + i * dy, z + k * dz, 1.0f);
+
+				XMStoreFloat4x4(&testRitem->Instances[index].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+				testRitem->Instances[index].MaterialIndex = index % mMaterials.size();
+			}
+		}
+	}
+	mAllRitems.push_back(std::move(testRitem));
+	mInstancingRitems.push_back(mAllRitems[mAllRitems.size()-1].get());
+
+}
+
 void Game::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
 {
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
@@ -815,7 +901,6 @@ void Game::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector
 	auto objectCB = mCurrFrameResource->ObjectCB->Resource();
 	auto matCB = mCurrFrameResource->MaterialCB->Resource();
 
-	// For each render item...
 	for (size_t i = 0; i < ritems.size(); ++i)
 	{
 		auto ri = ritems[i];
@@ -851,7 +936,7 @@ void Game::DrawInstancingRenderItems(ID3D12GraphicsCommandList * cmdList, const 
 		auto instanceBuffer = mCurrFrameResource->InstanceBuffer->Resource();
 		mCommandList->SetGraphicsRootShaderResourceView(0, instanceBuffer->GetGPUVirtualAddress());
 
-		cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+		cmdList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
 	}
 }
 
