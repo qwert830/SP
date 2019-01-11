@@ -264,7 +264,6 @@ void Game::Draw(const GameTimer& gt)
 	
 	// 인스턴싱 그리기 
 	mCommandList->SetPipelineState(mPSOs["instancingOpaque"].Get());
-
 	mCommandList->SetGraphicsRootSignature(mInstancingRootSignature.Get());
 
 	auto matBuffer = mCurrFrameResource->MaterialBuffer->Resource();
@@ -274,7 +273,7 @@ void Game::Draw(const GameTimer& gt)
 
 	mCommandList->SetGraphicsRootDescriptorTable(3, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
-	//DrawInstancingRenderItems(mCommandList.Get(), mInstancingRitems);
+	DrawInstancingRenderItems(mCommandList.Get(), mInstancingRitems);
 
 	// 인스턴싱 그리기 끝
 
@@ -857,7 +856,7 @@ void Game::BuildInstancingRenderItems()
 	testRitem->StartIndexLocation = testRitem->Geo->DrawArgs["testModel"].StartIndexLocation;
 	testRitem->BaseVertexLocation = testRitem->Geo->DrawArgs["testModel"].BaseVertexLocation;
 
-	const int n = 2;
+	const int n = 5;
 	testRitem->Instances.resize(n*n*n);
 
 	float width = 200.0f;
