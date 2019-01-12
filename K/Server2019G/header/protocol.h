@@ -30,7 +30,7 @@ struct cs_join_packet {
 	unsigned int roomnumber;
 };
 
-struct cs_exit_packet {
+struct cs_quit_packet {
 	unsigned char size;
 	unsigned char type;
 };

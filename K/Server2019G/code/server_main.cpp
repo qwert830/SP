@@ -2,7 +2,6 @@
 #define INITGUID
 
 #include <WinSock2.h>
-#include <Windows.h>
 
 #pragma comment (lib, "ws2_32.lib")
 
@@ -13,6 +12,7 @@
 #include <iostream>
 #include "../header/protocol.h"
 #include <chrono>
+#include <mutex>
 
 #include <sqlext.h>  
 #include <locale.h>
@@ -57,26 +57,27 @@ public:
 
 class Room {
 public:
-	unordered_set<int> m_userid;
-	unsigned char m_currentnum;
+	unordered_set<int> m_JoinIdList;
+	unsigned char m_currentNum;
+	mutex m_mjidList;
 
 	Room() {
-		m_userid.clear();
-		m_currentnum = 0;
+		m_JoinIdList.clear();
+		m_currentNum = 0;
 	}
 
 	bool join(const int id) {
-		if (m_currentnum < MAX_ROOMLIMIT) {
-			m_userid.insert(id);
-			m_currentnum++;
+		if (m_currentNum < MAX_ROOMLIMIT) {
+			m_JoinIdList.insert(id);
+			m_currentNum++;
 			return true;
 		}
 		return false;
 	}
 
 	void quit(const int id) {
-		m_userid.erase(id);
-		m_currentnum--;
+		m_JoinIdList.erase(id);
+		m_currentNum--;
 	}
 };
 
@@ -168,8 +169,8 @@ void DisconnectPlayer(int id)
 	p.type = SC_QUIT_PLAYER;
 	p.size = sizeof(p);
 	if (g_clients[id].m_roomnumber != -1) {
-		for (int d : g_rooms[g_clients[id].m_roomnumber].m_userid) {
-			SendPacket(d, &p);
+		for (int d : g_rooms[g_clients[id].m_roomnumber].m_JoinIdList) {
+				SendPacket(d, &p);
 		}
 	}
 	closesocket(g_clients[id].m_s);
@@ -185,32 +186,39 @@ void ProcessPacket(int id, char *packet)
 	case CS_JOIN:
 		packet_join = reinterpret_cast<cs_join_packet*>(packet);
 		if (0 <= packet_join->roomnumber < MAX_ROOMNUMBER) {
+			g_rooms[packet_join->roomnumber].m_mjidList.lock();
 			if (g_rooms[packet_join->roomnumber].join(id)) {
 				g_clients[id].m_roomnumber = packet_join->roomnumber;
 				sc_player_join_packet p;
 				p.id = id;
 				p.type = SC_JOIN_PLAYER;
 				p.size = sizeof(p);
-				for (int d : g_rooms[g_clients[id].m_roomnumber].m_userid) {
+				//방 인원 전원에게 해당 아이디가 조인했음을 알림
+				for (int d : g_rooms[packet_join->roomnumber].m_JoinIdList) {
 					SendPacket(d, &p);
 				}
-				cout << id << " 가" << packet_join->roomnumber << " 방 접속함" << endl;
+				if(id == MAX_USER - 1)
+					cout << "마지막 유저가" << packet_join->roomnumber << " 방 접속함" << endl;
 			}
-			else
-				cout << packet_join->roomnumber << " 방이 꽉참" << endl;
+
+			g_rooms[packet_join->roomnumber].m_mjidList.unlock();
 		}
 		break;
 	case CS_QUIT:
+		g_rooms[g_clients[id].m_roomnumber].m_mjidList.lock();
 		g_rooms[g_clients[id].m_roomnumber].quit(id);
-		g_clients[id].m_roomnumber = -1;
 		sc_player_quit_packet p;
 		p.id = id;
 		p.type = SC_QUIT_PLAYER;
 		p.size = sizeof(p);
-		for (int d : g_rooms[g_clients[id].m_roomnumber].m_userid) {
+		//남은 방 인원 전원에게 해당 아이디가 퇴장했음을 알림
+		for (int d : g_rooms[g_clients[id].m_roomnumber].m_JoinIdList) {
 			SendPacket(d, &p);
 		}
-		cout << id << " 가" << packet_join->roomnumber << " 방 나감" << endl;
+		g_rooms[g_clients[id].m_roomnumber].m_mjidList.unlock();
+		if (id == MAX_USER - 1)
+			cout << "마지막 유저가" << g_clients[id].m_roomnumber << " 방 퇴장함" << endl;
+		g_clients[id].m_roomnumber = -1;
 		break;
 	default:
 		cout << "Unkown Packet Type from Client [" << id << "]\n";
@@ -240,11 +248,11 @@ void worker_thread()
 		//	DisconnectPlayer(key);
 		//	continue;
 		//}
-		
+
 		EXOVER *p_over = reinterpret_cast<EXOVER*>(over);
 		if (RECV == p_over->work)
 		{
-			cout << "Packet From Client [" << key << "]\n";
+			//cout << "Packet From Client [" << key << "]\n";
 			int work_size = io_size;
 			char *wptr = p_over->m_iobuf;
 			while (0 < work_size)
@@ -280,7 +288,7 @@ void worker_thread()
 		}
 		else
 		{
-			cout << "A packet was sent to Client[" << key << "]\n";
+			//cout << "A packet was sent to Client[" << key << "]\n";
 			delete p_over;
 		}
 	}
@@ -315,7 +323,7 @@ void Accept_Threads()
 			continue;
 		}
 
-		cout << "New Client Connected!\n";
+		//cout << "New Client Connected!\n";
 		int id = -1;
 		for (int i = 0; i < MAX_USER; ++i) {
 			if (false == g_clients[i].m_isconnected)
@@ -329,7 +337,8 @@ void Accept_Threads()
 			cout << "MAX_USER_Exceeded\n";
 			continue;
 		}
-		cout << "ID of new Client is [" << id << "]\n";
+		if(id % 100 == 0 || id == MAX_USER -1)
+			cout << "ID of new Client is [" << id << "]\n";
 
 		g_clients[id].m_s = cs;
 		g_clients[id].m_packet_size = 0;
