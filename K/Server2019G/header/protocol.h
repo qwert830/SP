@@ -18,7 +18,8 @@
 #define CS_JOIN 99
 #define CS_QUIT 100
 
-#define SC_JOIN_PLAYER    99
+#define SC_PUT_PLAYER  98
+#define SC_JOIN_PLAYER 99
 #define SC_QUIT_PLAYER 100
 
 #pragma pack (push, 1)

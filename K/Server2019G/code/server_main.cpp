@@ -197,6 +197,13 @@ void ProcessPacket(int id, char *packet)
 				for (int d : g_rooms[packet_join->roomnumber].m_JoinIdList) {
 					SendPacket(d, &p);
 				}
+				//해당 아이디에 방에 접속중인 인원의 정보를 보냄
+				for (int d : g_rooms[packet_join->roomnumber].m_JoinIdList) {
+					p.id = d;
+					p.type = SC_PUT_PLAYER;
+					p.size = sizeof(p);
+					SendPacket(id, &p);
+				}
 				if(id == MAX_USER - 1)
 					cout << "마지막 유저가" << packet_join->roomnumber << " 방 접속함" << endl;
 			}
