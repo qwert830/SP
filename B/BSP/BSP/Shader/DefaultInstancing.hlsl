@@ -97,12 +97,12 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
     float4x4 world = instData.World;
     float4x4 texTransform = instData.TexTransform;
     uint matIndex = instData.MaterialIndex;
-
-    vout.MatIndex = matIndex;
-	
     MaterialData matData = gMaterialData[matIndex];
 	
+    vout.MatIndex = matIndex;
+
     float4 posW = mul(float4(vin.PosL.xyz, 1.0f), world);
+
     vout.PosW = posW.xyz;
 
     vout.NormalW = mul(vin.NormalL, (float3x3) world);

@@ -28,6 +28,10 @@ cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
     float4x4 gTexTransform;
+    uint MaterialIndex;
+    uint InstPad0;
+    uint InstPad1;
+    uint InstPad2;
 };
 // const buffer
 cbuffer cbPass : register(b1)
@@ -78,7 +82,7 @@ VertexOut VS(VertexIn vin)
 {
     VertexOut vout = (VertexOut) 0.0f;
 	
-    float4 posW = mul(vin.PosL, gWorld);
+    float4 posW = mul(float4(vin.PosL.xyz, 1.0f), (gWorld));
     vout.PosW = posW.xyz;
 
     vout.NormalW = mul(vin.NormalL, (float3x3) gWorld);

@@ -266,7 +266,7 @@ void Game::Draw(const GameTimer& gt)
 	mCommandList->SetPipelineState(mPSOs["instancingOpaque"].Get());
 	mCommandList->SetGraphicsRootSignature(mInstancingRootSignature.Get());
 
-	auto matBuffer = mCurrFrameResource->MaterialBuffer->Resource();
+	auto matBuffer = mCurrFrameResource->MaterialCB->Resource();
 	mCommandList->SetGraphicsRootShaderResourceView(1, matBuffer->GetGPUVirtualAddress());
 
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
@@ -374,25 +374,26 @@ void Game::UpdateInstanceData(const GameTimer & gt)
 	//인스턴싱 객체가 항상 변한다면 항상 그려줘야한다. 
 	//인스턴싱에 사용할 객체 = 플레이어 캐릭터 끝? 
 	auto currInstanceBuffer = mCurrFrameResource->InstanceBuffer.get();
-	int copyCount = 0;
 	for(auto& e : mAllRitems)
 	{
 		int drawCount = 0;
 		const auto& data = e->Instances; // 2개 라면 인덱스는 0,1
+
 		if (!data.empty())
 		{
 			for (int i = 0; i < data.size(); ++i)
 			{
+				XMMATRIX world = XMLoadFloat4x4(&data[i].World);
+				XMMATRIX texTransform = XMLoadFloat4x4(&data[i].TexTransform);
+
 				InstanceData d;
-				d.World = data[i].World;
-				d.TexTransform = data[i].TexTransform;
+				XMStoreFloat4x4(&d.World, XMMatrixTranspose(world));
+				XMStoreFloat4x4(&d.TexTransform, XMMatrixTranspose(texTransform));
 				d.MaterialIndex = data[i].MaterialIndex;
 
-				currInstanceBuffer->CopyData(copyCount++, d);
-				drawCount++;
+				currInstanceBuffer->CopyData(drawCount++, d);
 			}
 		}
-
 		e->InstanceCount = drawCount;
 	}
 }
@@ -413,7 +414,7 @@ void Game::UpdateMaterialCBs(const GameTimer& gt)
 			matConstants.FresnelR0 = mat->FresnelR0;
 			matConstants.Roughness = mat->Roughness;
 			XMStoreFloat4x4(&matConstants.MatTransform, XMMatrixTranspose(matTransform));
-			matConstants.DiffuseMapIndex = mat->MatCBIndex;
+			matConstants.DiffuseMapIndex = mat->DiffuseSrvHeapIndex;
 
 			currMaterialCB->CopyData(mat->MatCBIndex, matConstants);
 
@@ -666,7 +667,7 @@ void Game::BuildShapeGeometry()
 
 	for (int i = 0; i < m_vertexCount; ++i, ++k)
 	{
-		vertices[k].Pos = XMFLOAT4(tempModelType[i].x, tempModelType[i].y, tempModelType[i].z, 1.0f);
+		vertices[k].Pos = XMFLOAT4(tempModelType[i].x, tempModelType[i].y, tempModelType[i].z, 0.0f);
 		vertices[k].Tex = XMFLOAT2(tempModelType[i].tu, tempModelType[i].tv);
 		vertices[k].Normal = XMFLOAT3(tempModelType[i].nx, tempModelType[i].ny, tempModelType[i].nz);
 
@@ -676,7 +677,7 @@ void Game::BuildShapeGeometry()
 
 	for (int i = 0; i < grid.Vertices.size(); ++i, ++k)
 	{
-		vertices[k].Pos = XMFLOAT4(grid.Vertices[i].Position.x, grid.Vertices[i].Position.y, grid.Vertices[i].Position.z,1.0f);
+		vertices[k].Pos = XMFLOAT4(grid.Vertices[i].Position.x, grid.Vertices[i].Position.y, grid.Vertices[i].Position.z, 0.0f);
 		vertices[k].Tex = grid.Vertices[i].TexC;
 		vertices[k].Normal = grid.Vertices[i].Normal;
 	}
@@ -883,13 +884,12 @@ void Game::BuildInstancingRenderItems()
 					x + j * dx, y + i * dy, z + k * dz, 1.0f);
 
 				XMStoreFloat4x4(&testRitem->Instances[index].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-				testRitem->Instances[index].MaterialIndex = index % mMaterials.size();
+				testRitem->Instances[index].MaterialIndex = 0;
 			}
 		}
 	}
 	mAllRitems.push_back(std::move(testRitem));
 	mInstancingRitems.push_back(mAllRitems[mAllRitems.size()-1].get());
-
 }
 
 void Game::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
