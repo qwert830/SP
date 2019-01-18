@@ -277,8 +277,6 @@ void Game::Draw(const GameTimer& gt)
 
 	// 인스턴싱 그리기 끝
 
-
-
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
@@ -814,7 +812,10 @@ void Game::BuildMaterials()
 void Game::BuildRenderItems()
 {
 	auto boxRitem = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 10.0f, 0.0f));
+	//boxRitem->Instances.resize(1);
+	//XMStoreFloat4x4(&boxRitem->Instances[0].World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 10.0f, 0.0f));
+	//XMStoreFloat4x4(&boxRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
 	XMStoreFloat4x4(&boxRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	boxRitem->ObjCBIndex = 0;
 	boxRitem->Mat = mMaterials["seafloor0"].get();
@@ -823,7 +824,6 @@ void Game::BuildRenderItems()
 	boxRitem->IndexCount = boxRitem->Geo->DrawArgs["testModel"].IndexCount;
 	boxRitem->StartIndexLocation = boxRitem->Geo->DrawArgs["testModel"].StartIndexLocation;
 	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["testModel"].BaseVertexLocation;
-
 	mAllRitems.push_back(std::move(boxRitem));
 
 	auto gridRitem = std::make_unique<RenderItem>();
@@ -884,7 +884,7 @@ void Game::BuildInstancingRenderItems()
 					x + j * dx, y + i * dy, z + k * dz, 1.0f);
 
 				XMStoreFloat4x4(&testRitem->Instances[index].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-				testRitem->Instances[index].MaterialIndex = 0;
+				testRitem->Instances[index].MaterialIndex = 1;
 			}
 		}
 	}

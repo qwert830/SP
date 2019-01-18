@@ -22,7 +22,7 @@ struct InstanceData
     uint InstPad2;
 };
 
-struct MaterialData
+struct MaterialConstants
 {
     float4 DiffuseAlbedo;
     float3 FresnelR0;
@@ -34,23 +34,9 @@ struct MaterialData
     uint MatPad2;
 };
 
-Texture2D gDiffuseMap[2] : register(t0);
 
 StructuredBuffer<InstanceData> gInstanceData : register(t0, space1);
-StructuredBuffer<MaterialData> gMaterialData : register(t1, space1);
-
-SamplerState gsamPointWrap : register(s0);
-SamplerState gsamPointClamp : register(s1);
-SamplerState gsamLinearWrap : register(s2);
-SamplerState gsamLinearClamp : register(s3);
-SamplerState gsamAnisotropicWrap : register(s4);
-SamplerState gsamAnisotropicClamp : register(s5);
-
-// 셰이더 레지스터 = 루트시그니쳐 cbv테이블
-
-// 인스턴싱 -> b0, b2 -> 버퍼로 묶어서 쉐이더에 올린다. t0,t1 .... DiffuseMap과 겹치지않게 공간은 다르게
-
-// const buffer
+StructuredBuffer<MaterialConstants> gMaterialData : register(t1, space1);
 cbuffer cbPass : register(b0)
 {
     float4x4 gView;
@@ -71,6 +57,14 @@ cbuffer cbPass : register(b0)
 
     Light gLights[MaxLights];
 };
+Texture2D gDiffuseMap[2] : register(t0);
+
+SamplerState gsamPointWrap : register(s0);
+SamplerState gsamPointClamp : register(s1);
+SamplerState gsamLinearWrap : register(s2);
+SamplerState gsamLinearClamp : register(s3);
+SamplerState gsamAnisotropicWrap : register(s4);
+SamplerState gsamAnisotropicClamp : register(s5);
 
 struct VertexIn
 {
@@ -97,7 +91,7 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
     float4x4 world = instData.World;
     float4x4 texTransform = instData.TexTransform;
     uint matIndex = instData.MaterialIndex;
-    MaterialData matData = gMaterialData[matIndex];
+    MaterialConstants matData = gMaterialData[0];
 	
     vout.MatIndex = matIndex;
 
@@ -117,13 +111,13 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    MaterialData matData = gMaterialData[pin.MatIndex];
+    MaterialConstants matData = gMaterialData[0];
     float4 diffuseAlbedo = matData.DiffuseAlbedo;
     float3 fresnelR0 = matData.FresnelR0;
     float roughness = matData.Roughness;
     uint diffuseTexIndex = matData.DiffuseMapIndex;
 	
-    diffuseAlbedo *= gDiffuseMap[diffuseTexIndex].Sample(gsamLinearWrap, pin.TexC);
+    diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamLinearWrap, pin.TexC);
 
     pin.NormalW = normalize(pin.NormalW);
 
