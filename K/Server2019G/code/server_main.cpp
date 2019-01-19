@@ -13,6 +13,7 @@
 #include "../header/protocol.h"
 #include <chrono>
 #include <mutex>
+#include <atomic>
 
 #include <sqlext.h>  
 #include <locale.h>
@@ -23,6 +24,7 @@ using namespace std;
 #define	MIN(a,b)	((a)<(b))?(a):(b)
 
 enum kind_of_work { RECV = 1 };
+
 
 HANDLE ghiocp;
 
@@ -35,18 +37,18 @@ struct EXOVER {
 
 class Client {
 public:
-	SOCKET m_s;
-	bool m_isconnected;
-	int m_id;
-	int m_roomnumber;
+	SOCKET m_Socket;
+	bool m_IsConnected;
+	int m_Id;
+	int m_RoomNumber;
 	EXOVER m_rxover;
 	int m_packet_size;
 	int m_prev_packet_size;
 	char m_packet[MAX_PACKET_SIZE];
 
 	Client() {
-		m_isconnected = false;
-		m_roomnumber = -1;
+		m_IsConnected = false;
+		m_RoomNumber = -1;
 		m_prev_packet_size = 0;
 		ZeroMemory(&m_rxover.m_over, sizeof(WSAOVERLAPPED));
 		m_rxover.m_wsabuf.buf = m_rxover.m_iobuf;
@@ -58,28 +60,39 @@ public:
 class Room {
 public:
 	unordered_set<int> m_JoinIdList;
-	unsigned char m_currentNum;
-	mutex m_mjidList;
-
+	unsigned char m_CurrentNum;
+	mutex m_mJoinIdList;
+	unsigned char m_RoomStatus;
 	Room() {
 		m_JoinIdList.clear();
-		m_currentNum = 0;
+		m_CurrentNum = 0;
+		m_RoomStatus = EMPTY;
 	}
 
 	bool join(const int id) {
-		if (m_currentNum < MAX_ROOMLIMIT) {
+		if (m_CurrentNum < MAX_ROOMLIMIT) {
 			m_JoinIdList.insert(id);
-			m_currentNum++;
+			m_CurrentNum++;
+			if (m_CurrentNum == MAX_ROOMLIMIT)
+				m_RoomStatus = FULL;
+			else
+				m_RoomStatus = JOINABLE;
 			return true;
 		}
+		
 		return false;
 	}
 
 	void quit(const int id) {
 		m_JoinIdList.erase(id);
-		m_currentNum--;
+		m_CurrentNum--;
+		if(m_CurrentNum == 0) 
+			m_RoomStatus = EMPTY;
+		else
+			m_RoomStatus = JOINABLE;
 	}
 };
+
 
 array <Client, MAX_USER> g_clients;
 array <Room, MAX_ROOMNUMBER> g_rooms;
@@ -136,7 +149,7 @@ void StartRecv(int id)
 {
 	unsigned long r_flag = 0;
 	ZeroMemory(&g_clients[id].m_rxover.m_over, sizeof(WSAOVERLAPPED));
-	int ret = WSARecv(g_clients[id].m_s, &g_clients[id].m_rxover.m_wsabuf, 1, NULL, &r_flag, &g_clients[id].m_rxover.m_over, NULL);
+	int ret = WSARecv(g_clients[id].m_Socket, &g_clients[id].m_rxover.m_wsabuf, 1, NULL, &r_flag, &g_clients[id].m_rxover.m_over, NULL);
 	if (0 != ret)
 	{
 		int err_no = WSAGetLastError();
@@ -145,16 +158,17 @@ void StartRecv(int id)
 	}
 }
 
-void SendPacket(int id, void * ptr)
+inline void SendPacket(int id, void * ptr)
 {
-	char *packet = reinterpret_cast<char *>(ptr);
+ 	char *packet = reinterpret_cast<char *>(ptr);
+	unsigned char sizepacket = packet[0];
 	EXOVER *s_over = new EXOVER;
 	s_over->work = -1;
-	memcpy(s_over->m_iobuf, packet, packet[0]);
+	memcpy(s_over->m_iobuf, packet, sizepacket);
 	s_over->m_wsabuf.buf = s_over->m_iobuf;
-	s_over->m_wsabuf.len = s_over->m_iobuf[0];
+	s_over->m_wsabuf.len = sizepacket;
 	ZeroMemory(&s_over->m_over, sizeof(WSAOVERLAPPED));
-	int ret = WSASend(g_clients[id].m_s, &s_over->m_wsabuf, 1, NULL, 0, &s_over->m_over, NULL);
+	int ret = WSASend(g_clients[id].m_Socket, &s_over->m_wsabuf, 1, NULL, 0, &s_over->m_over, NULL);
 	if (0 != ret)
 	{
 		int err_no = WSAGetLastError();
@@ -168,64 +182,109 @@ void DisconnectPlayer(int id)
 	p.id = id;
 	p.type = SC_QUIT_PLAYER;
 	p.size = sizeof(p);
-	if (g_clients[id].m_roomnumber != -1) {
-		for (int d : g_rooms[g_clients[id].m_roomnumber].m_JoinIdList) {
+	if (g_clients[id].m_RoomNumber != -1) {
+		for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
 				SendPacket(d, &p);
 		}
 	}
-	closesocket(g_clients[id].m_s);
-	g_clients[id].m_isconnected = false;
+	closesocket(g_clients[id].m_Socket);
+	g_clients[id].m_IsConnected = false;
 }
 
-void ProcessPacket(int id, char *packet)
+inline void ProcessPacket(int id, char *packet)
 {
 	cs_join_packet* packet_join;
-
 	switch (packet[1])
 	{
+	case CS_REFRESH:
+		sc_roomstatus_packet packet_rs;
+		packet_rs.size = sizeof(sc_roomstatus_packet);
+		packet_rs.type = SC_REFRESH;
+		for (int i = 0; i < 200; ++i) {
+			packet_rs.roomstatus[i] = g_rooms[i].m_RoomStatus;
+		}
+		SendPacket(id, &packet_rs);
+		break;
 	case CS_JOIN:
-		packet_join = reinterpret_cast<cs_join_packet*>(packet);
-		if (0 <= packet_join->roomnumber < MAX_ROOMNUMBER) {
-			g_rooms[packet_join->roomnumber].m_mjidList.lock();
-			if (g_rooms[packet_join->roomnumber].join(id)) {
-				g_clients[id].m_roomnumber = packet_join->roomnumber;
-				sc_player_join_packet p;
-				p.id = id;
-				p.type = SC_JOIN_PLAYER;
-				p.size = sizeof(p);
-				//방 인원 전원에게 해당 아이디가 조인했음을 알림
-				for (int d : g_rooms[packet_join->roomnumber].m_JoinIdList) {
-					SendPacket(d, &p);
-				}
-				//해당 아이디에 방에 접속중인 인원의 정보를 보냄
-				for (int d : g_rooms[packet_join->roomnumber].m_JoinIdList) {
-					p.id = d;
-					p.type = SC_PUT_PLAYER;
+		if (g_clients[id].m_RoomNumber == LOBBYNUMBER)
+		{
+			packet_join = reinterpret_cast<cs_join_packet*>(packet);
+			if (0 <= packet_join->roomnumber < MAX_ROOMNUMBER) {
+				g_rooms[packet_join->roomnumber].m_mJoinIdList.lock();
+				if (g_rooms[packet_join->roomnumber].join(id)) {
+					g_clients[id].m_RoomNumber = packet_join->roomnumber;
+					sc_player_join_packet p;
+					p.id = id;
+					p.type = SC_JOIN_PLAYER;
 					p.size = sizeof(p);
-					SendPacket(id, &p);
+					////방 인원 전원에게 해당 아이디가 조인했음을 알림
+					//for (int d : g_rooms[packet_join->roomnumber].m_JoinIdList) {
+					//	SendPacket(d, &p);
+					//}
+					////해당 아이디에게 방에 접속중인 인원의 정보를 보냄
+					//for (int d : g_rooms[packet_join->roomnumber].m_JoinIdList) {
+					//	p.id = d;
+					//	p.type = SC_PUT_PLAYER;
+					//	p.size = sizeof(p);
+					//	SendPacket(id, &p);
+					//}
 				}
-				if(id == MAX_USER - 1)
-					cout << "마지막 유저가" << packet_join->roomnumber << " 방 접속함" << endl;
+				g_rooms[packet_join->roomnumber].m_mJoinIdList.unlock();
 			}
-
-			g_rooms[packet_join->roomnumber].m_mjidList.unlock();
+		}
+		break;
+	case CS_AUTOJOIN:
+		if(g_clients[id].m_RoomNumber == LOBBYNUMBER)
+		{
+			for (int i = 0; i < MAX_ROOMNUMBER; ++i) {
+				g_rooms[i].m_mJoinIdList.lock();
+				if (g_rooms[i].m_RoomStatus == EMPTY || g_rooms[i].m_RoomStatus == JOINABLE) {
+					if (g_rooms[i].join(id)) {
+						g_rooms[i].m_mJoinIdList.unlock();
+						g_clients[id].m_RoomNumber = i;
+						sc_player_join_packet p;
+						p.id = id;
+						p.type = SC_JOIN_PLAYER;
+						p.size = sizeof(p);
+						////방 인원 전원에게 해당 아이디가 조인했음을 알림
+						//for (int d : g_rooms[i].m_JoinIdList) {
+						//	SendPacket(d, &p);
+						//}
+						////해당 아이디에게 방에 접속중인 인원의 정보를 보냄
+						//for (int d : g_rooms[i].m_JoinIdList) {
+						//	if (id == d) continue;
+						//	p.id = d;
+						//	p.type = SC_PUT_PLAYER;
+						//	p.size = sizeof(p);
+						//	SendPacket(id, &p);
+						//}
+						break;
+					}
+					else {
+						g_rooms[i].m_mJoinIdList.unlock();
+						cout << "방입장 오류" << endl;
+						break;
+					}
+				}
+				else
+					g_rooms[i].m_mJoinIdList.unlock();
+			}
 		}
 		break;
 	case CS_QUIT:
-		g_rooms[g_clients[id].m_roomnumber].m_mjidList.lock();
-		g_rooms[g_clients[id].m_roomnumber].quit(id);
+		if (g_clients[id].m_RoomNumber == LOBBYNUMBER) break;
+		g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.lock();
+		g_rooms[g_clients[id].m_RoomNumber].quit(id);
 		sc_player_quit_packet p;
 		p.id = id;
 		p.type = SC_QUIT_PLAYER;
 		p.size = sizeof(p);
 		//남은 방 인원 전원에게 해당 아이디가 퇴장했음을 알림
-		for (int d : g_rooms[g_clients[id].m_roomnumber].m_JoinIdList) {
-			SendPacket(d, &p);
-		}
-		g_rooms[g_clients[id].m_roomnumber].m_mjidList.unlock();
-		if (id == MAX_USER - 1)
-			cout << "마지막 유저가" << g_clients[id].m_roomnumber << " 방 퇴장함" << endl;
-		g_clients[id].m_roomnumber = -1;
+		//for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
+		//	SendPacket(d, &p);
+		//}
+		g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.unlock();
+		g_clients[id].m_RoomNumber = -1;
 		break;
 	default:
 		cout << "Unkown Packet Type from Client [" << id << "]\n";
@@ -333,7 +392,7 @@ void Accept_Threads()
 		//cout << "New Client Connected!\n";
 		int id = -1;
 		for (int i = 0; i < MAX_USER; ++i) {
-			if (false == g_clients[i].m_isconnected)
+			if (false == g_clients[i].m_IsConnected)
 			{
 				id = i;
 				break;
@@ -347,13 +406,14 @@ void Accept_Threads()
 		if(id % 100 == 0 || id == MAX_USER -1)
 			cout << "ID of new Client is [" << id << "]\n";
 
-		g_clients[id].m_s = cs;
+		g_clients[id].m_Socket = cs;
 		g_clients[id].m_packet_size = 0;
 		g_clients[id].m_prev_packet_size = 0;
-
+		g_clients[id].m_RoomNumber = LOBBYNUMBER;
 		CreateIoCompletionPort(reinterpret_cast<HANDLE>(cs), ghiocp, id, 0);
-		g_clients[id].m_isconnected = true;
+		g_clients[id].m_IsConnected = true;
 		StartRecv(id);
+		
 	}
 }
 
