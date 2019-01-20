@@ -3,4 +3,6 @@
 *.obj
 *.log
 *.exe
+*.tlog
+*.pdb
 .vs/

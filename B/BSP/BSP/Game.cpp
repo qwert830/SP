@@ -76,7 +76,6 @@ private:
 	void BuildFrameResources();
 	void BuildMaterials();
 	void BuildRenderItems();
-	void BuildInstancingRenderItems();
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 	void DrawInstancingRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 
@@ -106,6 +105,7 @@ private:
 	std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
 	std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
     std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> mPSOs;
+	std::vector<unsigned int> mInstanceCount;
 
     std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 
@@ -115,7 +115,6 @@ private:
 	// Render items divided by PSO.
 	std::vector<RenderItem*> mOpaqueRitems;
 	std::vector<RenderItem*> mTransparentRitems;
-	std::vector<RenderItem*> mInstancingRitems;
 
 	PassConstants mMainPassCB;
 
@@ -185,7 +184,6 @@ bool Game::Initialize()
     BuildShapeGeometry();
 	BuildMaterials();
 	BuildRenderItems();
-	BuildInstancingRenderItems();
 	BuildFrameResources();
     BuildPSOs();
 
@@ -239,8 +237,8 @@ void Game::Draw(const GameTimer& gt)
 	auto cmdListAlloc = mCurrFrameResource->CmdListAlloc;
 
 	ThrowIfFailed(cmdListAlloc->Reset());
-	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
-
+	//ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
+	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["instancingOpaque"].Get()));
     mCommandList->RSSetViewports(1, &mScreenViewport);
     mCommandList->RSSetScissorRects(1, &mScissorRect);
 
@@ -255,25 +253,26 @@ void Game::Draw(const GameTimer& gt)
 	ID3D12DescriptorHeap* descriptorHeaps[] = { mSrvDescriptorHeap.Get() };
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
-	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
+	//mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 
-	auto passCB = mCurrFrameResource->PassCB->Resource();
-	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+	//auto passCB = mCurrFrameResource->PassCB->Resource();
+	//mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
-	DrawRenderItems(mCommandList.Get(), mOpaqueRitems); // 불투명 렌더 아이템 
+	//DrawRenderItems(mCommandList.Get(), mOpaqueRitems); // 불투명 렌더 아이템 
 	
 	// 인스턴싱 그리기 
-	mCommandList->SetPipelineState(mPSOs["instancingOpaque"].Get());
+	//mCommandList->SetPipelineState(mPSOs["instancingOpaque"].Get());
 	mCommandList->SetGraphicsRootSignature(mInstancingRootSignature.Get());
 
 	auto matBuffer = mCurrFrameResource->MaterialCB->Resource();
 	mCommandList->SetGraphicsRootShaderResourceView(1, matBuffer->GetGPUVirtualAddress());
 
+	auto passCB = mCurrFrameResource->PassCB->Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
 	mCommandList->SetGraphicsRootDescriptorTable(3, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
-	DrawInstancingRenderItems(mCommandList.Get(), mInstancingRitems);
+	DrawInstancingRenderItems(mCommandList.Get(), mOpaqueRitems);
 
 	// 인스턴싱 그리기 끝
 
@@ -371,9 +370,9 @@ void Game::UpdateInstanceData(const GameTimer & gt)
 {
 	//인스턴싱 객체가 항상 변한다면 항상 그려줘야한다. 
 	//인스턴싱에 사용할 객체 = 플레이어 캐릭터 끝? 
-	auto currInstanceBuffer = mCurrFrameResource->InstanceBuffer.get();
 	for(auto& e : mAllRitems)
 	{
+		auto currInstanceBuffer = mCurrFrameResource->InstanceBufferVector[e->ObjCBIndex].get();
 		int drawCount = 0;
 		const auto& data = e->Instances; // 2개 라면 인덱스는 0,1
 
@@ -616,6 +615,7 @@ void Game::BuildShapeGeometry()
 
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 30.0f, 60, 40);
+	GeometryGenerator::MeshData box = geoGen.CreateBox(20, 20, 20, 20);
 	// 모델 로딩
 	fin.open("Resource/model.txt");
 	if (fin.fail())
@@ -656,7 +656,7 @@ void Game::BuildShapeGeometry()
 
 
 	// 모델 데이터 입력
-	auto totalVertexCount = (size_t)m_vertexCount + grid.Vertices.size();
+	auto totalVertexCount = (size_t)m_vertexCount + grid.Vertices.size()+ box.Vertices.size();
 	
 	std::vector<Vertex> vertices(1000000);
 	std::vector<uint16_t> indices;
@@ -681,6 +681,14 @@ void Game::BuildShapeGeometry()
 	}
 	indices.insert(indices.end(), grid.Indices32.begin(), grid.Indices32.end());
 
+	for (int i = 0; i < box.Vertices.size(); ++i, ++k)
+	{
+		vertices[k].Pos = XMFLOAT4(box.Vertices[i].Position.x, box.Vertices[i].Position.y, box.Vertices[i].Position.z, 0.0f);
+		vertices[k].Tex = box.Vertices[i].TexC;
+		vertices[k].Normal = box.Vertices[i].Normal;
+	}
+	indices.insert(indices.end(), box.Indices32.begin(), box.Indices32.end());
+
     const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
@@ -689,6 +697,9 @@ void Game::BuildShapeGeometry()
 
 	UINT gridIndexOffset = modelIndexCount;
 	UINT gridVertexOffset = m_vertexCount;
+
+	UINT boxIndexOffset = grid.Indices32.size() + gridIndexOffset;
+	UINT boxVertexOffset = grid.Vertices.size() + gridVertexOffset;
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = "shapeGeo";
@@ -723,8 +734,14 @@ void Game::BuildShapeGeometry()
 	gridSubmesh.StartIndexLocation = gridIndexOffset;
 	gridSubmesh.BaseVertexLocation = gridVertexOffset;
 
+	SubmeshGeometry boxSubmesh;
+	boxSubmesh.IndexCount = (UINT)box.Indices32.size();
+	boxSubmesh.StartIndexLocation = boxIndexOffset;
+	boxSubmesh.BaseVertexLocation = boxVertexOffset;
+
 	geo->DrawArgs["testModel"] = submesh;
 	geo->DrawArgs["grid"] = gridSubmesh;
+	geo->DrawArgs["box"] = boxSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
 }
@@ -782,7 +799,7 @@ void Game::BuildFrameResources()
 	for (int i = 0; i < gNumFrameResources; ++i)
 	{
 		mFrameResources.push_back(std::make_unique<FrameResource>(md3dDevice.Get(),
-			1, (UINT)mAllRitems.size(), (UINT)mMaterials.size()));
+			1, (UINT)mAllRitems.size(), (UINT)mMaterials.size(), &mInstanceCount[0]));
 	}
 }
 
@@ -812,11 +829,6 @@ void Game::BuildMaterials()
 void Game::BuildRenderItems()
 {
 	auto boxRitem = std::make_unique<RenderItem>();
-	//boxRitem->Instances.resize(1);
-	//XMStoreFloat4x4(&boxRitem->Instances[0].World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 10.0f, 0.0f));
-	//XMStoreFloat4x4(&boxRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
-	XMStoreFloat4x4(&boxRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	boxRitem->ObjCBIndex = 0;
 	boxRitem->Mat = mMaterials["seafloor0"].get();
 	boxRitem->Geo = mGeometries["shapeGeo"].get();
@@ -824,11 +836,18 @@ void Game::BuildRenderItems()
 	boxRitem->IndexCount = boxRitem->Geo->DrawArgs["testModel"].IndexCount;
 	boxRitem->StartIndexLocation = boxRitem->Geo->DrawArgs["testModel"].StartIndexLocation;
 	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["testModel"].BaseVertexLocation;
+
+	boxRitem->Instances.resize(1);
+	XMStoreFloat4x4(&boxRitem->Instances[0].World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 10.0f, 0.0f));
+	XMStoreFloat4x4(&boxRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+	boxRitem->Instances[0].MaterialIndex = 0;
+
+	mInstanceCount.push_back(boxRitem->Instances.size());
+
 	mAllRitems.push_back(std::move(boxRitem));
 
 	auto gridRitem = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
-	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+
 	gridRitem->ObjCBIndex = 1;
 	gridRitem->Mat = mMaterials["tile0"].get();
 	gridRitem->Geo = mGeometries["shapeGeo"].get();
@@ -836,15 +855,16 @@ void Game::BuildRenderItems()
 	gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
 	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
-	
-	mAllRitems.push_back(std::move(gridRitem));
-	
-	for (auto& e : mAllRitems)
-		mOpaqueRitems.push_back(e.get());
-}
 
-void Game::BuildInstancingRenderItems()
-{
+	gridRitem->Instances.resize(1);
+	XMStoreFloat4x4(&gridRitem->Instances[0].World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+	XMStoreFloat4x4(&gridRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+	gridRitem->Instances[0].MaterialIndex = 1;
+
+	mInstanceCount.push_back(gridRitem->Instances.size());
+
+	mAllRitems.push_back(std::move(gridRitem));
+
 	auto testRitem = std::make_unique<RenderItem>();
 	testRitem->World = MathHelper::Identity4x4();
 	testRitem->TexTransform = MathHelper::Identity4x4();
@@ -878,18 +898,22 @@ void Game::BuildInstancingRenderItems()
 			{
 				int index = k * n*n + i * n + j;
 				testRitem->Instances[index].World = XMFLOAT4X4(
-					1.0f, 0.0f, 0.0f, 0.0f,
-					0.0f, 1.0f, 0.0f, 0.0f,
-					0.0f, 0.0f, 1.0f, 0.0f,
+					3.0f, 0.0f, 0.0f, 0.0f,
+					0.0f, 3.0f, 0.0f, 0.0f,
+					0.0f, 0.0f, 3.0f, 0.0f,
 					x + j * dx, y + i * dy, z + k * dz, 1.0f);
 
-				XMStoreFloat4x4(&testRitem->Instances[index].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-				testRitem->Instances[index].MaterialIndex = 1;
+				XMStoreFloat4x4(&testRitem->Instances[index].TexTransform, XMMatrixScaling(3.0f, 3.0f, 3.0f));
+				testRitem->Instances[index].MaterialIndex = rand() % 2;
 			}
 		}
 	}
+	mInstanceCount.push_back(testRitem->Instances.size());
+
 	mAllRitems.push_back(std::move(testRitem));
-	mInstancingRitems.push_back(mAllRitems[mAllRitems.size()-1].get());
+
+	for (auto& e : mAllRitems)
+		mOpaqueRitems.push_back(e.get());
 }
 
 void Game::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
@@ -932,7 +956,7 @@ void Game::DrawInstancingRenderItems(ID3D12GraphicsCommandList * cmdList, const 
 		cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
 		cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
-		auto instanceBuffer = mCurrFrameResource->InstanceBuffer->Resource();
+		auto instanceBuffer = mCurrFrameResource->InstanceBufferVector[ri->ObjCBIndex]->Resource();
 		mCommandList->SetGraphicsRootShaderResourceView(0, instanceBuffer->GetGPUVirtualAddress());
 
 		cmdList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
