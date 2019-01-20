@@ -76,8 +76,6 @@ public:
 	std::unique_ptr<UploadBuffer<MaterialConstants>> MaterialCB = nullptr;
     std::unique_ptr<UploadBuffer<ObjectConstants>> ObjectCB = nullptr;
 
-	std::unique_ptr<UploadBuffer<InstanceData>> InstanceBuffer = nullptr;
-
 	std::vector<std::unique_ptr<UploadBuffer<InstanceData>>>InstanceBufferVector;
 
     // Fence value to mark commands up to this fence point.  This lets us

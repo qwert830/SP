@@ -25,6 +25,7 @@
 #include <fstream>
 #include <sstream>
 #include <cassert>
+#include <algorithm>
 #include "d3dx12.h"
 #include "DDSTextureLoader.h"
 #include "MathHelper.h"
@@ -58,6 +59,16 @@ inline std::wstring AnsiToWString(const std::string& str)
     WCHAR buffer[512];
     MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, buffer, 512);
     return std::wstring(buffer);
+}
+
+inline float ClampFloat(float x, float min, float max)
+{
+	if (x < min)
+		return min;
+	else if (x > max)
+		return max;
+	else
+		return x;
 }
 
 class d3dUtil

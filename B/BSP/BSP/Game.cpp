@@ -1,9 +1,9 @@
 #include "d3dApp.h"
-#include "Camera.h"
 #include "MathHelper.h"
 #include "UploadBuffer.h"
 #include "FrameResource.h"
 #include "GeometryGenerator.h"
+#include "Player.h"
 #include <fstream>
 
 using Microsoft::WRL::ComPtr;
@@ -82,8 +82,8 @@ private:
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
 private:
 
-	Camera mCamera ;
-    
+	Player mPlayer;
+
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
 	FrameResource* mCurrFrameResource = nullptr;
 	int mCurrFrameResourceIndex = 0;
@@ -123,14 +123,11 @@ private:
     float mTheta = 1.5f*XM_PI;
     float mPhi = XM_PIDIV4;
     float mRadius = 5.0f;
-
-    POINT mLastMousePos;
 };
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 				   PSTR cmdLine, int showCmd)
 {
-	// Enable run-time memory check for debug builds.
 #if defined(DEBUG) | defined(_DEBUG)
 	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
 #endif
@@ -146,7 +143,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 		//	CalculateFrameStats();
 		//	Update(mTimer); 가상함수
 		//	Draw(mTimer); 가상함수
-		
     }
     catch(DxException& e)
     {
@@ -168,12 +164,9 @@ bool Game::Initialize()
 {
     if(!D3DApp::Initialize())
 		return false;
-		
-    // Reset the command list to prep for initialization commands.
+
     ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
- 
-	// Get the increment size of a descriptor in this heap type.  This is hardware specific, 
-	// so we have to query this information.
+
 	mCbvSrvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     
 	LoadTextures();
@@ -187,13 +180,12 @@ bool Game::Initialize()
 	BuildFrameResources();
     BuildPSOs();
 
-	mCamera.SetPosition(0.0f, 5.0f, -15.0f);
+	mPlayer.mCamera.SetPosition(0.0f, 5.0f, -15.0f);
 
     ThrowIfFailed(mCommandList->Close());
 	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
-    // Wait until initialization is complete.
     FlushCommandQueue();
 
 	return true;
@@ -203,20 +195,17 @@ void Game::OnResize()
 {
 	D3DApp::OnResize();
 
-    // The window resized, so update the aspect ratio and recompute the projection matrix.
-	mCamera.SetLens(0.25f*MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
+	mPlayer.SetMousePos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
+	mPlayer.mCamera.SetLens(0.25f*MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
 }
 
 void Game::Update(const GameTimer& gt)
 {
 	OnKeyboardInput(gt);
-	
-	// Cycle through the circular frame resource array.
+
 	mCurrFrameResourceIndex = (mCurrFrameResourceIndex + 1) % gNumFrameResources;
 	mCurrFrameResource = mFrameResources[mCurrFrameResourceIndex].get();
 
-	// Has the GPU finished processing the commands of the current frame resource?
-	// If not, wait until the GPU has completed commands up to this fence point.
 	if (mCurrFrameResource->Fence != 0 && mFence->GetCompletedValue() < mCurrFrameResource->Fence)
 	{
 		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
@@ -294,8 +283,7 @@ void Game::Draw(const GameTimer& gt)
 
 void Game::OnMouseDown(WPARAM btnState, int x, int y)
 {
-    mLastMousePos.x = x;
-    mLastMousePos.y = y;
+	mPlayer.PlayerMouseDown(btnState, x, y);
 
     SetCapture(mhMainWnd);
 }
@@ -307,37 +295,16 @@ void Game::OnMouseUp(WPARAM btnState, int x, int y)
 
 void Game::OnMouseMove(WPARAM btnState, int x, int y)
 {
-	if ((btnState & MK_LBUTTON) != 0)
-	{
-		// Make each pixel correspond to a quarter of a degree.
-		float dx = XMConvertToRadians(0.25f*static_cast<float>(x - mLastMousePos.x));
-		float dy = XMConvertToRadians(0.25f*static_cast<float>(y - mLastMousePos.y));
-
-		mCamera.Pitch(dy);
-		mCamera.RotateY(dx);
-	}
-
-	mLastMousePos.x = x;
-	mLastMousePos.y = y;
+	POINT pos;
+	pos.x = x;
+	pos.y = y;
+	ClientToScreen(mhMainWnd, &pos);
+	mPlayer.PlayerMouseMove(btnState, pos.x, pos.y);
 }
 
 void Game::OnKeyboardInput(const GameTimer& gt)
 {
-	const float dt = gt.DeltaTime();
-
-	if (GetAsyncKeyState('W') & 0x8000)
-		mCamera.Forward(10.0f*dt);
-
-	if (GetAsyncKeyState('S') & 0x8000)
-		mCamera.Forward(-10.0f*dt);
-
-	if (GetAsyncKeyState('A') & 0x8000)
-		mCamera.Strafe(-10.0f*dt);
-
-	if (GetAsyncKeyState('D') & 0x8000)
-		mCamera.Strafe(10.0f*dt);
-
-	mCamera.UpdateViewMatrix();
+	mPlayer.PlayerKeyBoardInput(gt);
 }
 
 void Game::AnimateMaterials(const GameTimer& gt)
@@ -422,8 +389,8 @@ void Game::UpdateMaterialCBs(const GameTimer& gt)
 
 void Game::UpdateMainPassCB(const GameTimer& gt)
 {
-	XMMATRIX view = mCamera.GetView();
-	XMMATRIX proj = mCamera.GetProj();
+	XMMATRIX view = mPlayer.mCamera.GetView();
+	XMMATRIX proj = mPlayer.mCamera.GetProj();
 
 	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
 	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
@@ -436,7 +403,7 @@ void Game::UpdateMainPassCB(const GameTimer& gt)
 	XMStoreFloat4x4(&mMainPassCB.InvProj, XMMatrixTranspose(invProj));
 	XMStoreFloat4x4(&mMainPassCB.ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&mMainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
-	mMainPassCB.EyePosW = mCamera.GetPosition3f();
+	mMainPassCB.EyePosW = mPlayer.mCamera.GetPosition3f();
 	mMainPassCB.RenderTargetSize = XMFLOAT2((float)mClientWidth, (float)mClientHeight);
 	mMainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / mClientWidth, 1.0f / mClientHeight);
 	mMainPassCB.NearZ = 1.0f;

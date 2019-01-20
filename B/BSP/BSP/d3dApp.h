@@ -1,7 +1,3 @@
-//***************************************************************************************
-// d3dApp.h by Frank Luna (C) 2015 All Rights Reserved.
-//***************************************************************************************
-
 #pragma once
 
 #if defined(DEBUG) || defined(_DEBUG)
@@ -41,6 +37,9 @@ public:
  
     virtual bool Initialize();
     virtual LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+	RECT rc;
+	POINT p1, p2;
 
 protected:
     virtual void CreateRtvAndDsvDescriptorHeaps();

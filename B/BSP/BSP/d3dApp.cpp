@@ -217,6 +217,23 @@ void D3DApp::OnResize()
 	mScreenViewport.MaxDepth = 1.0f;
 
     mScissorRect = { 0, 0, mClientWidth, mClientHeight };
+
+	GetClientRect(mhMainWnd, &rc);
+	p1.x = rc.left;
+	p1.y = rc.top;
+	p2.x = rc.right;
+	p2.y = rc.bottom;
+
+	ClientToScreen(mhMainWnd, &p1);
+	ClientToScreen(mhMainWnd, &p2);
+
+	rc.left = p1.x;
+	rc.right = p2.x;
+	rc.top = p1.y;
+	rc.bottom = p2.y;
+
+	ClipCursor(&rc);
+	SetCursorPos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
 }
  
 LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
