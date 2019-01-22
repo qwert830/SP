@@ -15,7 +15,8 @@ public:
 	DirectX::XMFLOAT3 GetPosition3f()const;
 	void SetPosition(float x, float y, float z);
 	void SetPosition(const DirectX::XMFLOAT3& v);
-	
+	void SetCamera(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& right, const DirectX::XMFLOAT3& look, const DirectX::XMFLOAT3& up);
+
 	DirectX::XMVECTOR GetRight()const;
 	DirectX::XMFLOAT3 GetRight3f()const;
 	DirectX::XMVECTOR GetUp()const;

@@ -33,6 +33,16 @@ void Camera::SetPosition(const XMFLOAT3& v)
 	mViewDirty = true;
 }
 
+void Camera::SetCamera(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3 & right, const DirectX::XMFLOAT3 & look, const DirectX::XMFLOAT3 & up)
+{
+	mPosition = pos;
+	mRight = right;
+	mLook = look;
+	mUp = up;
+
+	mViewDirty = true;
+}
+
 XMVECTOR Camera::GetRight()const
 {
 	return XMLoadFloat3(&mRight);
@@ -209,7 +219,6 @@ void Camera::Forward(float d)
 
 void Camera::Pitch(float angle)
 {
-	// Rotate up and look vector about the right vector.
 
 	XMMATRIX R = XMMatrixRotationAxis(XMLoadFloat3(&mRight), angle);
 
@@ -221,7 +230,6 @@ void Camera::Pitch(float angle)
 
 void Camera::RotateY(float angle)
 {
-	// Rotate the basis vectors about the world y-axis.
 
 	XMMATRIX R = XMMatrixRotationY(angle);
 
