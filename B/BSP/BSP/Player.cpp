@@ -21,6 +21,11 @@ void Player::SelectPlayer(const char i)
 
 void Player::PlayerKeyBoardInput(const GameTimer & gt)
 {
+	// 0x0000 이전에 누른 적이 없고 호출 시점에서 안눌린 상태
+	// 0x8000 이전에 누른 적이 없고 호출 시점에서 눌린 상태
+	// 0x8001 이전에 누른 적이 있고 호출 시점에서 눌린 상태
+	// 0x0001 이전에 누른 적이 있고 호출 시점에서 안눌린 상태
+
 	const float dt = gt.DeltaTime();
 
 	if (GetAsyncKeyState('W') & 0x8000)

@@ -57,7 +57,7 @@ cbuffer cbPass : register(b0)
 
     Light gLights[MaxLights];
 };
-Texture2D gDiffuseMap[2] : register(t0);
+Texture2D gDiffuseMap[3] : register(t0);
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
@@ -138,3 +138,50 @@ float4 PS(VertexOut pin) : SV_Target
     return litColor;
 };
 
+VertexOut UI_VS(VertexIn vin, uint instanceID : SV_InstanceID)
+{
+    VertexOut vout = (VertexOut) 0.0f;
+	
+    InstanceData instData = gInstanceData[instanceID];
+    float4x4 world = instData.World;
+    float4x4 texTransform = instData.TexTransform;
+    uint matIndex = instData.MaterialIndex;
+    MaterialConstants matData = gMaterialData[0];
+	
+    vout.MatIndex = matIndex;
+
+    float4 posW = mul(float4(vin.PosL.xyz, 1.0f), world);
+
+    vout.PosW = posW.xyz;
+
+    vout.NormalW = mul(vin.NormalL, (float3x3) world);
+
+    vout.PosH = mul(posW, gView);
+
+    float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), texTransform);
+    vout.TexC = mul(texC, matData.MatTransform).xy;
+	
+    return vout;
+}
+
+float4 UI_PS(VertexOut pin) : SV_Target
+{
+    MaterialConstants matData = gMaterialData[0];
+    float4 diffuseAlbedo = matData.DiffuseAlbedo;
+    float3 fresnelR0 = matData.FresnelR0;
+    float roughness = matData.Roughness;
+    uint diffuseTexIndex = matData.DiffuseMapIndex;
+	
+    diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamLinearWrap, pin.TexC);
+
+    if (diffuseAlbedo.a < 0.00001)
+        discard;
+
+    pin.NormalW = normalize(pin.NormalW);
+
+    float4 litColor = diffuseAlbedo;
+
+    litColor.a = diffuseAlbedo.a;
+
+    return litColor;
+}

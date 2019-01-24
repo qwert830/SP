@@ -459,8 +459,16 @@ void Game::LoadTextures()
 		mCommandList.Get(), tileTex->Filename.c_str(),
 		tileTex->Resource, tileTex->UploadHeap));
 
+	auto uiGunTex = std::make_unique<Texture>();
+	uiGunTex->Name = "uiGunTex";
+	uiGunTex->Filename = L"Resource/uiGun.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), uiGunTex->Filename.c_str(),
+		uiGunTex->Resource, uiGunTex->UploadHeap));
+
 	mTextures[seaFloorTex->Name] = std::move(seaFloorTex);
 	mTextures[tileTex->Name] = std::move(tileTex);
+	mTextures[uiGunTex->Name] = std::move(uiGunTex);
 }
 
 void Game::BuildRootSignature()
@@ -505,7 +513,7 @@ void Game::BuildRootSignature()
 void Game::BuildInstancingRootSignature()
 {
 	CD3DX12_DESCRIPTOR_RANGE texTable;
-	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0);
+	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 0);
 
 	CD3DX12_ROOT_PARAMETER slotRootParameter[4];
 
@@ -541,7 +549,7 @@ void Game::BuildInstancingRootSignature()
 void Game::BuildDescriptorHeaps()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 2;
+	srvHeapDesc.NumDescriptors = 3;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -550,6 +558,7 @@ void Game::BuildDescriptorHeaps()
 
 	auto seaFloorTex = mTextures["seaFloorTex"]->Resource;
 	auto tileTex = mTextures["tileTex"]->Resource;
+	auto uiGunTex = mTextures["uiGunTex"]->Resource;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -565,6 +574,12 @@ void Game::BuildDescriptorHeaps()
 	srvDesc.Format = tileTex->GetDesc().Format;
 	srvDesc.Texture2D.MipLevels = tileTex->GetDesc().MipLevels;
 	md3dDevice->CreateShaderResourceView(tileTex.Get(), &srvDesc, hDescriptor);
+
+	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+
+	srvDesc.Format = uiGunTex->GetDesc().Format;
+	srvDesc.Texture2D.MipLevels = uiGunTex->GetDesc().MipLevels;
+	md3dDevice->CreateShaderResourceView(uiGunTex.Get(), &srvDesc, hDescriptor);
 
 }
 
@@ -582,6 +597,9 @@ void Game::BuildShadersAndInputLayout()
 
 	mShaders["instancingVS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "VS", "vs_5_1");
 	mShaders["instancingOpaquePS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "PS", "ps_5_1");
+
+	mShaders["uiVS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "UI_VS", "vs_5_1");
+	mShaders["uiPS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "UI_PS", "ps_5_1");
 
     mInputLayout =
     {
@@ -779,6 +797,19 @@ void Game::BuildPSOs()
 	};
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&instancingPsoDesc, IID_PPV_ARGS(&mPSOs["instancingOpaque"])));
 
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC uiPsoDesc = instancingPsoDesc;
+	instancingPsoDesc.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["uiVS"]->GetBufferPointer()),
+		mShaders["uiVS"]->GetBufferSize()
+	};
+	instancingPsoDesc.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["uiPS"]->GetBufferPointer()),
+		mShaders["uiPS"]->GetBufferSize()
+	};
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&instancingPsoDesc, IID_PPV_ARGS(&mPSOs["UI"])));
+
 }
 
 void Game::BuildFrameResources()
@@ -809,8 +840,17 @@ void Game::BuildMaterials()
 	tile0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
 	tile0->Roughness = 0.3f;
 
+	auto uiGun0 = std::make_unique<Material>();
+	uiGun0->Name = "uiGun0";
+	uiGun0->MatCBIndex = 2;
+	uiGun0->DiffuseSrvHeapIndex = 2;
+	uiGun0->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	uiGun0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
+	uiGun0->Roughness = 0.3f;
+
 	mMaterials["seafloor0"] = std::move(seafloor0);
 	mMaterials["tile0"] = std::move(tile0);
+	mMaterials["uiGun0"] = std::move(uiGun0);
 }
 
 void Game::BuildRenderItems()
