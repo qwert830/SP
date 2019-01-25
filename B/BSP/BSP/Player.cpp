@@ -69,7 +69,6 @@ void Player::PlayerMouseMove(WPARAM btnState, int x, int y)
 	float dx = DirectX::XMConvertToRadians(sensitivity*static_cast<float>(x - mouse.x));
 	float dy = DirectX::XMConvertToRadians(sensitivity*static_cast<float>(y - mouse.y));
 
-
 	Pitch(dy);
 	RotateY(dx);
 	mCamera.Pitch(dy);
@@ -83,6 +82,7 @@ void Player::PlayerMouseDown(WPARAM btnState, int x, int y)
 	if (btnState == VK_LBUTTON)
 	{
 		superheat += 10;
+		mCamera.ShakeCamera();
 	}
 }
 

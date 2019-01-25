@@ -43,6 +43,16 @@ void Camera::SetCamera(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3 & r
 	mViewDirty = true;
 }
 
+void Camera::ShakeCamera()
+{
+	float r = -5 + rand() % 10;
+	float r2 = rand() % 5;
+	r = r / 90.0f;
+	r2 = r2 / 90.0f;
+	RotateY(r);
+	Pitch(-r2);
+}
+
 XMVECTOR Camera::GetRight()const
 {
 	return XMLoadFloat3(&mRight);
@@ -233,9 +243,9 @@ void Camera::RotateY(float angle)
 
 	XMMATRIX R = XMMatrixRotationY(angle);
 
-	XMStoreFloat3(&mRight,   XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
-	XMStoreFloat3(&mUp, XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
-	XMStoreFloat3(&mLook, XMVector3TransformNormal(XMLoadFloat3(&mLook), R));
+	XMStoreFloat3(&mRight,  XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
+	XMStoreFloat3(&mUp,		XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
+	XMStoreFloat3(&mLook,	XMVector3TransformNormal(XMLoadFloat3(&mLook), R));
 
 	mViewDirty = true;
 }
