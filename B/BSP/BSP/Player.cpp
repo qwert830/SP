@@ -80,6 +80,10 @@ void Player::PlayerMouseMove(WPARAM btnState, int x, int y)
 
 void Player::PlayerMouseDown(WPARAM btnState, int x, int y)
 {
+	if (btnState == VK_LBUTTON)
+	{
+		superheat += 10;
+	}
 }
 
 void Player::SetMousePos(int x, int y)
@@ -134,9 +138,21 @@ void Player::RotateY(float angle)
 	DirectX::XMStoreFloat3(&mVector[PlayerID].mLook,	DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&mVector[PlayerID].mLook), R));
 }
 
+void Player::Update(const GameTimer& gt)
+{
+	const float dt = gt.DeltaTime();
+	superheat = ClampFloat(superheat - 1.0f*dt, 0.0f, 100.0f);
+	
+}
+
 
 
 const char Player::GetPlayerID()
 {
 	return PlayerID;
+}
+
+float Player::GetSuperheat()
+{
+	return superheat;
 }

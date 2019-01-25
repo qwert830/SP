@@ -14,12 +14,12 @@
 
 struct InstanceData
 {
-    float4x4 World;
+    float4x4 World; // ui기준 left,top,right,bottom;
     float4x4 TexTransform;
     uint MaterialIndex;
     uint InstPad0;
     uint InstPad1;
-    uint InstPad2;
+    float4 UIPos;
 };
 
 struct MaterialConstants
@@ -46,7 +46,7 @@ cbuffer cbPass : register(b0)
     float4x4 gViewProj;
     float4x4 gInvViewProj;
     float3 gEyePosW;
-    float cbPerObjectPad1;
+    float superheat;
     float2 gRenderTargetSize;
     float2 gInvRenderTargetSize;
     float gNearZ;
@@ -138,25 +138,35 @@ float4 PS(VertexOut pin) : SV_Target
     return litColor;
 };
 
-VertexOut UI_VS(VertexIn vin, uint instanceID : SV_InstanceID)
+VertexOut UI_VS(VertexIn vin, uint instanceID : SV_InstanceID, uint vertexID : SV_VertexID)
 {
     VertexOut vout = (VertexOut) 0.0f;
 	
     InstanceData instData = gInstanceData[instanceID];
-    float4x4 world = instData.World;
-    float4x4 texTransform = instData.TexTransform;
-    uint matIndex = instData.MaterialIndex;
+    float4x4 world = instData.World; // 기본행렬 * 회전행렬
+    float4x4 texTransform = instData.TexTransform; // 기본행렬
+    float4 uiPos = instData.UIPos;
+    uint matIndex = instData.MaterialIndex; 
     MaterialConstants matData = gMaterialData[0];
 	
     vout.MatIndex = matIndex;
 
-    float4 posW = mul(float4(vin.PosL.xyz, 1.0f), world);
-
-    vout.PosW = posW.xyz;
-
-    vout.NormalW = mul(vin.NormalL, (float3x3) world);
-
-    vout.PosH = mul(posW, gView);
+    if(vertexID == 0)
+    {
+        vout.PosH = float4(uiPos.x, uiPos.y, 0.0f, 1.0f);
+    }
+    else if(vertexID == 1)
+    {
+        vout.PosH = float4(uiPos.z, uiPos.y, 0.0f, 1.0f);
+    }
+    else if (vertexID == 2)
+    {
+        vout.PosH = float4(uiPos.x, uiPos.w, 0.0f, 1.0f);
+    }
+    else if (vertexID == 3)
+    {
+        vout.PosH = float4(uiPos.z, uiPos.w, 0.0f, 1.0f);
+    }
 
     float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), texTransform);
     vout.TexC = mul(texC, matData.MatTransform).xy;
@@ -177,11 +187,8 @@ float4 UI_PS(VertexOut pin) : SV_Target
     if (diffuseAlbedo.a < 0.00001)
         discard;
 
-    pin.NormalW = normalize(pin.NormalW);
+    if(superheat/100.0f > pin.TexC.x)
+        return float4(1.0f, 0.0f, 0.0f, 0.0f);
 
-    float4 litColor = diffuseAlbedo;
-
-    litColor.a = diffuseAlbedo.a;
-
-    return litColor;
+    return float4(1.0f, 1.0f, 1.0f, 1.0f);
 }

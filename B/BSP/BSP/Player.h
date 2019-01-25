@@ -24,6 +24,8 @@ private:
 	unsigned char moveState = MOVE::STAND;
 	unsigned char attackState = ATTACK::NOATTACK;
 
+	float superheat = 0.0f;
+
 	POINT mouse;
 
 public:
@@ -42,7 +44,9 @@ public:
 	void Strafe(float d);
 	void Pitch(float angle);
 	void RotateY(float angle);
+	void Update(const GameTimer& gt);
 	const char GetPlayerID();
+	float GetSuperheat();
 	POINT mLastMousePos;
 };
 

@@ -476,9 +476,9 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGrid(float width, float dep
 			meshData.Indices32[k+1] = i*n+j+1;
 			meshData.Indices32[k+2] = (i+1)*n+j;
 
-			meshData.Indices32[k+3] = (i+1)*n+j;
-			meshData.Indices32[k+4] = i*n+j+1;
-			meshData.Indices32[k+5] = (i+1)*n+j+1;
+			meshData.Indices32[k+3] = (i+1)*n+j;	// 2(4)   6
+			meshData.Indices32[k+4] = i*n+j+1;		// 
+			meshData.Indices32[k+5] = (i+1)*n+j+1;	// 0      1(5)
 
 			k += 6; 
 		}
