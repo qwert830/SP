@@ -1,4 +1,3 @@
-
 #define MAX_BUFF_SIZE   4096
 #define MAX_PACKET_SIZE  255
 
@@ -6,24 +5,42 @@
 
 #define MY_SERVER_PORT  4000
 
+#define MAX_IDSIZE 10
+
 #define LOBBYNUMBER -1
 #define MAX_ROOMNUMBER 200
 #define MAX_ROOMLIMIT 10
 
 enum room_status { JOINABLE = 1, FULL = 2, EMPTY = 3, PLAY = 4 };
 
-#define CS_REFRESH 98
-#define CS_JOIN 99
-#define CS_AUTOJOIN 100
-#define CS_QUIT 101
+enum CS_PacketKind { 
+	CS_REFRESH = 50,
+	CS_JOIN,
+	CS_AUTOJOIN,
+	CS_QUIT,
+	CS_REGIST,
+	CS_LOGIN,
+};
 
-#define SC_REFRESH 97;
-#define SC_PUT_PLAYER  98
-#define SC_JOIN_PLAYER 99
-#define SC_QUIT_PLAYER 100
+enum SC_PacketKind {
+	SC_REFRESH = 50,
+	SC_PUT_PLAYER,
+	SC_JOIN_PLAYER,
+	SC_QUIT_PLAYER,
+	SC_FAIL,
+	SC_SUCCESS,
 
+};
 #pragma pack (push, 1)
 // 클라이언트 -> 서버------------------------
+
+struct cs_userinfo_packet {
+	unsigned char size;
+	unsigned char type;
+	wchar_t id[10];
+	wchar_t password[10];
+};
+
 struct cs_refresh_packet {
 	unsigned char size;
 	unsigned char type;
@@ -67,6 +84,11 @@ struct cs_status_packet {
 	unsigned char status;
 };
 // 서버 -> 클라이언트------------------------
+
+struct sc_id_packet {
+	unsigned char size;
+	unsigned char type;
+};
 
 struct sc_roomstatus_packet {
 	unsigned char size;

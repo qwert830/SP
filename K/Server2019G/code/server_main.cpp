@@ -13,15 +13,18 @@
 #include "../header/protocol.h"
 #include <chrono>
 #include <mutex>
-#include <atomic>
+#include <string>
 
+#define UNICODE
 #include <sqlext.h>  
 #include <locale.h>
 
-using namespace std;
 
 #define MAX(a,b)	((a)>(b))?(a):(b)
 #define	MIN(a,b)	((a)<(b))?(a):(b)
+
+using namespace std;
+
 
 enum kind_of_work { RECV = 1 };
 
@@ -39,7 +42,8 @@ class Client {
 public:
 	SOCKET m_Socket;
 	bool m_IsConnected;
-	int m_Id;
+	wstring m_ID;
+	int Score;
 	int m_RoomNumber;
 	EXOVER m_rxover;
 	int m_packet_size;
@@ -48,7 +52,7 @@ public:
 
 	Client() {
 		m_IsConnected = false;
-		m_RoomNumber = -1;
+		m_RoomNumber = LOBBYNUMBER;
 		m_prev_packet_size = 0;
 		ZeroMemory(&m_rxover.m_over, sizeof(WSAOVERLAPPED));
 		m_rxover.m_wsabuf.buf = m_rxover.m_iobuf;
@@ -97,25 +101,8 @@ public:
 array <Client, MAX_USER> g_clients;
 array <Room, MAX_ROOMNUMBER> g_rooms;
 
-void HandleDiagnosticRecord(SQLHANDLE hHandle, SQLSMALLINT hType, RETCODE RetCode)
-{
-	SQLSMALLINT iRec = 0;
-	SQLINTEGER  iError;
-	WCHAR       wszMessage[1000];
-	WCHAR       wszState[SQL_SQLSTATE_SIZE + 1];
 
-	if (RetCode == SQL_INVALID_HANDLE) {
-		fwprintf(stderr, L"Invalid handle!\n");
-		return;
-	}
-	while (SQLGetDiagRec(hType, hHandle, ++iRec, wszState, &iError, wszMessage,
-		(SQLSMALLINT)(sizeof(wszMessage) / sizeof(WCHAR)), (SQLSMALLINT *)NULL) == SQL_SUCCESS) {
-		// Hide data truncated..
-		if (wcsncmp(wszState, L"01004", 5)) {
-			fwprintf(stderr, L"[%5.5s] %s (%d)\n", wszState, wszMessage, iError);
-		}
-	}
-}
+
 
 void error_display(const char *msg, int err_no)
 {
@@ -143,6 +130,268 @@ void Initialize()
 	WSADATA wsadata;
 	WSAStartup(MAKEWORD(2, 2), &wsadata);
 	ghiocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0);
+}
+
+void HandleDiagnosticRecord(SQLHANDLE hHandle, SQLSMALLINT hType, RETCODE RetCode)
+{
+	SQLSMALLINT iRec = 0;
+	SQLINTEGER  iError;
+	WCHAR       wszMessage[1000];
+	WCHAR       wszState[SQL_SQLSTATE_SIZE + 1];
+
+	if (RetCode == SQL_INVALID_HANDLE) {
+		fwprintf(stderr, L"Invalid handle!\n");
+		return;
+	}
+	while (SQLGetDiagRec(hType, hHandle, ++iRec, wszState, &iError, wszMessage,
+		(SQLSMALLINT)(sizeof(wszMessage) / sizeof(WCHAR)), (SQLSMALLINT *)NULL) == SQL_SUCCESS) {
+		// Hide data truncated..
+		if (wcsncmp(wszState, L"01004", 5)) {
+			fwprintf(stderr, L"[%5.5s] %s (%d)\n", wszState, wszMessage, iError);
+		}
+	}
+}
+
+bool DBCall_Login(int key, const wstring& id, const wstring& password) {
+	bool res = false;
+	SQLHENV henv;
+	SQLHDBC hdbc;
+	SQLHSTMT hstate = 0;
+	SQLRETURN retcode;
+
+	SQLWCHAR szID[MAX_IDSIZE] = { 0, };
+	
+	SQLINTEGER szScore = 0;
+	SQLLEN cbID = 0, cbScore = 0;
+
+	// Allocate environment handle  
+	retcode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv);
+
+	// Set the ODBC version environment attribute  
+	if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+		retcode = SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER*)SQL_OV_ODBC3, 0);
+
+		// Allocate connection handle  
+		if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+			retcode = SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc);
+
+			// Set login timeout to 5 seconds  
+			if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+				SQLSetConnectAttr(hdbc, SQL_LOGIN_TIMEOUT, (SQLPOINTER)10, 0);
+
+				// Connect to data source  
+				retcode = SQLConnect(hdbc, (SQLWCHAR*)L"GS2019G", SQL_NTS, (SQLWCHAR*)NULL, 0, NULL, 0);
+
+				// Allocate statement handle  
+				if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+					retcode = SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstate);
+					wstring command = L"EXEC USERLOGIN ";
+					command += id + L"," + password;
+					retcode = SQLExecDirect(hstate, (SQLWCHAR *)command.c_str(), SQL_NTS);
+					if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+						// Bind columns
+						SQLBindCol(hstate, 1, SQL_C_WCHAR, szID, sizeof(szID), &cbID);
+						SQLBindCol(hstate, 2, SQL_INTEGER, &szScore, sizeof(int), &cbScore);
+						// Fetch and print each row of data. On an error, display a message and exit.  
+						while (1) {
+							retcode = SQLFetch(hstate);
+							if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+								cout << "요기까진 왔는데?" << endl;
+								
+								if (id == szID) {
+									g_clients[key].m_ID = szID;
+									g_clients[key].Score = szScore;
+									res = true;
+								}
+							}
+							else
+								break;
+						}
+					}
+					// Process data  
+					if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+
+						SQLCancel(hstate);
+						SQLFreeHandle(SQL_HANDLE_STMT, hstate);
+					}
+
+					SQLDisconnect(hdbc);
+				}
+
+				SQLFreeHandle(SQL_HANDLE_DBC, hdbc);
+			}
+		}
+		SQLFreeHandle(SQL_HANDLE_ENV, henv);
+	}
+	return res;
+}
+
+int DBCall_GetData(const wstring& id) {
+	int res = -1;
+	SQLHENV henv;
+	SQLHDBC hdbc;
+	SQLHSTMT hstate = 0;
+	SQLRETURN retcode;
+
+	SQLWCHAR szID[MAX_IDSIZE] = { 0, };
+	SQLWCHAR szPassword[MAX_IDSIZE] = { 0, };
+	SQLINTEGER szScore = 0;
+	SQLLEN cbID = 0, cbPassword = 0, cbScore = 0;
+
+	// Allocate environment handle  
+	retcode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv);
+
+	// Set the ODBC version environment attribute  
+	if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+		retcode = SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER*)SQL_OV_ODBC3, 0);
+
+		// Allocate connection handle  
+		if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+			retcode = SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc);
+
+			// Set login timeout to 5 seconds  
+			if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+				SQLSetConnectAttr(hdbc, SQL_LOGIN_TIMEOUT, (SQLPOINTER)10, 0);
+
+				// Connect to data source  
+				retcode = SQLConnect(hdbc, (SQLWCHAR*)L"GS2019G", SQL_NTS, (SQLWCHAR*)NULL, 0, NULL, 0);
+
+				// Allocate statement handle  
+				if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+					retcode = SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstate);
+					wstring command = L"EXEC GETDATA ";
+					command += id;
+					retcode = SQLExecDirect(hstate, (SQLWCHAR *)command.c_str(), SQL_NTS);
+					if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+						// Bind columns
+						SQLBindCol(hstate, 1, SQL_C_CHAR, &szID, MAX_IDSIZE, &cbID);
+						SQLBindCol(hstate, 2, SQL_INTEGER, &szPassword, 1, &cbPassword);
+						SQLBindCol(hstate, 3, SQL_INTEGER, &szScore, 1, &cbScore);
+						// Fetch and print each row of data. On an error, display a message and exit.  
+						while (1) {
+							retcode = SQLFetch(hstate);
+							if (retcode == SQL_ERROR || retcode == SQL_SUCCESS_WITH_INFO)
+								cout << "SQL에러!" << endl;
+							if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+								if (id == szID) {
+									res = szScore;
+								}
+							}
+							else
+								break;
+						}
+					}
+					// Process data  
+					if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+
+						SQLCancel(hstate);
+						SQLFreeHandle(SQL_HANDLE_STMT, hstate);
+					}
+
+					SQLDisconnect(hdbc);
+				}
+
+				SQLFreeHandle(SQL_HANDLE_DBC, hdbc);
+			}
+		}
+		SQLFreeHandle(SQL_HANDLE_ENV, henv);
+	}
+	return res;
+}
+
+bool DBCall_Regist(int key, const wstring& id, const wstring& password) {
+	bool res = false;
+	SQLHENV henv;
+	SQLHDBC hdbc;
+	SQLHSTMT hstate = 0;
+	SQLRETURN retcode;
+	// Allocate environment handle  
+	retcode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv);
+
+	// Set the ODBC version environment attribute  
+	if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+		retcode = SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER*)SQL_OV_ODBC3, 0);
+
+		// Allocate connection handle  
+		if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+			retcode = SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc);
+
+			// Set login timeout to 5 seconds  
+			if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+				SQLSetConnectAttr(hdbc, SQL_LOGIN_TIMEOUT, (SQLPOINTER)10, 0);
+
+				// Connect to data source  
+				retcode = SQLConnect(hdbc, (SQLWCHAR*)L"GS2019G", SQL_NTS, (SQLWCHAR*)NULL, 0, NULL, 0);
+				// Allocate statement handle  
+
+				if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+					retcode = SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstate);
+					wstring command = L"EXEC USERREGIST ";
+					command += id + L"," + password;
+					retcode = SQLExecDirect(hstate, (SQLWCHAR *)command.c_str(), SQL_NTS);
+					// Process data  
+					if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+						res = true;
+						SQLCancel(hstate);
+						SQLFreeHandle(SQL_HANDLE_STMT, hstate);
+					}
+
+					SQLDisconnect(hdbc);
+				}
+
+				SQLFreeHandle(SQL_HANDLE_DBC, hdbc);
+			}
+		}
+		SQLFreeHandle(SQL_HANDLE_ENV, henv);
+	}
+	return res;
+}
+
+void DBCall_SetData(int key, int score) {
+	SQLHENV henv;
+	SQLHDBC hdbc;
+	SQLHSTMT hstate = 0;
+	SQLRETURN retcode;
+	// Allocate environment handle  
+	retcode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv);
+
+	// Set the ODBC version environment attribute  
+	if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+		retcode = SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER*)SQL_OV_ODBC3, 0);
+
+		// Allocate connection handle  
+		if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+			retcode = SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc);
+
+			// Set login timeout to 5 seconds  
+			if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+				SQLSetConnectAttr(hdbc, SQL_LOGIN_TIMEOUT, (SQLPOINTER)10, 0);
+
+				// Connect to data source  
+				retcode = SQLConnect(hdbc, (SQLWCHAR*)L"GS2019G", SQL_NTS, (SQLWCHAR*)NULL, 0, NULL, 0);
+				// Allocate statement handle  
+
+				if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+					retcode = SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstate);
+					wstring command = L"EXEC SETDATA ";
+					wchar_t itoares[10];
+					_itow(score, itoares, 10);
+					command += g_clients[key].m_ID + L"," + itoares;
+					retcode = SQLExecDirect(hstate, (SQLWCHAR *)command.c_str(), SQL_NTS);
+					// Process data  
+					if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
+						SQLCancel(hstate);
+						SQLFreeHandle(SQL_HANDLE_STMT, hstate);
+					}
+
+					SQLDisconnect(hdbc);
+				}
+
+				SQLFreeHandle(SQL_HANDLE_DBC, hdbc);
+			}
+		}
+		SQLFreeHandle(SQL_HANDLE_ENV, henv);
+	}
 }
 
 void StartRecv(int id)
@@ -176,26 +425,38 @@ inline void SendPacket(int id, void * ptr)
 	}
 }
 
-void DisconnectPlayer(int id)
-{
-	sc_player_quit_packet p;
-	p.id = id;
-	p.type = SC_QUIT_PLAYER;
-	p.size = sizeof(p);
-	if (g_clients[id].m_RoomNumber != -1) {
-		for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
-				SendPacket(d, &p);
-		}
-	}
-	closesocket(g_clients[id].m_Socket);
-	g_clients[id].m_IsConnected = false;
-}
-
 inline void ProcessPacket(int id, char *packet)
 {
-	cs_join_packet* packet_join;
 	switch (packet[1])
 	{
+	case CS_REGIST:
+	{
+		sc_id_packet idp;
+		idp.size = sizeof(sc_id_packet);
+		cs_userinfo_packet* packet_regist = reinterpret_cast<cs_userinfo_packet*>(packet);
+		if (DBCall_Regist(id, packet_regist->id, packet_regist->password)) {
+			cout << id << " 번 유저 회원가입 성공" << endl;
+			idp.type = SC_SUCCESS;
+		}
+		else
+			idp.type = SC_FAIL;
+		SendPacket(id, &idp);
+	}
+		break;
+	case CS_LOGIN:
+	{
+		sc_id_packet idp;
+		idp.size = sizeof(sc_id_packet);
+		cs_userinfo_packet * packet_login = reinterpret_cast<cs_userinfo_packet*>(packet);
+		if (DBCall_Login(id, packet_login->id, packet_login->password)) {
+			cout << id << " 번 유저 로그인 성공" << endl;
+			idp.type = SC_SUCCESS;
+		}
+		else
+			idp.type = SC_FAIL;
+		SendPacket(id, &idp);
+	}
+		break;
 	case CS_REFRESH:
 		sc_roomstatus_packet packet_rs;
 		packet_rs.size = sizeof(sc_roomstatus_packet);
@@ -208,8 +469,8 @@ inline void ProcessPacket(int id, char *packet)
 	case CS_JOIN:
 		if (g_clients[id].m_RoomNumber == LOBBYNUMBER)
 		{
-			packet_join = reinterpret_cast<cs_join_packet*>(packet);
-			if (0 <= packet_join->roomnumber < MAX_ROOMNUMBER) {
+			cs_join_packet* packet_join = reinterpret_cast<cs_join_packet*>(packet);
+			if (0 <= packet_join->roomnumber && packet_join->roomnumber < MAX_ROOMNUMBER) {
 				g_rooms[packet_join->roomnumber].m_mJoinIdList.lock();
 				if (g_rooms[packet_join->roomnumber].join(id)) {
 					g_clients[id].m_RoomNumber = packet_join->roomnumber;
@@ -290,6 +551,21 @@ inline void ProcessPacket(int id, char *packet)
 		cout << "Unkown Packet Type from Client [" << id << "]\n";
 		return;
 	}
+}
+
+void DisconnectPlayer(int id)
+{
+	sc_player_quit_packet p;
+	p.id = id;
+	p.type = SC_QUIT_PLAYER;
+	p.size = sizeof(p);
+	if (g_clients[id].m_RoomNumber != -1) {
+		for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
+			SendPacket(d, &p);
+		}
+	}
+	closesocket(g_clients[id].m_Socket);
+	g_clients[id].m_IsConnected = false;
 }
 
 void worker_thread()
@@ -417,7 +693,6 @@ void Accept_Threads()
 	}
 }
 
-
 int main()
 {
 	vector <thread> w_threads;
@@ -431,4 +706,5 @@ int main()
 		t.join();
 
 	a_thread.join();
+
 }

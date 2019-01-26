@@ -9,6 +9,7 @@
 
 using namespace std;
 
+
 int recvn(SOCKET s, char *buf, int len, int flags)
 {
 	int received;
@@ -28,7 +29,7 @@ int recvn(SOCKET s, char *buf, int len, int flags)
 	return (len - left);
 }
 // 소켓 함수 오류 출력 후 종료
-void err_quit(char *msg)
+void err_quit(wchar_t *msg)
 {
 	LPVOID lpMsgBuf;
 	FormatMessage(
@@ -54,6 +55,15 @@ void err_display(const char *msg)
 	LocalFree(lpMsgBuf);
 }
 
+wstring m2w(const char* pStr) {
+	int len = -1;
+	wstring wstrOut;
+	int nchar = MultiByteToWideChar(CP_ACP, 0, pStr, len, NULL, 0);
+	wstrOut.resize(nchar);
+	MultiByteToWideChar(CP_ACP, 0, pStr, len, const_cast<wchar_t*>(wstrOut.c_str()), nchar);
+	return wstrOut;
+}
+
 int main() {
 
 	WSADATA wsadata;
@@ -76,16 +86,66 @@ int main() {
 	char sbuf[MAX_PACKET_SIZE];
 	char rbuf[MAX_PACKET_SIZE];
 	enum command_list {
-		REFRESH = 0, AUTOJOIN, JOINROOM, QUITROOM
+		LOGIN = 1, REGIST,
+		REFRESH = 0, AUTOJOIN, JOINROOM, QUITROOM,
 	};
 
 	int command, retval;
 	sc_roomstatus_packet* rsp = reinterpret_cast<sc_roomstatus_packet*>(rbuf);
-	
+	sc_id_packet* idp = reinterpret_cast<sc_id_packet*>(rbuf);
+
+	cs_userinfo_packet* packet_uif = reinterpret_cast<cs_userinfo_packet*>(sbuf);
 	cs_refresh_packet* packet_ref = reinterpret_cast<cs_refresh_packet*>(sbuf);
 	cs_join_packet* packet_join = reinterpret_cast<cs_join_packet*>(sbuf);
 	cs_autojoin_packet* packet_autojoin = reinterpret_cast<cs_autojoin_packet*>(sbuf);
 	cs_quit_packet* packet_quit = reinterpret_cast<cs_quit_packet*>(sbuf);
+
+	bool logined = true;
+	while (logined) {
+		ZeroMemory(sbuf, MAX_PACKET_SIZE);
+		ZeroMemory(rbuf, MAX_PACKET_SIZE);
+		cout << "[1:LOGIN]\n[2:REGIST]" << endl;
+		cin >> command;
+
+		char tmp[10];
+		switch (command) {
+		case REGIST:
+			cout << "ID(영어, 숫자 10자이내) :";
+			cin >> tmp;
+			memcpy(packet_uif->id, m2w(tmp).c_str(), 10);
+			cout << "PASSWORD(영어, 숫자 10자이내) :";
+			cin >> tmp;
+			memcpy(packet_uif->password, m2w(tmp).c_str(), 10);
+			packet_uif->size = sizeof(cs_userinfo_packet);
+			packet_uif->type = CS_REGIST;
+			send(sock, sbuf, sizeof(cs_userinfo_packet), 0);
+			recvn(sock, rbuf, sizeof(sc_id_packet), 0);
+			if (idp->type != SC_SUCCESS) {
+				cout << "회원가입 실패" << endl;
+			}
+			break;
+		case LOGIN:
+			cout << "ID :";
+			cin >> tmp;
+			memcpy(packet_uif->id, m2w(tmp).c_str(), 10);
+			cout << "PASSWORD :";
+			cin >> tmp;
+			memcpy(packet_uif->password, m2w(tmp).c_str(), 10);
+			packet_uif->size = sizeof(cs_userinfo_packet);
+			packet_uif->type = CS_LOGIN;
+			send(sock, sbuf, sizeof(cs_userinfo_packet), 0);
+			recvn(sock, rbuf, sizeof(sc_id_packet), 0);
+			if (idp->type == SC_SUCCESS) {
+				logined = false;
+				system("cls");
+			}
+			else
+				cout << "로그인 실패" << endl;
+			break;
+		}
+	}
+	
+
 	while (1) {
 		ZeroMemory(sbuf, MAX_PACKET_SIZE);
 		ZeroMemory(rbuf, MAX_PACKET_SIZE);
