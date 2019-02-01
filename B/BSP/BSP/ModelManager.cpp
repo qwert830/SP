@@ -30,6 +30,9 @@ HRESULT ModelManager::LoadFBX(const char* filename, std::vector<ModelData>* pOut
 	bSuccess = pImporter->Import(pFbxScene);
 	if (!bSuccess) return E_FAIL;
 
+	FbxGeometryConverter con(g_pFbxSdkManager);
+	con.Triangulate(pFbxScene, true);
+
 	pImporter->Destroy();
 
 	FbxNode* pFbxRootNode = pFbxScene->GetRootNode();
@@ -55,16 +58,17 @@ HRESULT ModelManager::LoadFBX(const char* filename, std::vector<ModelData>* pOut
 			for (int j = 0; j < pMesh->GetPolygonCount(); j++)
 			{
 				int iNumVertices = pMesh->GetPolygonSize(j);
-				//assert(iNumVertices == 3);
+				assert(iNumVertices == 3);
 
 				for (int k = 0; k < iNumVertices; k++) {
 					int iControlPointIndex = pMesh->GetPolygonVertex(j, k);
-
+					
 					ModelData data;
 					data.x = (float)pVertices[iControlPointIndex].mData[0];
 					data.y = (float)pVertices[iControlPointIndex].mData[1];
 					data.z = (float)pVertices[iControlPointIndex].mData[2];
 					data.w = (float)pVertices[iControlPointIndex].mData[3];
+					
 					pOutData->push_back(data);
 				}
 			}

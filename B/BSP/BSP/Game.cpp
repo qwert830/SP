@@ -270,7 +270,7 @@ void Game::Draw(const GameTimer& gt)
 
 	mCommandList->SetGraphicsRootDescriptorTable(3, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
-	//DrawInstancingRenderItems(mCommandList.Get(), mOpaqueRitems);
+	DrawInstancingRenderItems(mCommandList.Get(), mOpaqueRitems);
 	DrawInstancingRenderItems(mCommandList.Get(), mPlayerRitems);
 
 	// 인스턴싱 그리기 끝
@@ -674,14 +674,14 @@ void Game::BuildShapeGeometry()
 	// 모델로딩완료
 
 	std::vector<ModelData> data;
-	mModelManager.LoadFBX("Resource//PlayerChar.sdk", &data);
+	mModelManager.LoadFBX("Resource//PlayerChar.fbx", &data);
 
 	// 모델 데이터 입력
-	auto totalVertexCount = (size_t)m_vertexCount + grid.Vertices.size()+ box.Vertices.size() + uiGrid.Vertices.size();
+	auto totalVertexCount = (size_t)m_vertexCount + grid.Vertices.size()+ data.size() + uiGrid.Vertices.size();
 	
-	std::vector<Vertex> vertices(1000000);
+	std::vector<Vertex> vertices(totalVertexCount);
 	std::vector<uint16_t> indices;
-
+	
 	int k = 0;
 
 	for (int i = 0; i < m_vertexCount; ++i, ++k)
@@ -702,13 +702,6 @@ void Game::BuildShapeGeometry()
 	}
 	indices.insert(indices.end(), grid.Indices32.begin(), grid.Indices32.end());
 
-	for (int i = 0; i < box.Vertices.size(); ++i, ++k)
-	{
-		vertices[k].Pos = XMFLOAT4(box.Vertices[i].Position.x, box.Vertices[i].Position.y, box.Vertices[i].Position.z, 0.0f);
-		vertices[k].Tex = box.Vertices[i].TexC;
-		vertices[k].Normal = box.Vertices[i].Normal;
-	}
-	indices.insert(indices.end(), box.Indices32.begin(), box.Indices32.end());
 
 	for (int i = 0; i < uiGrid.Vertices.size(); ++i, ++k)
 	{
@@ -717,6 +710,16 @@ void Game::BuildShapeGeometry()
 		vertices[k].Normal = uiGrid.Vertices[i].Normal;
 	}
 	indices.insert(indices.end(), uiGrid.Indices32.begin(), uiGrid.Indices32.end());
+
+	for (int i = 0; i < data.size(); ++i, ++k)
+	{
+		vertices[k].Pos = XMFLOAT4(data[i].x, data[i].y, data[i].z, 0.0f);
+		vertices[k].Tex = XMFLOAT2(data[i].tu, data[i].tv);
+		vertices[k].Normal = XMFLOAT3(data[i].nx, data[i].ny, data[i].nz);
+		
+		indices.insert(indices.end(), i);
+	}
+	UINT playerIndex = data.size();
 
     const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
@@ -727,11 +730,11 @@ void Game::BuildShapeGeometry()
 	UINT gridIndexOffset = modelIndexCount;
 	UINT gridVertexOffset = m_vertexCount;
 
-	UINT boxIndexOffset = (UINT)grid.Indices32.size() + gridIndexOffset;
-	UINT boxVertexOffset = (UINT)grid.Vertices.size() + gridVertexOffset;
+	UINT uiGridIndexOffset = (UINT)grid.Indices32.size() + gridIndexOffset;
+	UINT uiGridVertexOffset = (UINT)grid.Vertices.size() + gridVertexOffset;
 
-	UINT uiGridIndexOffset = (UINT)box.Indices32.size() + boxIndexOffset;
-	UINT uiGridVertexOffset = (UINT)box.Vertices.size() + boxVertexOffset;
+	UINT PlayerIndexOffset = (UINT)uiGrid.Indices32.size() + uiGridIndexOffset;
+	UINT PlayerVertexOffset = (UINT)uiGrid.Vertices.size() + uiGridVertexOffset;
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = "shapeGeo";
@@ -766,20 +769,21 @@ void Game::BuildShapeGeometry()
 	gridSubmesh.StartIndexLocation = gridIndexOffset;
 	gridSubmesh.BaseVertexLocation = gridVertexOffset;
 
-	SubmeshGeometry boxSubmesh;
-	boxSubmesh.IndexCount = (UINT)box.Indices32.size();
-	boxSubmesh.StartIndexLocation = boxIndexOffset;
-	boxSubmesh.BaseVertexLocation = boxVertexOffset;
-
 	SubmeshGeometry uiGridSubmesh;
 	uiGridSubmesh.IndexCount = (UINT)uiGrid.Indices32.size();
 	uiGridSubmesh.StartIndexLocation = uiGridIndexOffset;
 	uiGridSubmesh.BaseVertexLocation = uiGridVertexOffset;
+	
+	SubmeshGeometry PlayerSubmesh;
+	PlayerSubmesh.IndexCount = (UINT)playerIndex;
+	PlayerSubmesh.StartIndexLocation = PlayerIndexOffset;
+	PlayerSubmesh.BaseVertexLocation = PlayerVertexOffset;
+
 
 	geo->DrawArgs["testModel"] = submesh;
 	geo->DrawArgs["grid"] = gridSubmesh;
-	geo->DrawArgs["box"] = boxSubmesh;
 	geo->DrawArgs["uiGrid"] = uiGridSubmesh;
+	geo->DrawArgs["box"] = PlayerSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
 }
@@ -999,9 +1003,9 @@ void Game::BuildRenderItems()
 			{
 				int index = k * n +  j;
 				PlayerRitem->Instances[index].World = XMFLOAT4X4(
-					1.0f, 0.0f, 0.0f, 0.0f,
-					0.0f, 1.0f, 0.0f, 0.0f,
-					0.0f, 0.0f, 1.0f, 0.0f,
+					0.1f, 0.0f, 0.0f, 0.0f,
+					0.0f, 0.1f, 0.0f, 0.0f,
+					0.0f, 0.0f, 0.1f, 0.0f,
 					x + j * dx, 10, z + k * dz, 1.0f);
 
 				XMStoreFloat4x4(&PlayerRitem->Instances[index].TexTransform, XMMatrixScaling(2.0f, 2.0f, 2.0f));

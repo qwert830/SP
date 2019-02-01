@@ -4,6 +4,7 @@
 struct ModelData 
 {
 	float x, y, z, w, tu, tv, nx, ny, nz;
+	unsigned int index;
 };
 
 class ModelManager
