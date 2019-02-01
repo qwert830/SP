@@ -4,6 +4,7 @@
 #include "FrameResource.h"
 #include "GeometryGenerator.h"
 #include "Player.h"
+#include "ModelManager.h"
 #include <fstream>
 
 using Microsoft::WRL::ComPtr;
@@ -85,6 +86,7 @@ private:
 private:
 
 	Player mPlayer;
+	ModelManager mModelManager;
 
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
 	FrameResource* mCurrFrameResource = nullptr;
@@ -671,6 +673,8 @@ void Game::BuildShapeGeometry()
 	fin.close();
 	// 모델로딩완료
 
+	std::vector<ModelData> data;
+	mModelManager.LoadFBX("Resource//PlayerChar.sdk", &data);
 
 	// 모델 데이터 입력
 	auto totalVertexCount = (size_t)m_vertexCount + grid.Vertices.size()+ box.Vertices.size() + uiGrid.Vertices.size();

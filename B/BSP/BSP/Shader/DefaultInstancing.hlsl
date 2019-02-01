@@ -14,7 +14,7 @@
 
 struct InstanceData
 {
-    float4x4 World; // ui±‚¡ÿ left,top,right,bottom;
+    float4x4 World; 
     float4x4 TexTransform;
     uint MaterialIndex;
     uint InstPad0;

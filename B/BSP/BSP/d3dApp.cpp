@@ -1,4 +1,3 @@
-
 #include "d3dApp.h"
 #include <WindowsX.h>
 
