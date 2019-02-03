@@ -149,6 +149,7 @@ int main() {
 	while (1) {
 		ZeroMemory(sbuf, MAX_PACKET_SIZE);
 		ZeroMemory(rbuf, MAX_PACKET_SIZE);
+		//스위치문으로 현재 상태에 따른 출력 및 커맨드를 따로 지정해 줄 것.
 		cout << "[0: REFRESH]\n[1: AUTOJOIN]\n[2: JOINROOM]\n[3: QUITROOM]\n";
 		cout << "input command : ";
 		cin >> command;
@@ -167,13 +168,13 @@ int main() {
 			}
 			for (int i = 0; i < MAX_ROOMNUMBER; ++i) {
 				switch (rsp->roomstatus[i]) {
-				case EMPTY:
+				case RS_EMPTY:
 					//cout << i << " 번방 - 빈방" << endl;
 					break;
-				case FULL:
+				case RS_FULL:
 					cout << i << " 번방 - 만원" << endl;
 					break;
-				case JOINABLE:
+				case RS_JOINABLE:
 					cout << i << " 번방 - 입장가능" << endl;
 					break;
 				}

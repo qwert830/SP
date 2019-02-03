@@ -11,7 +11,9 @@
 #define MAX_ROOMNUMBER 200
 #define MAX_ROOMLIMIT 10
 
-enum room_status { JOINABLE = 1, FULL = 2, EMPTY = 3, PLAY = 4 };
+enum room_status { RS_JOINABLE = 1, RS_FULL = 2, RS_EMPTY = 3, RS_PLAY = 4 };
+
+enum user_status { US_WAIT, US_READY, US_PLAY, };
 
 enum CS_PacketKind { 
 	CS_REFRESH = 50,
@@ -20,6 +22,7 @@ enum CS_PacketKind {
 	CS_QUIT,
 	CS_REGIST,
 	CS_LOGIN,
+	CS_READY,
 };
 
 enum SC_PacketKind {
@@ -29,7 +32,7 @@ enum SC_PacketKind {
 	SC_QUIT_PLAYER,
 	SC_FAIL,
 	SC_SUCCESS,
-
+	SC_GO
 };
 #pragma pack (push, 1)
 // 클라이언트 -> 서버------------------------
@@ -58,6 +61,11 @@ struct cs_autojoin_packet {
 };
 
 struct cs_quit_packet {
+	unsigned char size;
+	unsigned char type;
+};
+
+struct cs_ready_packet {
 	unsigned char size;
 	unsigned char type;
 };
@@ -96,16 +104,22 @@ struct sc_roomstatus_packet {
 	unsigned char roomstatus[200];
 };
 
+struct sc_usercondition_packet {
+	unsigned char size;
+	unsigned char type;
+	wchar_t id[10];
+};
+
 struct sc_player_join_packet {
 	unsigned char size;
 	unsigned char type;
-	unsigned int id;
+	wchar_t id[10];
 };
 
 struct sc_player_quit_packet {
 	unsigned char size;
 	unsigned char type;
-	unsigned int id;
+	wchar_t id[10];
 };
 
 struct sc_status_packet {

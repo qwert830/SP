@@ -43,8 +43,9 @@ public:
 	SOCKET m_Socket;
 	bool m_IsConnected;
 	wstring m_ID;
-	int Score;
+	int m_Score;
 	int m_RoomNumber;
+	char m_Condition;
 	EXOVER m_rxover;
 	int m_packet_size;
 	int m_prev_packet_size;
@@ -53,6 +54,7 @@ public:
 	Client() {
 		m_IsConnected = false;
 		m_RoomNumber = LOBBYNUMBER;
+		m_Condition = US_WAIT;
 		m_prev_packet_size = 0;
 		ZeroMemory(&m_rxover.m_over, sizeof(WSAOVERLAPPED));
 		m_rxover.m_wsabuf.buf = m_rxover.m_iobuf;
@@ -70,7 +72,7 @@ public:
 	Room() {
 		m_JoinIdList.clear();
 		m_CurrentNum = 0;
-		m_RoomStatus = EMPTY;
+		m_RoomStatus = RS_EMPTY;
 	}
 
 	bool join(const int id) {
@@ -78,9 +80,9 @@ public:
 			m_JoinIdList.insert(id);
 			m_CurrentNum++;
 			if (m_CurrentNum == MAX_ROOMLIMIT)
-				m_RoomStatus = FULL;
+				m_RoomStatus = RS_FULL;
 			else
-				m_RoomStatus = JOINABLE;
+				m_RoomStatus = RS_JOINABLE;
 			return true;
 		}
 		
@@ -91,10 +93,23 @@ public:
 		m_JoinIdList.erase(id);
 		m_CurrentNum--;
 		if(m_CurrentNum == 0) 
-			m_RoomStatus = EMPTY;
+			m_RoomStatus = RS_EMPTY;
 		else
-			m_RoomStatus = JOINABLE;
+			m_RoomStatus = RS_JOINABLE;
 	}
+
+	bool gosign() {
+		for (int d : m_JoinIdList) {
+			if (g_clients[d].m_Condition != US_READY && m_CurrentNum % 2 != 0)
+				return false;
+		}
+		m_RoomStatus = RS_PLAY;
+		for (int d : m_JoinIdList) {
+			g_clients[d].m_Condition = US_PLAY;
+		}
+		return true;
+	}
+
 };
 
 
@@ -200,7 +215,7 @@ bool DBCall_Login(int key, const wstring& id, const wstring& password) {
 								
 								if (id == szID) {
 									g_clients[key].m_ID = szID;
-									g_clients[key].Score = szScore;
+									g_clients[key].m_Score = szScore;
 									res = true;
 								}
 							}
@@ -470,12 +485,14 @@ inline void ProcessPacket(int id, char *packet)
 		if (g_clients[id].m_RoomNumber == LOBBYNUMBER)
 		{
 			cs_join_packet* packet_join = reinterpret_cast<cs_join_packet*>(packet);
-			if (0 <= packet_join->roomnumber && packet_join->roomnumber < MAX_ROOMNUMBER) {
+			if (0 <= packet_join->roomnumber && packet_join->roomnumber < MAX_ROOMNUMBER
+				&& g_rooms[packet_join->roomnumber].m_RoomStatus != RS_FULL
+				&& g_rooms[packet_join->roomnumber].m_RoomStatus != RS_PLAY) {
 				g_rooms[packet_join->roomnumber].m_mJoinIdList.lock();
 				if (g_rooms[packet_join->roomnumber].join(id)) {
 					g_clients[id].m_RoomNumber = packet_join->roomnumber;
 					sc_player_join_packet p;
-					p.id = id;
+					memcpy(p.id, g_clients[id].m_ID.c_str(), sizeof(g_clients[id].m_ID.c_str()));
 					p.type = SC_JOIN_PLAYER;
 					p.size = sizeof(p);
 					////방 인원 전원에게 해당 아이디가 조인했음을 알림
@@ -499,12 +516,12 @@ inline void ProcessPacket(int id, char *packet)
 		{
 			for (int i = 0; i < MAX_ROOMNUMBER; ++i) {
 				g_rooms[i].m_mJoinIdList.lock();
-				if (g_rooms[i].m_RoomStatus == EMPTY || g_rooms[i].m_RoomStatus == JOINABLE) {
+				if (g_rooms[i].m_RoomStatus == RS_EMPTY || g_rooms[i].m_RoomStatus == RS_JOINABLE) {
 					if (g_rooms[i].join(id)) {
 						g_rooms[i].m_mJoinIdList.unlock();
 						g_clients[id].m_RoomNumber = i;
 						sc_player_join_packet p;
-						p.id = id;
+						memcpy(p.id, g_clients[id].m_ID.c_str(), sizeof(g_clients[id].m_ID.c_str()));
 						p.type = SC_JOIN_PLAYER;
 						p.size = sizeof(p);
 						////방 인원 전원에게 해당 아이디가 조인했음을 알림
@@ -534,18 +551,39 @@ inline void ProcessPacket(int id, char *packet)
 		break;
 	case CS_QUIT:
 		if (g_clients[id].m_RoomNumber == LOBBYNUMBER) break;
-		g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.lock();
-		g_rooms[g_clients[id].m_RoomNumber].quit(id);
-		sc_player_quit_packet p;
-		p.id = id;
-		p.type = SC_QUIT_PLAYER;
-		p.size = sizeof(p);
-		//남은 방 인원 전원에게 해당 아이디가 퇴장했음을 알림
-		//for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
-		//	SendPacket(d, &p);
-		//}
-		g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.unlock();
-		g_clients[id].m_RoomNumber = -1;
+		else {
+			g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.lock();
+			g_rooms[g_clients[id].m_RoomNumber].quit(id);
+			sc_player_quit_packet p;
+			memcpy(p.id, g_clients[id].m_ID.c_str(), sizeof(g_clients[id].m_ID.c_str()));
+			p.type = SC_QUIT_PLAYER;
+			p.size = sizeof(p);
+			//남은 방 인원 전원에게 해당 아이디가 퇴장했음을 알림
+			//for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
+			//	SendPacket(d, &p);
+			//}
+			g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.unlock();
+			g_clients[id].m_RoomNumber = -1;
+		}
+		break;
+	case CS_READY:
+		if (g_rooms[g_clients[id].m_RoomNumber].gosign()) {
+			sc_usercondition_packet p;
+			p.size = sizeof(sc_usercondition_packet);
+			p.type = US_PLAY;
+			for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
+				SendPacket(d, &p);
+			}
+		}
+		else {
+			sc_usercondition_packet p;
+			p.size = sizeof(sc_usercondition_packet);
+			p.type = US_READY;
+			memcpy(p.id, g_clients[id].m_ID.c_str(), sizeof(g_clients[id].m_ID.c_str()));
+			for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
+				SendPacket(d, &p);
+			}
+		}
 		break;
 	default:
 		cout << "Unkown Packet Type from Client [" << id << "]\n";
@@ -556,7 +594,7 @@ inline void ProcessPacket(int id, char *packet)
 void DisconnectPlayer(int id)
 {
 	sc_player_quit_packet p;
-	p.id = id;
+	memcpy(p.id, g_clients[id].m_ID.c_str(), sizeof(g_clients[id].m_ID.c_str()));
 	p.type = SC_QUIT_PLAYER;
 	p.size = sizeof(p);
 	if (g_clients[id].m_RoomNumber != -1) {
@@ -567,6 +605,7 @@ void DisconnectPlayer(int id)
 	closesocket(g_clients[id].m_Socket);
 	g_clients[id].m_IsConnected = false;
 }
+
 
 void worker_thread()
 {
