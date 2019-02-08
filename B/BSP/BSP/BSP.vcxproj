@@ -161,6 +161,7 @@
     <ClInclude Include="MathHelper.h" />
     <ClInclude Include="ModelManager.h" />
     <ClInclude Include="Player.h" />
+    <ClInclude Include="ShadowMap.h" />
     <ClInclude Include="UploadBuffer.h" />
   </ItemGroup>
   <ItemGroup>
@@ -180,6 +181,7 @@
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="ModelManager.cpp" />
     <ClCompile Include="Player.cpp" />
+    <ClCompile Include="ShadowMap.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shader\color.hlsl">

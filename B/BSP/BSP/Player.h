@@ -40,7 +40,7 @@ public:
 	void PlayerMouseMove(WPARAM btnState, int x, int y);
 	void PlayerMouseDown(WPARAM btnState, int x, int y);
 	void SetMousePos(int x, int y);
-	void Foword(float d);
+	void Forward(float d);
 	void Strafe(float d);
 	void Pitch(float angle);
 	void RotateY(float angle);

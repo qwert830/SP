@@ -5,9 +5,7 @@ Player::Player()
 	PlayerID = -1;
 	sensitivity = 0.25f;
 	ZeroMemory(mVector, sizeof(mVector));
-
 }
-
 
 Player::~Player()
 {
@@ -28,38 +26,83 @@ void Player::PlayerKeyBoardInput(const GameTimer & gt)
 
 	const float dt = gt.DeltaTime();
 
+	// 서버 연동시 패킷통신 부분으로 변경
+	// ------------------------------------------------------
+	if ((GetAsyncKeyState('W') & 0x8000) == 0)
+	{
+		if(moveState<=RIGHTUP)
+			moveState = STAND;
+	}
+
+	if ((GetAsyncKeyState('S') & 0x8000) == 0)
+	{
+		if (moveState >= LEFTDOWN)
+			moveState = STAND;
+	}
+
+	if ((GetAsyncKeyState('A') & 0x8000) == 0)
+	{
+		if (moveState <= RIGHTUP)
+			moveState = UP;
+		else if (moveState >= LEFTDOWN)
+			moveState = DOWN;
+		else
+			moveState = STAND;
+	}
+
+	if ((GetAsyncKeyState('D') & 0x8000) == 0)
+	{
+		if (moveState <= RIGHTUP)
+			moveState = UP;
+		else if (moveState >= LEFTDOWN)
+			moveState = DOWN;
+		else
+			moveState = STAND;
+	}
+
 	if (GetAsyncKeyState('W') & 0x8000)
 	{
-		Foword(10.0f*dt);
-		mCamera.Forward(10.0f*dt);
+		moveState = UP;
 	}
-
+	
 	if (GetAsyncKeyState('S') & 0x8000)
 	{
-		Foword(-10.0f*dt);
-		mCamera.Forward(-10.0f*dt);
+		moveState = DOWN;
 	}
-
+	
 	if (GetAsyncKeyState('A') & 0x8000)
 	{
-		Strafe(-10.0f*dt);
-		mCamera.Strafe(-10.0f*dt);
+		if (moveState <= RIGHTUP)
+			moveState = LEFTUP;
+		else if (moveState >= LEFTDOWN)
+			moveState = LEFTDOWN;
+		else
+			moveState = LEFT;
 	}
 
 	if (GetAsyncKeyState('D') & 0x8000)
 	{
-		Strafe(10.0f*dt);
-		mCamera.Strafe(10.0f*dt);
+		if (moveState <= RIGHTUP)
+			moveState = RIGHTUP;
+		else if (moveState >= LEFTDOWN)
+			moveState = RIGHTDOWN;
+		else
+			moveState = RIGHT;
 	}
+	// ------------------------------------------------------
 
-	if (GetAsyncKeyState(VK_F1) & 0x8000)
-		sensitivity = ClampFloat(sensitivity - 0.01f, 0.01f, 1.0f);
 
-	if (GetAsyncKeyState(VK_F3) & 0x8000)
-		sensitivity = ClampFloat(sensitivity + 0.01f, 0.01f, 1.0f);
-
+	// test용 코드
+	// --------------------------------
 	if (GetAsyncKeyState('1') & 0x8000)
 		SelectPlayer(1);
+	if (GetAsyncKeyState('2') & 0x8000)
+		SelectPlayer(2);
+	if (GetAsyncKeyState('3') & 0x8000)
+		SelectPlayer(3);
+	if (GetAsyncKeyState('4') & 0x8000)
+		SelectPlayer(4);
+	// --------------------------------
 
 	mCamera.UpdateViewMatrix();
 }
@@ -69,7 +112,7 @@ void Player::PlayerMouseMove(WPARAM btnState, int x, int y)
 	float dx = DirectX::XMConvertToRadians(sensitivity*static_cast<float>(x - mouse.x));
 	float dy = DirectX::XMConvertToRadians(sensitivity*static_cast<float>(y - mouse.y));
 
-	Pitch(dy);
+	//Pitch(dy); //캐릭터 발을 기준으로 x축 회전함 사용하지 않을 것으로 예상됨
 	RotateY(dx);
 	mCamera.Pitch(dy);
 	mCamera.RotateY(dx);
@@ -92,7 +135,7 @@ void Player::SetMousePos(int x, int y)
 	mouse.y = y;
 }
 
-void Player::Foword(float d)
+void Player::Forward(float d)
 {
 	if (PlayerID < 0)
 		return;
@@ -142,10 +185,51 @@ void Player::Update(const GameTimer& gt)
 {
 	const float dt = gt.DeltaTime();
 	superheat = ClampFloat(superheat - 1.0f*dt, 0.0f, 100.0f);
-	
+	switch (moveState)
+	{
+	case LEFTUP:
+		Strafe(-100.0f*dt);
+		Forward(100.0f*dt);
+		mCamera.Strafe(-10.0f*dt);
+		mCamera.Forward(10.0f*dt);
+		break;
+	case UP:
+		Forward(100.0f*dt);
+		mCamera.Forward(10.0f*dt);
+		break;
+	case RIGHTUP:
+		Strafe(100.0f*dt);
+		Forward(100.0f*dt);
+		mCamera.Strafe(10.0f*dt);
+		mCamera.Forward(10.0f*dt);
+		break;
+	case LEFT:
+		Strafe(-100.0f*dt);
+		mCamera.Strafe(-10.0f*dt);
+		break;
+	case RIGHT:
+		Strafe(100.0f*dt);
+		mCamera.Strafe(10.0f*dt);
+		break;
+	case LEFTDOWN:
+		Strafe(-100.0f*dt);
+		Forward(-100.0f*dt);
+		mCamera.Strafe(-10.0f*dt);
+		mCamera.Forward(-10.0f*dt);
+		break;
+	case DOWN:
+		Forward(-100.0f*dt);
+		mCamera.Forward(-10.0f*dt);
+		break;
+	case RIGHTDOWN:
+		Strafe(100.0f*dt);
+		Forward(-100.0f*dt);
+		mCamera.Strafe(10.0f*dt);
+		mCamera.Forward(-10.0f*dt);
+		break;
+	}
+
 }
-
-
 
 const char Player::GetPlayerID()
 {

@@ -5,6 +5,7 @@
 #include "GeometryGenerator.h"
 #include "Player.h"
 #include "ModelManager.h"
+#include "ShadowMap.h"
 #include <fstream>
 
 using Microsoft::WRL::ComPtr;
@@ -51,6 +52,7 @@ public:
 	virtual bool Initialize()override;
 
 private:
+	virtual void CreateRtvAndDsvDescriptorHeaps()override;
     virtual void OnResize()override;
     virtual void Update(const GameTimer& gt)override;
     virtual void Draw(const GameTimer& gt)override;
@@ -59,6 +61,7 @@ private:
     virtual void OnMouseUp(WPARAM btnState, int x, int y)override;
     virtual void OnMouseMove(WPARAM btnState, int x, int y)override;
 	
+
 	void AnimateMaterials(const GameTimer& gt);
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdatePlayerData();
@@ -87,6 +90,7 @@ private:
 
 	Player mPlayer;
 	ModelManager mModelManager;
+	std::unique_ptr<ShadowMap> mShadow;
 
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
 	FrameResource* mCurrFrameResource = nullptr;
@@ -174,7 +178,9 @@ bool Game::Initialize()
     ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
 	mCbvSrvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    
+	mShadow = std::make_unique<ShadowMap>(
+		md3dDevice.Get(), 2048, 2048);
+
 	LoadTextures();
 	BuildDescriptorHeaps();
     BuildRootSignature();
@@ -188,7 +194,7 @@ bool Game::Initialize()
     BuildPSOs();
 
 	mPlayer.mCamera.SetPosition(0.0f, 5.0f, -15.0f);
-
+	
     ThrowIfFailed(mCommandList->Close());
 	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
@@ -196,6 +202,25 @@ bool Game::Initialize()
     FlushCommandQueue();
 
 	return true;
+}
+
+void Game::CreateRtvAndDsvDescriptorHeaps()
+{
+	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
+	rtvHeapDesc.NumDescriptors = SwapChainBufferCount;
+	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	rtvHeapDesc.NodeMask = 0;
+	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(
+		&rtvHeapDesc, IID_PPV_ARGS(mRtvHeap.GetAddressOf())));
+
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
+	dsvHeapDesc.NumDescriptors = 2;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	dsvHeapDesc.NodeMask = 0;
+	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(
+		&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
 }
 
 void Game::OnResize()
