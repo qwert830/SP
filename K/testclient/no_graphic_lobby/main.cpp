@@ -99,6 +99,8 @@ int main() {
 	cs_join_packet* packet_join = reinterpret_cast<cs_join_packet*>(sbuf);
 	cs_autojoin_packet* packet_autojoin = reinterpret_cast<cs_autojoin_packet*>(sbuf);
 	cs_quit_packet* packet_quit = reinterpret_cast<cs_quit_packet*>(sbuf);
+	cs_ready_packet* packet_ready = reinterpret_cast<cs_ready_packet*>(sbuf);
+	cs_gameresult_packet* packet_gameresult = reinterpret_cast<cs_gameresult_packet*>(sbuf);
 
 	bool logined = true;
 	while (logined) {
@@ -145,68 +147,100 @@ int main() {
 		}
 	}
 	
-
+	int status = US_LOBBY;
 	while (1) {
 		ZeroMemory(sbuf, MAX_PACKET_SIZE);
 		ZeroMemory(rbuf, MAX_PACKET_SIZE);
 		//스위치문으로 현재 상태에 따른 출력 및 커맨드를 따로 지정해 줄 것.
-		cout << "[0: REFRESH]\n[1: AUTOJOIN]\n[2: JOINROOM]\n[3: QUITROOM]\n";
-		cout << "input command : ";
-		cin >> command;
-		switch (command) {
-		case REFRESH:
-			packet_ref->size = sizeof(cs_refresh_packet);
-			packet_ref->type = CS_REFRESH;
-			retval = send(sock, sbuf, sizeof(cs_refresh_packet), 0);
-			if (retval == SOCKET_ERROR) {
-				err_display("send()");
-			}
-			
-			retval = recvn(sock, rbuf, sizeof(sc_roomstatus_packet), 0);
-			if (retval == SOCKET_ERROR) {
-				err_display("recv()");
-			}
-			for (int i = 0; i < MAX_ROOMNUMBER; ++i) {
-				switch (rsp->roomstatus[i]) {
-				case RS_EMPTY:
-					//cout << i << " 번방 - 빈방" << endl;
-					break;
-				case RS_FULL:
-					cout << i << " 번방 - 만원" << endl;
-					break;
-				case RS_JOINABLE:
-					cout << i << " 번방 - 입장가능" << endl;
-					break;
+		switch (status) {
+		case US_LOBBY:
+		{
+			cout << "[0: REFRESH]\n[1: AUTOJOIN]\n[2: JOINROOM]\n[3: QUITROOM]\n";
+			cout << "input command : ";
+			cin >> command;
+			switch (command) {
+			case REFRESH:
+				packet_ref->size = sizeof(cs_refresh_packet);
+				packet_ref->type = CS_REFRESH;
+				retval = send(sock, sbuf, sizeof(cs_refresh_packet), 0);
+				retval = recvn(sock, rbuf, sizeof(sc_roomstatus_packet), 0);
+				for (int i = 0; i < MAX_ROOMNUMBER; ++i) {
+					switch (rsp->roomstatus[i]) {
+					case RS_EMPTY:
+						//cout << i << " 번방 - 빈방" << endl;
+						break;
+					case RS_FULL:
+						cout << i << " 번방 - 만원" << endl;
+						break;
+					case RS_JOINABLE:
+						cout << i << " 번방 - 입장가능" << endl;
+						break;
+					}
 				}
+				break;
+			case AUTOJOIN:
+				packet_autojoin->size = sizeof(cs_autojoin_packet);
+				packet_autojoin->type = CS_AUTOJOIN;
+				retval = send(sock, sbuf, sizeof(cs_autojoin_packet), 0);
+				break;
+			case JOINROOM:
+				packet_join->size = sizeof(cs_join_packet);
+				packet_join->type = CS_JOIN;
+				cout << "들어가고 싶은 방 번호(0~199): ";
+				cin >> packet_join->roomnumber;
+				retval = send(sock, sbuf, sizeof(cs_join_packet), 0);
+
+				break;
+			case QUITROOM:
+				packet_quit->size = sizeof(cs_quit_packet);
+				packet_quit->type = CS_QUIT;
+				retval = send(sock, sbuf, sizeof(cs_quit_packet), 0);
+				break;
 			}
+		}
 			break;
-		case AUTOJOIN:
-			packet_autojoin->size = sizeof(cs_autojoin_packet);
-			packet_autojoin->type = CS_AUTOJOIN;
-			retval = send(sock, sbuf, sizeof(cs_autojoin_packet), 0);
-			if (retval == SOCKET_ERROR) {
-				err_display("send()");
+		case US_WAIT:
+			cout << "[0: READY]\n[1: QUITROOM]\n";
+			cout << "input command : ";
+			cin >> command;
+			if (command == QUITROOM) {
+				packet_quit->size = sizeof(cs_quit_packet);
+				packet_quit->type = CS_QUIT;
+				retval = send(sock, sbuf, sizeof(cs_quit_packet), 0);
+				break;
 			}
-			break;
-		case JOINROOM:
-			packet_join->size = sizeof(cs_join_packet);
-			packet_join->type = CS_JOIN;
-			cout << "들어가고 싶은 방 번호(0~199): ";
-			cin >> packet_join->roomnumber;
-			retval = send(sock, sbuf, sizeof(cs_join_packet), 0);
-			if (retval == SOCKET_ERROR) {
-				err_display("send()");
+			else {
+				packet_ready->size = sizeof(cs_ready_packet);
+				packet_ready->type = CS_READY;
+				retval = send(sock, sbuf, sizeof(cs_ready_packet), 0);
+				break;
 			}
-			break;
-		case QUITROOM:
-			packet_quit->size = sizeof(cs_quit_packet);
-			packet_quit->type = CS_QUIT;
-			retval = send(sock, sbuf, sizeof(cs_quit_packet), 0);
-			if (retval == SOCKET_ERROR) {
-				err_display("send()");
+		case US_READY:
+			cout << "[0: UNREADY]\n[1: QUITROOM]\n";
+			cout << "input command : ";
+			cin >> command;
+			if (command == QUITROOM) {
+				packet_quit->size = sizeof(cs_quit_packet);
+				packet_quit->type = CS_QUIT;
+				retval = send(sock, sbuf, sizeof(cs_quit_packet), 0);
+				break;
 			}
+			else {
+				packet_ready->size = sizeof(cs_ready_packet);
+				packet_ready->type = CS_UNREADY;
+				retval = send(sock, sbuf, sizeof(cs_ready_packet), 0);
+				break;
+			}
+		case US_PLAY:
+			cout << "플레이 상태 돌입, 게임 결과 패킷 전송" << endl;
+			packet_gameresult->size = sizeof(cs_gameresult_packet);
+			packet_gameresult->type = CS_GAMERESULT;
+			packet_gameresult->score = 1;
+			cout << "결과 패킷 전송 완료" << endl;
+			status = US_LOBBY;
 			break;
 		}
+
 
 		
 

@@ -13,7 +13,7 @@
 
 enum room_status { RS_JOINABLE = 1, RS_FULL = 2, RS_EMPTY = 3, RS_PLAY = 4 };
 
-enum user_status { US_WAIT, US_READY, US_PLAY, };
+enum user_status { US_WAIT, US_READY, US_PLAY, US_LOBBY};
 
 enum CS_PacketKind { 
 	CS_REFRESH = 50,
@@ -23,6 +23,9 @@ enum CS_PacketKind {
 	CS_REGIST,
 	CS_LOGIN,
 	CS_READY,
+	CS_UNREADY,
+	CS_GAMERESULT,
+
 };
 
 enum SC_PacketKind {
@@ -36,6 +39,12 @@ enum SC_PacketKind {
 };
 #pragma pack (push, 1)
 // 클라이언트 -> 서버------------------------
+
+struct cs_gameresult_packet {
+	unsigned char size;
+	unsigned char type;
+	int score;
+};
 
 struct cs_userinfo_packet {
 	unsigned char size;

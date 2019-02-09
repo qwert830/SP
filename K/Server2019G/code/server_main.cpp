@@ -63,6 +63,10 @@ public:
 	}
 };
 
+
+
+array <Client, MAX_USER> g_clients;
+
 class Room {
 public:
 	unordered_set<int> m_JoinIdList;
@@ -85,14 +89,14 @@ public:
 				m_RoomStatus = RS_JOINABLE;
 			return true;
 		}
-		
+
 		return false;
 	}
 
 	void quit(const int id) {
 		m_JoinIdList.erase(id);
 		m_CurrentNum--;
-		if(m_CurrentNum == 0) 
+		if (m_CurrentNum == 0)
 			m_RoomStatus = RS_EMPTY;
 		else
 			m_RoomStatus = RS_JOINABLE;
@@ -112,8 +116,6 @@ public:
 
 };
 
-
-array <Client, MAX_USER> g_clients;
 array <Room, MAX_ROOMNUMBER> g_rooms;
 
 
@@ -585,6 +587,21 @@ inline void ProcessPacket(int id, char *packet)
 			}
 		}
 		break;
+	case CS_UNREADY:
+		sc_usercondition_packet p;
+		p.size = sizeof(sc_usercondition_packet);
+		p.type = US_WAIT;
+		memcpy(p.id, g_clients[id].m_ID.c_str(), sizeof(g_clients[id].m_ID.c_str()));
+		for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
+			SendPacket(d, &p);
+		}
+		break;
+	case CS_GAMERESULT:
+	{
+		cs_gameresult_packet* packet_gs = reinterpret_cast<cs_gameresult_packet*>(packet);
+		DBCall_SetData(id, g_clients[id].m_Score + packet_gs->score);
+		break;
+	}
 	default:
 		cout << "Unkown Packet Type from Client [" << id << "]\n";
 		return;
