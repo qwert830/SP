@@ -754,7 +754,7 @@ void Game::BuildShapeGeometry()
 	for (int i = 0; i < data.size(); ++i, ++k)
 	{
 		vertices[k].Pos = XMFLOAT4(data[i].x, data[i].y, data[i].z, 0.0f);
-		vertices[k].Tex = XMFLOAT2(data[i].tv, data[i].tu);
+		vertices[k].Tex = XMFLOAT2(data[i].tu, data[i].tv);
 		vertices[k].Normal = XMFLOAT3(data[i].nx, data[i].ny, data[i].nz);
 		
 		indices.insert(indices.end(), i);
