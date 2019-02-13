@@ -504,9 +504,17 @@ void Game::LoadTextures()
 		mCommandList.Get(), uiGunTex->Filename.c_str(),
 		uiGunTex->Resource, uiGunTex->UploadHeap));
 
+	auto playerCharTex = std::make_unique<Texture>();
+	playerCharTex->Name = "playerCharTex";
+	playerCharTex->Filename = L"Resource/playerChar.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+		mCommandList.Get(), playerCharTex->Filename.c_str(),
+		playerCharTex->Resource, playerCharTex->UploadHeap));
+
 	mTextures[seaFloorTex->Name] = std::move(seaFloorTex);
 	mTextures[tileTex->Name] = std::move(tileTex);
 	mTextures[uiGunTex->Name] = std::move(uiGunTex);
+	mTextures[playerCharTex->Name] = std::move(playerCharTex);
 }
 
 void Game::BuildRootSignature()
@@ -587,7 +595,7 @@ void Game::BuildInstancingRootSignature()
 void Game::BuildDescriptorHeaps()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 3;
+	srvHeapDesc.NumDescriptors = 4;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -597,6 +605,7 @@ void Game::BuildDescriptorHeaps()
 	auto seaFloorTex = mTextures["seaFloorTex"]->Resource;
 	auto tileTex = mTextures["tileTex"]->Resource;
 	auto uiGunTex = mTextures["uiGunTex"]->Resource;
+	auto playerCharTex = mTextures["playerCharTex"]->Resource;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -618,6 +627,12 @@ void Game::BuildDescriptorHeaps()
 	srvDesc.Format = uiGunTex->GetDesc().Format;
 	srvDesc.Texture2D.MipLevels = uiGunTex->GetDesc().MipLevels;
 	md3dDevice->CreateShaderResourceView(uiGunTex.Get(), &srvDesc, hDescriptor);
+
+	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+
+	srvDesc.Format = playerCharTex->GetDesc().Format;
+	srvDesc.Texture2D.MipLevels = playerCharTex->GetDesc().MipLevels;
+	md3dDevice->CreateShaderResourceView(playerCharTex.Get(), &srvDesc, hDescriptor);
 
 }
 
@@ -739,7 +754,7 @@ void Game::BuildShapeGeometry()
 	for (int i = 0; i < data.size(); ++i, ++k)
 	{
 		vertices[k].Pos = XMFLOAT4(data[i].x, data[i].y, data[i].z, 0.0f);
-		vertices[k].Tex = XMFLOAT2(data[i].tu, data[i].tv);
+		vertices[k].Tex = XMFLOAT2(data[i].tv, data[i].tu);
 		vertices[k].Normal = XMFLOAT3(data[i].nx, data[i].ny, data[i].nz);
 		
 		indices.insert(indices.end(), i);
@@ -911,9 +926,19 @@ void Game::BuildMaterials()
 	uiGun0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
 	uiGun0->Roughness = 0.3f;
 
+	auto playerChar0 = std::make_unique<Material>();
+	playerChar0->Name = "playerChar0";
+	playerChar0->MatCBIndex = 3;
+	playerChar0->DiffuseSrvHeapIndex = 3;
+	playerChar0->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	playerChar0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
+	playerChar0->Roughness = 0.3f;
+
 	mMaterials["seafloor0"] = std::move(seafloor0);
 	mMaterials["tile0"] = std::move(tile0);
 	mMaterials["uiGun0"] = std::move(uiGun0);
+	mMaterials["playerChar0"] = std::move(playerChar0);
+
 }
 
 void Game::BuildRenderItems()
@@ -1034,7 +1059,7 @@ void Game::BuildRenderItems()
 					x + j * dx, 10, z + k * dz, 1.0f);
 
 				XMStoreFloat4x4(&PlayerRitem->Instances[index].TexTransform, XMMatrixScaling(2.0f, 2.0f, 2.0f));
-				PlayerRitem->Instances[index].MaterialIndex = rand() % 2;
+				PlayerRitem->Instances[index].MaterialIndex = 3;
 			}
 	}
 
