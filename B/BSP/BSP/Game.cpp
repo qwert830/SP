@@ -260,7 +260,6 @@ void Game::Draw(const GameTimer& gt)
 	auto cmdListAlloc = mCurrFrameResource->CmdListAlloc;
 
 	ThrowIfFailed(cmdListAlloc->Reset());
-	//ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
 	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["instancingOpaque"].Get()));
     mCommandList->RSSetViewports(1, &mScreenViewport);
     mCommandList->RSSetScissorRects(1, &mScissorRect);
@@ -275,16 +274,8 @@ void Game::Draw(const GameTimer& gt)
 
 	ID3D12DescriptorHeap* descriptorHeaps[] = { mSrvDescriptorHeap.Get() };
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-
-	//mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
-
-	//auto passCB = mCurrFrameResource->PassCB->Resource();
-	//mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
-
-	//DrawRenderItems(mCommandList.Get(), mOpaqueRitems); // 불투명 렌더 아이템 
 	
 	// 인스턴싱 그리기 
-	//mCommandList->SetPipelineState(mPSOs["instancingOpaque"].Get());
 	mCommandList->SetGraphicsRootSignature(mInstancingRootSignature.Get());
 
 	auto matBuffer = mCurrFrameResource->MaterialCB->Resource();
@@ -300,13 +291,23 @@ void Game::Draw(const GameTimer& gt)
 
 	// 인스턴싱 그리기 끝
 
+	// 그림자
+
+
+
+
+
+
+
+	// 그림자 그리기 끝
+
 	// UI 그리기
 
 	mCommandList->SetPipelineState(mPSOs["UI"].Get());
 	
 	DrawInstancingRenderItems(mCommandList.Get(), mUIRitems);
 
-	//
+	// UI 그리기 끝
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
@@ -476,45 +477,39 @@ void Game::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
 	mMainPassCB.Lights[2].Strength = { 0.2f, 0.2f, 0.2f };
 
-
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
 }
 
 void Game::LoadTextures()
 {
-	auto seaFloorTex = std::make_unique<Texture>();
-	seaFloorTex->Name = "seaFloorTex";
-	seaFloorTex->Filename = L"Resource/seafloor.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
-		mCommandList.Get(), seaFloorTex->Filename.c_str(),
-		seaFloorTex->Resource, seaFloorTex->UploadHeap));
+	std::vector<std::string> texNames = 
+	{
+		"seaFloorTex",
+		"tileTex",
+		"uiGunTex",
+		"playerCharTex"
+	};
 
-	auto tileTex = std::make_unique<Texture>();
-	tileTex->Name = "tileTex";
-	tileTex->Filename = L"Resource/tile.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
-		mCommandList.Get(), tileTex->Filename.c_str(),
-		tileTex->Resource, tileTex->UploadHeap));
+	std::vector<std::wstring> fileNames =
+	{
+		L"Resource/seafloor.dds",
+		L"Resource/tile.dds",
+		L"Resource/uiGun.dds",
+		L"Resource/playerChar.dds"
+	};
 
-	auto uiGunTex = std::make_unique<Texture>();
-	uiGunTex->Name = "uiGunTex";
-	uiGunTex->Filename = L"Resource/uiGun.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
-		mCommandList.Get(), uiGunTex->Filename.c_str(),
-		uiGunTex->Resource, uiGunTex->UploadHeap));
+	for (int i = 0; i < texNames.size(); ++i)
+	{
+		auto tex = std::make_unique<Texture>();
+		tex->Name = texNames[i];
+		tex->Filename = fileNames[i];
+		ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
+			mCommandList.Get(), tex->Filename.c_str(),
+			tex->Resource, tex->UploadHeap));
 
-	auto playerCharTex = std::make_unique<Texture>();
-	playerCharTex->Name = "playerCharTex";
-	playerCharTex->Filename = L"Resource/playerChar.dds";
-	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
-		mCommandList.Get(), playerCharTex->Filename.c_str(),
-		playerCharTex->Resource, playerCharTex->UploadHeap));
-
-	mTextures[seaFloorTex->Name] = std::move(seaFloorTex);
-	mTextures[tileTex->Name] = std::move(tileTex);
-	mTextures[uiGunTex->Name] = std::move(uiGunTex);
-	mTextures[playerCharTex->Name] = std::move(playerCharTex);
+		mTextures[tex->Name] = std::move(tex);
+	}
 }
 
 void Game::BuildRootSignature()
@@ -760,6 +755,12 @@ void Game::BuildShapeGeometry()
 		indices.insert(indices.end(), i);
 	}
 	UINT playerIndex = data.size();
+
+	//std::ofstream a("test4.txt");
+	//for (int i = 0; i < data.size(); ++i)
+	//	a << " u : " << data[i].tu << " v : " << data[i].tv 
+	//	<< std::endl;
+	//a.close();
 
     const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
@@ -1058,7 +1059,7 @@ void Game::BuildRenderItems()
 					0.0f, 0.0f, 0.1f, 0.0f,
 					x + j * dx, 10, z + k * dz, 1.0f);
 
-				XMStoreFloat4x4(&PlayerRitem->Instances[index].TexTransform, XMMatrixScaling(2.0f, 2.0f, 2.0f));
+				XMStoreFloat4x4(&PlayerRitem->Instances[index].TexTransform, XMMatrixScaling(0.1f, 0.1f, 0.1f));
 				PlayerRitem->Instances[index].MaterialIndex = 3;
 			}
 	}
@@ -1204,8 +1205,21 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> Game::GetStaticSamplers()
 		0.0f,                              // mipLODBias
 		8);                                // maxAnisotropy
 
+	const CD3DX12_STATIC_SAMPLER_DESC shadow(
+		6, // shaderRegister
+		D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressW
+		0.0f,                               // mipLODBias
+		16,                                 // maxAnisotropy
+		D3D12_COMPARISON_FUNC_LESS_EQUAL,
+		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK);
+
 	return {
 		pointWrap, pointClamp,
 		linearWrap, linearClamp,
-		anisotropicWrap, anisotropicClamp };
+		anisotropicWrap, anisotropicClamp,
+		shadow
+	};
 }
