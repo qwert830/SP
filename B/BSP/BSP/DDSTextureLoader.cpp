@@ -342,7 +342,8 @@ static size_t BitsPerPixel( _In_ DXGI_FORMAT fmt )
     case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
     case DXGI_FORMAT_B8G8R8X8_TYPELESS:
     case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
-    case DXGI_FORMAT_AYUV:
+    case DXGI_FORMAT_AY
+		:
     case DXGI_FORMAT_Y410:
     case DXGI_FORMAT_YUY2:
         return 32;

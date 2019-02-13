@@ -24,6 +24,12 @@ struct Vertex
     XMFLOAT4 Color;
 };
 
+struct vec2
+{
+	float x;
+	float y;
+};
+
 struct MyVertex
 {
 	float pos[4];
@@ -89,6 +95,62 @@ private:
     POINT mLastMousePos;
 };
 
+vec2 ReadUV(FbxMesh* mesh, int controlPointIndex, int vertexCounter)
+{
+	FbxGeometryElementUV* vertexuv = mesh->GetElementUV(0);
+
+	vec2 result;
+	switch (vertexuv->GetMappingMode())
+	{
+	case FbxGeometryElement::eByControlPoint: 
+		switch (vertexuv->GetReferenceMode())
+		{
+		case FbxGeometryElement::eDirect: 
+		{ 
+			result.x = static_cast<float>(vertexuv->GetDirectArray().GetAt(controlPointIndex).mData[0]);
+			result.y = static_cast<float>(vertexuv->GetDirectArray().GetAt(controlPointIndex).mData[1]);
+		}
+		break;
+
+		case FbxGeometryElement::eIndexToDirect: 
+		{ 
+			int index = vertexuv->GetIndexArray().GetAt(controlPointIndex);
+			result.x = static_cast<float>(vertexuv->GetDirectArray().GetAt(index).mData[0]); 
+			result.y = static_cast<float>(vertexuv->GetDirectArray().GetAt(index).mData[1]); 
+		}
+		break;
+
+		default: 
+			break;
+		}
+	break;
+
+	case FbxGeometryElement::eByPolygonVertex:
+		switch (vertexuv->GetReferenceMode()) 
+		{
+		case FbxGeometryElement::eDirect:
+		{ 
+		result.x = static_cast<float>(vertexuv->GetDirectArray().GetAt(vertexCounter).mData[0]);
+		result.y = static_cast<float>(vertexuv->GetDirectArray().GetAt(vertexCounter).mData[1]); 
+		}
+		break;
+
+		case FbxGeometryElement::eIndexToDirect:
+		{
+		int index = vertexuv->GetIndexArray().GetAt(vertexCounter);
+		result.x = static_cast<float>(vertexuv->GetDirectArray().GetAt(index).mData[0]);
+		result.y = static_cast<float>(vertexuv->GetDirectArray().GetAt(index).mData[1]);
+		}
+		break;
+		default: 
+			break;
+		} 
+	break;
+	}
+
+	return result;
+}
+
 HRESULT LoadFBX(std::vector<MyVertex>* pOutVertexVector)
 {
 	if (g_pFbxSdkManager == nullptr)
@@ -107,6 +169,9 @@ HRESULT LoadFBX(std::vector<MyVertex>* pOutVertexVector)
 
 	bSuccess = pImporter->Import(pFbxScene);
 	if (!bSuccess) return E_FAIL;
+
+	FbxGeometryConverter con(g_pFbxSdkManager);
+	con.Triangulate(pFbxScene, true);
 
 	pImporter->Destroy();
 
@@ -129,7 +194,6 @@ HRESULT LoadFBX(std::vector<MyVertex>* pOutVertexVector)
 			FbxMesh* pMesh = (FbxMesh*)pFbxChildNode->GetNodeAttribute();
 
 			FbxVector4* pVertices = pMesh->GetControlPoints();
-			
 			for (int j = 0; j < pMesh->GetPolygonCount(); j++)
 			{
 				int iNumVertices = pMesh->GetPolygonSize(j);
@@ -137,13 +201,15 @@ HRESULT LoadFBX(std::vector<MyVertex>* pOutVertexVector)
 
 				for (int k = 0; k < iNumVertices; k++) {
 					int iControlPointIndex = pMesh->GetPolygonVertex(j, k);
-
+					vec2 uv = ReadUV(pMesh,iControlPointIndex,pMesh->GetTextureUVIndex(j, k));
 					MyVertex vertex;
 					vertex.pos[0] = (float)pVertices[iControlPointIndex].mData[0];
 					vertex.pos[1] = (float)pVertices[iControlPointIndex].mData[1];
 					vertex.pos[2] = (float)pVertices[iControlPointIndex].mData[2];
 					vertex.pos[3] = (float)pVertices[iControlPointIndex].mData[3];
 					pOutVertexVector->push_back(vertex);
+
+					
 				}
 			}
 

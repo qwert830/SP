@@ -11,6 +11,62 @@ ModelManager::~ModelManager()
 {
 }
 
+vec2 ModelManager::ReadUV(FbxMesh* mesh, int controlPointIndex, int vertexCounter)
+{
+	FbxGeometryElementUV* vertexuv = mesh->GetElementUV(0);
+
+	vec2 result;
+	switch (vertexuv->GetMappingMode())
+	{
+	case FbxGeometryElement::eByControlPoint:
+		switch (vertexuv->GetReferenceMode())
+		{
+		case FbxGeometryElement::eDirect:
+		{
+			result.x = static_cast<float>(vertexuv->GetDirectArray().GetAt(controlPointIndex).mData[0]);
+			result.y = static_cast<float>(vertexuv->GetDirectArray().GetAt(controlPointIndex).mData[1]);
+		}
+		break;
+
+		case FbxGeometryElement::eIndexToDirect:
+		{
+			int index = vertexuv->GetIndexArray().GetAt(controlPointIndex);
+			result.x = static_cast<float>(vertexuv->GetDirectArray().GetAt(index).mData[0]);
+			result.y = static_cast<float>(vertexuv->GetDirectArray().GetAt(index).mData[1]);
+		}
+		break;
+
+		default:
+			break;
+		}
+		break;
+
+	case FbxGeometryElement::eByPolygonVertex:
+		switch (vertexuv->GetReferenceMode())
+		{
+		case FbxGeometryElement::eDirect:
+		{
+			result.x = static_cast<float>(vertexuv->GetDirectArray().GetAt(vertexCounter).mData[0]);
+			result.y = static_cast<float>(vertexuv->GetDirectArray().GetAt(vertexCounter).mData[1]);
+		}
+		break;
+
+		case FbxGeometryElement::eIndexToDirect:
+		{
+			int index = vertexuv->GetIndexArray().GetAt(vertexCounter);
+			result.x = static_cast<float>(vertexuv->GetDirectArray().GetAt(index).mData[0]);
+			result.y = static_cast<float>(vertexuv->GetDirectArray().GetAt(index).mData[1]);
+		}
+		break;
+		default:
+			break;
+		}
+		break;
+	}
+
+	return result;
+}
+
 HRESULT ModelManager::LoadFBX(const char* filename, std::vector<ModelData>* pOutData)
 {
 	if (g_pFbxSdkManager == nullptr)
@@ -69,6 +125,10 @@ HRESULT ModelManager::LoadFBX(const char* filename, std::vector<ModelData>* pOut
 					data.z = (float)pVertices[iControlPointIndex].mData[2];
 					data.w = (float)pVertices[iControlPointIndex].mData[3];
 					
+					vec2 uv = ReadUV(pMesh, iControlPointIndex, pMesh->GetTextureUVIndex(j, k));
+					data.tu = uv.x;
+					data.tv = uv.y;
+
 					pOutData->push_back(data);
 				}
 			}

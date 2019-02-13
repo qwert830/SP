@@ -7,6 +7,11 @@ struct ModelData
 	unsigned int index;
 };
 
+struct vec2
+{
+	float x, y;
+};
+
 class ModelManager
 {
 public:
@@ -16,5 +21,6 @@ public:
 	~ModelManager();
 
 	HRESULT LoadFBX(const char* filename, std::vector<ModelData>* pOutData);
+	vec2 ReadUV(FbxMesh* mesh, int controlPointIndex, int vertexCounter);
 };
 
