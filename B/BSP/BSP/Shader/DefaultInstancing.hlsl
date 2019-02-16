@@ -279,7 +279,7 @@ void SHADOW_PS(ShadowVertexOut pin)
     float roughness = matData.Roughness;
     uint diffuseTexIndex = matData.DiffuseMapIndex;
 
-    diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamAnisotropicWrap, pin.TexC);
+    diffuseAlbedo *= gDiffuseMap[diffuseTexIndex].Sample(gsamAnisotropicWrap, pin.TexC);
 
 #ifdef ALPHA_TEST
     clip(diffuseAlbedo.a - 0.1f);

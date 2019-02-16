@@ -68,6 +68,8 @@ private:
 	void UpdateInstanceData(const GameTimer& gt);
 	void UpdateMaterialCBs(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
+	void UpdateShadowPassCB(const GameTimer& gt);
+	void UpdateShadowTransform(const GameTimer& gt);
 
 	void OnKeyboardInput(const GameTimer& gt);
 
@@ -92,6 +94,8 @@ private:
 	Player mPlayer;
 	ModelManager mModelManager;
 	std::unique_ptr<ShadowMap> mShadowMap;
+
+	DirectX::BoundingSphere mSceneBounds;
 
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
 	FrameResource* mCurrFrameResource = nullptr;
@@ -134,12 +138,25 @@ private:
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mNullSrv;
 
 	PassConstants mMainPassCB;
-
+	PassConstants mShadowPassCB;
     XMFLOAT4X4 mWorld = MathHelper::Identity4x4();
 
     float mTheta = 1.5f*XM_PI;
     float mPhi = XM_PIDIV4;
     float mRadius = 5.0f;
+
+	float mLightNearZ = 0.0f;
+	float mLightFarZ = 0.0f;
+	XMFLOAT3 mLightPosW;
+	XMFLOAT4X4 mLightView = MathHelper::Identity4x4();
+	XMFLOAT4X4 mLightProj = MathHelper::Identity4x4();
+	XMFLOAT4X4 mShadowTransform = MathHelper::Identity4x4();
+	XMFLOAT3 mBaseLightDirections[3] = {
+		XMFLOAT3(0.57735f, -0.57735f, 0.57735f),
+		XMFLOAT3(-0.57735f, -0.57735f, 0.57735f),
+		XMFLOAT3(0.0f, -0.707f, -0.707f)
+	};
+
 };
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
@@ -171,6 +188,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 Game::Game(HINSTANCE hInstance)
 : D3DApp(hInstance) 
 {
+	mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	mSceneBounds.Radius = sqrtf(10.0f*10.0f + 15.0f*15.0f);
 }
 
 Game::~Game()
@@ -259,6 +278,9 @@ void Game::Update(const GameTimer& gt)
 	UpdateInstanceData(gt);
 	UpdateMaterialCBs(gt);
 	UpdateMainPassCB(gt);
+	UpdateShadowTransform(gt);
+	UpdateShadowPassCB(gt);
+
 	mPlayer.Update(gt);
 }
 
@@ -279,9 +301,6 @@ void Game::Draw(const GameTimer& gt)
 
 	mCommandList->SetGraphicsRootDescriptorTable(3, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
-	auto passCB = mCurrFrameResource->PassCB->Resource();
-	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
-
 	// 그림자
 
 	mCommandList->SetGraphicsRootDescriptorTable(4, mNullSrv);
@@ -300,6 +319,9 @@ void Game::Draw(const GameTimer& gt)
     mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 	
 	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
+
+	auto passCB = mCurrFrameResource->PassCB->Resource();
+	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
 	// 인스턴싱 그리기 
 
@@ -478,15 +500,83 @@ void Game::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.TotalTime = gt.TotalTime();
 	mMainPassCB.DeltaTime = gt.DeltaTime();
 	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
-	mMainPassCB.Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f };
+	mMainPassCB.Lights[0].Direction = mBaseLightDirections[0];
 	mMainPassCB.Lights[0].Strength = { 0.8f, 0.8f, 0.8f };
-	mMainPassCB.Lights[1].Direction = { -0.57735f, -0.57735f, 0.57735f };
+	mMainPassCB.Lights[1].Direction = mBaseLightDirections[1];
 	mMainPassCB.Lights[1].Strength = { 0.4f, 0.4f, 0.4f };
-	mMainPassCB.Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
+	mMainPassCB.Lights[2].Direction = mBaseLightDirections[2];
 	mMainPassCB.Lights[2].Strength = { 0.2f, 0.2f, 0.2f };
 
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
+}
+
+void Game::UpdateShadowPassCB(const GameTimer & gt)
+{
+	XMMATRIX view = XMLoadFloat4x4(&mLightView);
+	XMMATRIX proj = XMLoadFloat4x4(&mLightProj);
+
+	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
+	XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
+	XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+
+	UINT w = mShadowMap->Width();
+	UINT h = mShadowMap->Height();
+
+	XMStoreFloat4x4(&mShadowPassCB.View, XMMatrixTranspose(view));
+	XMStoreFloat4x4(&mShadowPassCB.InvView, XMMatrixTranspose(invView));
+	XMStoreFloat4x4(&mShadowPassCB.Proj, XMMatrixTranspose(proj));
+	XMStoreFloat4x4(&mShadowPassCB.InvProj, XMMatrixTranspose(invProj));
+	XMStoreFloat4x4(&mShadowPassCB.ViewProj, XMMatrixTranspose(viewProj));
+	XMStoreFloat4x4(&mShadowPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
+	mShadowPassCB.EyePosW = mLightPosW;
+	mShadowPassCB.RenderTargetSize = XMFLOAT2((float)w, (float)h);
+	mShadowPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / w, 1.0f / h);
+	mShadowPassCB.NearZ = mLightNearZ;
+	mShadowPassCB.FarZ = mLightFarZ;
+
+	auto currPassCB = mCurrFrameResource->PassCB.get();
+	currPassCB->CopyData(1, mShadowPassCB);
+}
+
+void Game::UpdateShadowTransform(const GameTimer & gt)
+{
+	XMVECTOR lightDir = XMLoadFloat3(&mBaseLightDirections[0]);
+	XMVECTOR lightPos = -2.0f*mSceneBounds.Radius*lightDir;
+	XMVECTOR targetPos = XMLoadFloat3(&mSceneBounds.Center);
+	XMVECTOR lightUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	XMMATRIX lightView = XMMatrixLookAtLH(lightPos, targetPos, lightUp);
+
+	XMStoreFloat3(&mLightPosW, lightPos);
+
+	// Transform bounding sphere to light space.
+	XMFLOAT3 sphereCenterLS;
+	XMStoreFloat3(&sphereCenterLS, XMVector3TransformCoord(targetPos, lightView));
+
+	// Ortho frustum in light space encloses scene.
+	float l = sphereCenterLS.x - mSceneBounds.Radius;
+	float b = sphereCenterLS.y - mSceneBounds.Radius;
+	float n = sphereCenterLS.z - mSceneBounds.Radius;
+	float r = sphereCenterLS.x + mSceneBounds.Radius;
+	float t = sphereCenterLS.y + mSceneBounds.Radius;
+	float f = sphereCenterLS.z + mSceneBounds.Radius;
+
+	mLightNearZ = n;
+	mLightFarZ = f;
+	XMMATRIX lightProj = XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+
+	// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
+	XMMATRIX T(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f);
+
+	XMMATRIX S = lightView * lightProj*T;
+	XMStoreFloat4x4(&mLightView, lightView);
+	XMStoreFloat4x4(&mLightProj, lightProj);
+	XMStoreFloat4x4(&mShadowTransform, S);
 }
 
 void Game::LoadTextures()
@@ -1013,8 +1103,8 @@ void Game::BuildRenderItems()
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 
 	gridRitem->Instances.resize(1);
-	XMStoreFloat4x4(&gridRitem->Instances[0].World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
-	XMStoreFloat4x4(&gridRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+	XMStoreFloat4x4(&gridRitem->Instances[0].World, XMMatrixScaling(4.0f, 1.0f, 4.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+	XMStoreFloat4x4(&gridRitem->Instances[0].TexTransform, XMMatrixScaling(4.0f, 4.0f, 1.0f));
 	gridRitem->Instances[0].MaterialIndex = 1;
 
 	mInstanceCount.push_back(gridRitem->Instances.size());
@@ -1208,6 +1298,12 @@ void Game::DrawSceneToShadowMap()
 		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	mCommandList->OMSetRenderTargets(0, nullptr, false, &mShadowMap->Dsv());
+
+	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
+
+	auto passCB = mCurrFrameResource->PassCB->Resource();
+	D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
+	mCommandList->SetGraphicsRootConstantBufferView(2, passCBAddress);
 
 	mCommandList->SetPipelineState(mPSOs["shadow"].Get());
 
