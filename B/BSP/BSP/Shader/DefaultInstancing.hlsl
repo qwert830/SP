@@ -101,8 +101,6 @@ struct ShadowVertexOut
     nointerpolation uint MatIndex : MATINDEX;
 };
 
-
-
 float CalcShadowFactor(float4 shadowPosH)
 {
     // Complete projection by doing division by w.
@@ -171,7 +169,7 @@ float4 PS(VertexOut pin) : SV_Target
     float roughness = matData.Roughness;
     uint diffuseTexIndex = matData.DiffuseMapIndex;
 	
-    diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamLinearWrap, pin.TexC);
+    diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamAnisotropicWrap, pin.TexC);
 
     pin.NormalW = normalize(pin.NormalW);
 

@@ -278,8 +278,8 @@ void Game::Update(const GameTimer& gt)
 	UpdatePlayerData();
 	UpdateInstanceData(gt);
 	UpdateMaterialCBs(gt);
-	UpdateMainPassCB(gt);
 	UpdateShadowTransform(gt);
+	UpdateMainPassCB(gt);
 	UpdateShadowPassCB(gt);
 
 	mPlayer.Update(gt);
@@ -325,6 +325,10 @@ void Game::Draw(const GameTimer& gt)
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
 	// 인스턴싱 그리기 
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE shadowTexDescriptor(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	shadowTexDescriptor.Offset(mShadowMapHeapIndex, mCbvSrvUavDescriptorSize);
+	mCommandList->SetGraphicsRootDescriptorTable(4, shadowTexDescriptor);
 
 	mCommandList->SetPipelineState(mPSOs["instancingOpaque"].Get());
 
@@ -492,6 +496,8 @@ void Game::UpdateMainPassCB(const GameTimer& gt)
 	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
 	XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
 	XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+
+	XMMATRIX shadowTransform = XMLoadFloat4x4(&mShadowTransform);
 
 	XMStoreFloat4x4(&mMainPassCB.View, XMMatrixTranspose(view));
 	XMStoreFloat4x4(&mMainPassCB.InvView, XMMatrixTranspose(invView));
@@ -1145,8 +1151,8 @@ void Game::BuildRenderItems()
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 
 	gridRitem->Instances.resize(1);
-	XMStoreFloat4x4(&gridRitem->Instances[0].World, XMMatrixScaling(4.0f, 1.0f, 4.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
-	XMStoreFloat4x4(&gridRitem->Instances[0].TexTransform, XMMatrixScaling(4.0f, 4.0f, 1.0f));
+	XMStoreFloat4x4(&gridRitem->Instances[0].World, XMMatrixScaling(50.0f, 1.0f, 50.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+	XMStoreFloat4x4(&gridRitem->Instances[0].TexTransform, XMMatrixScaling(100.0f, 100.0f, 1.0f));
 	gridRitem->Instances[0].MaterialIndex = 1;
 
 	mInstanceCount.push_back(gridRitem->Instances.size());
