@@ -129,6 +129,7 @@ private:
 	std::vector<RenderItem*> mUIRitems;
 	std::vector<RenderItem*> mOpaqueRitems;
 	std::vector<RenderItem*> mPlayerRitems;
+	std::vector<RenderItem*> mDebugRitems;
 	std::vector<RenderItem*> mTransparentRitems;
 
 	UINT mShadowMapHeapIndex = 0;
@@ -189,7 +190,7 @@ Game::Game(HINSTANCE hInstance)
 : D3DApp(hInstance) 
 {
 	mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	mSceneBounds.Radius = sqrtf(10.0f*10.0f + 15.0f*15.0f);
+	mSceneBounds.Radius = sqrtf(100.0f*100.0f + 100.0f*100.0f);
 }
 
 Game::~Game()
@@ -333,11 +334,18 @@ void Game::Draw(const GameTimer& gt)
 	// 인스턴싱 그리기 끝
 	// UI 그리기
 
-	mCommandList->SetPipelineState(mPSOs["UI"].Get());
-	
-	DrawInstancingRenderItems(mCommandList.Get(), mUIRitems);
+	//mCommandList->SetPipelineState(mPSOs["UI"].Get());
+	//
+	//DrawInstancingRenderItems(mCommandList.Get(), mUIRitems);
 
 	// UI 그리기 끝
+	
+	// 디버그
+
+	mCommandList->SetPipelineState(mPSOs["sDebug"].Get());
+	DrawInstancingRenderItems(mCommandList.Get(), mDebugRitems);
+	
+	// 디버그 끝
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
@@ -768,6 +776,9 @@ void Game::BuildShadersAndInputLayout()
 	mShaders["shadowVS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "SHADOW_VS", "vs_5_1");
 	mShaders["shadowPS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "SHADOW_PS", "ps_5_1");
 
+	mShaders["sDebugVS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "SDEBUG_VS", "vs_5_1");
+	mShaders["sDebugPS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "SDEBUG_PS", "ps_5_1");
+
     mInputLayout =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -789,6 +800,7 @@ void Game::BuildShapeGeometry()
 	GeometryGenerator::MeshData box = geoGen.CreateBox(10.0f, 10.0f, 10.0f, 3);
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 20.0f, 20, 40);
 	GeometryGenerator::MeshData uiGrid = geoGen.CreateGrid(10.0f, 10.0f, 2, 2);
+	GeometryGenerator::MeshData quad = geoGen.CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
 	// 모델 로딩
 	fin.open("Resource/model.txt");
 	if (fin.fail())
@@ -831,7 +843,7 @@ void Game::BuildShapeGeometry()
 	mModelManager.LoadFBX("Resource//PlayerChar.fbx", &data);
 
 	// 모델 데이터 입력
-	auto totalVertexCount = (size_t)m_vertexCount + grid.Vertices.size()+ data.size() + uiGrid.Vertices.size();
+	auto totalVertexCount = (size_t)m_vertexCount + grid.Vertices.size()+ data.size() + uiGrid.Vertices.size() + quad.Vertices.size();
 	
 	std::vector<Vertex> vertices(totalVertexCount);
 	std::vector<uint16_t> indices;
@@ -875,6 +887,14 @@ void Game::BuildShapeGeometry()
 	}
 	UINT playerIndex = data.size();
 
+	for(int i = 0; i < quad.Vertices.size(); ++i, ++k)
+	{
+		vertices[k].Pos = XMFLOAT4(quad.Vertices[i].Position.x, quad.Vertices[i].Position.y, quad.Vertices[i].Position.z, 0.0f);
+		vertices[k].Tex = quad.Vertices[i].TexC;
+		vertices[k].Normal = quad.Vertices[i].Normal;
+	}
+	indices.insert(indices.end(), quad.Indices32.begin(), quad.Indices32.end());
+
     const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
@@ -889,6 +909,10 @@ void Game::BuildShapeGeometry()
 
 	UINT PlayerIndexOffset = (UINT)uiGrid.Indices32.size() + uiGridIndexOffset;
 	UINT PlayerVertexOffset = (UINT)uiGrid.Vertices.size() + uiGridVertexOffset;
+
+	UINT QuadIndexOffset = playerIndex + PlayerIndexOffset;
+	UINT QuadVertexOffset = (UINT)data.size() + PlayerVertexOffset;
+
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = "shapeGeo";
@@ -933,11 +957,16 @@ void Game::BuildShapeGeometry()
 	PlayerSubmesh.StartIndexLocation = PlayerIndexOffset;
 	PlayerSubmesh.BaseVertexLocation = PlayerVertexOffset;
 
+	SubmeshGeometry QuadSubmesh;
+	QuadSubmesh.IndexCount = (UINT)quad.Indices32.size();
+	QuadSubmesh.StartIndexLocation = QuadIndexOffset;
+	QuadSubmesh.BaseVertexLocation = QuadVertexOffset;
 
 	geo->DrawArgs["testModel"] = submesh;
 	geo->DrawArgs["grid"] = gridSubmesh;
 	geo->DrawArgs["uiGrid"] = uiGridSubmesh;
 	geo->DrawArgs["box"] = PlayerSubmesh;
+	geo->DrawArgs["quad"] = QuadSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
 }
@@ -1016,9 +1045,22 @@ void Game::BuildPSOs()
 		reinterpret_cast<BYTE*>(mShaders["shadowPS"]->GetBufferPointer()),
 		mShaders["shadowPS"]->GetBufferSize()
 	};
-	shadowPsoDesc.DepthStencilState.DepthEnable = false;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&shadowPsoDesc, IID_PPV_ARGS(&mPSOs["shadow"])));
 
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC sDebugPsoDesc = opaquePsoDesc;
+
+	sDebugPsoDesc.pRootSignature = mInstancingRootSignature.Get();
+	sDebugPsoDesc.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["sDebugVS"]->GetBufferPointer()),
+		mShaders["sDebugVS"]->GetBufferSize()
+	};
+	sDebugPsoDesc.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["sDebugPS"]->GetBufferPointer()),
+		mShaders["sDebugPS"]->GetBufferSize()
+	};
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&sDebugPsoDesc, IID_PPV_ARGS(&mPSOs["sDebug"])));
 }
 
 void Game::BuildFrameResources()
@@ -1222,6 +1264,26 @@ void Game::BuildRenderItems()
 
 	mAllRitems.push_back(std::move(UIRitem));
 	mUIRitems.push_back(mAllRitems[mAllRitems.size() - 1].get());
+
+	auto quadRitem = std::make_unique<RenderItem>();
+	quadRitem->World = MathHelper::Identity4x4();
+	quadRitem->TexTransform = MathHelper::Identity4x4();
+	quadRitem->ObjCBIndex = 5;
+	quadRitem->Mat = mMaterials["seafloor0"].get();
+	quadRitem->Geo = mGeometries["shapeGeo"].get();
+	quadRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	quadRitem->IndexCount = quadRitem->Geo->DrawArgs["quad"].IndexCount;
+	quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
+	quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
+
+	quadRitem->Instances.resize(1);
+	quadRitem->Instances[0].World = MathHelper::Identity4x4();
+	quadRitem->Instances[0].TexTransform = MathHelper::Identity4x4();
+	quadRitem->Instances[0].MaterialIndex = 0;
+	mInstanceCount.push_back(quadRitem->Instances.size());
+
+	mDebugRitems.push_back(quadRitem.get());
+	mAllRitems.push_back(std::move(quadRitem));
 }
 
 void Game::BuildPlayerData()

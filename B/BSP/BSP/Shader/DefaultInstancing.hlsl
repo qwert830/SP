@@ -286,5 +286,20 @@ void SHADOW_PS(ShadowVertexOut pin)
 #endif
 };
 
+ShadowVertexOut SDEBUG_VS(ShadowVertexIn vin)
+{
+    ShadowVertexOut vout = (ShadowVertexOut) 0.0f;
 
+    // Already in homogeneous clip space.
+    vout.PosH = float4(vin.PosL, 1.0f);
+	
+    vout.TexC = vin.TexC;
+	
+    return vout;
+}
+
+float4 SDEBUG_PS(ShadowVertexOut pin) : SV_Target
+{
+    return float4(gShadowMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
+}
 
