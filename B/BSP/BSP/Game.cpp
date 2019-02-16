@@ -191,7 +191,7 @@ Game::Game(HINSTANCE hInstance)
 : D3DApp(hInstance) 
 {
 	mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	mSceneBounds.Radius = sqrtf(100.0f*100.0f + 100.0f*100.0f);
+	mSceneBounds.Radius = sqrtf(350.0f*350.0f + 350.0f*350.0f);
 }
 
 Game::~Game()
