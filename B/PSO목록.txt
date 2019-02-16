@@ -2,3 +2,5 @@ PSO
 1. opaque
 2. instancingOpaque
 3. UI
+4. shadow
+5. sDebug

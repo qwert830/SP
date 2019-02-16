@@ -157,6 +157,7 @@ private:
 		XMFLOAT3(-0.57735f, -0.57735f, 0.57735f),
 		XMFLOAT3(0.0f, -0.707f, -0.707f)
 	};
+	XMFLOAT3 mRotatedLightDirections[3];
 
 };
 
@@ -271,6 +272,14 @@ void Game::Update(const GameTimer& gt)
 		ThrowIfFailed(mFence->SetEventOnCompletion(mCurrFrameResource->Fence, eventHandle));
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
+	}
+
+	XMMATRIX R = XMMatrixRotationY(0);
+	for (int i = 0; i < 3; ++i)
+	{
+		XMVECTOR lightDir = XMLoadFloat3(&mBaseLightDirections[i]);
+		lightDir = XMVector3TransformNormal(lightDir, R);
+		XMStoreFloat3(&mRotatedLightDirections[i], lightDir);
 	}
 
 	AnimateMaterials(gt);
@@ -505,6 +514,8 @@ void Game::UpdateMainPassCB(const GameTimer& gt)
 	XMStoreFloat4x4(&mMainPassCB.InvProj, XMMatrixTranspose(invProj));
 	XMStoreFloat4x4(&mMainPassCB.ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&mMainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
+	XMStoreFloat4x4(&mMainPassCB.ShadowTransform, XMMatrixTranspose(shadowTransform));
+
 	mMainPassCB.superheat = mPlayer.GetSuperheat();
 	mMainPassCB.EyePosW = mPlayer.mCamera.GetPosition3f();
 	mMainPassCB.RenderTargetSize = XMFLOAT2((float)mClientWidth, (float)mClientHeight);
@@ -514,11 +525,11 @@ void Game::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.TotalTime = gt.TotalTime();
 	mMainPassCB.DeltaTime = gt.DeltaTime();
 	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
-	mMainPassCB.Lights[0].Direction = mBaseLightDirections[0];
+	mMainPassCB.Lights[0].Direction = mRotatedLightDirections[0];
 	mMainPassCB.Lights[0].Strength = { 0.8f, 0.8f, 0.8f };
-	mMainPassCB.Lights[1].Direction = mBaseLightDirections[1];
+	mMainPassCB.Lights[1].Direction = mRotatedLightDirections[1];
 	mMainPassCB.Lights[1].Strength = { 0.4f, 0.4f, 0.4f };
-	mMainPassCB.Lights[2].Direction = mBaseLightDirections[2];
+	mMainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
 	mMainPassCB.Lights[2].Strength = { 0.2f, 0.2f, 0.2f };
 
 	auto currPassCB = mCurrFrameResource->PassCB.get();
@@ -556,7 +567,7 @@ void Game::UpdateShadowPassCB(const GameTimer & gt)
 
 void Game::UpdateShadowTransform(const GameTimer & gt)
 {
-	XMVECTOR lightDir = XMLoadFloat3(&mBaseLightDirections[0]);
+	XMVECTOR lightDir = XMLoadFloat3(&mRotatedLightDirections[0]);
 	XMVECTOR lightPos = -2.0f*mSceneBounds.Radius*lightDir;
 	XMVECTOR targetPos = XMLoadFloat3(&mSceneBounds.Center);
 	XMVECTOR lightUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
