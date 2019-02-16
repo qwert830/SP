@@ -84,13 +84,14 @@ private:
 	void BuildPlayerData();
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 	void DrawInstancingRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
+	void DrawSceneToShadowMap();
 
-	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
+	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 private:
 
 	Player mPlayer;
 	ModelManager mModelManager;
-	std::unique_ptr<ShadowMap> mShadow;
+	std::unique_ptr<ShadowMap> mShadowMap;
 
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
 	FrameResource* mCurrFrameResource = nullptr;
@@ -125,6 +126,12 @@ private:
 	std::vector<RenderItem*> mOpaqueRitems;
 	std::vector<RenderItem*> mPlayerRitems;
 	std::vector<RenderItem*> mTransparentRitems;
+
+	UINT mShadowMapHeapIndex = 0;
+
+	UINT mNullTexSrvIndex = 0;
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE mNullSrv;
 
 	PassConstants mMainPassCB;
 
@@ -178,7 +185,7 @@ bool Game::Initialize()
     ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
 	mCbvSrvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	mShadow = std::make_unique<ShadowMap>(
+	mShadowMap = std::make_unique<ShadowMap>(
 		md3dDevice.Get(), 2048, 2048);
 
 	LoadTextures();
@@ -261,6 +268,28 @@ void Game::Draw(const GameTimer& gt)
 
 	ThrowIfFailed(cmdListAlloc->Reset());
 	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["instancingOpaque"].Get()));
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { mSrvDescriptorHeap.Get() };
+	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+	mCommandList->SetGraphicsRootSignature(mInstancingRootSignature.Get());
+
+	auto matBuffer = mCurrFrameResource->MaterialCB->Resource();
+	mCommandList->SetGraphicsRootShaderResourceView(1, matBuffer->GetGPUVirtualAddress());
+
+	mCommandList->SetGraphicsRootDescriptorTable(3, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
+	auto passCB = mCurrFrameResource->PassCB->Resource();
+	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+
+	// 그림자
+
+	mCommandList->SetGraphicsRootDescriptorTable(4, mNullSrv);
+
+	DrawSceneToShadowMap();
+
+	// 그림자 그리기 끝
+
     mCommandList->RSSetViewports(1, &mScreenViewport);
     mCommandList->RSSetScissorRects(1, &mScissorRect);
 
@@ -272,35 +301,14 @@ void Game::Draw(const GameTimer& gt)
 	
 	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 
-	ID3D12DescriptorHeap* descriptorHeaps[] = { mSrvDescriptorHeap.Get() };
-	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-	
 	// 인스턴싱 그리기 
-	mCommandList->SetGraphicsRootSignature(mInstancingRootSignature.Get());
 
-	auto matBuffer = mCurrFrameResource->MaterialCB->Resource();
-	mCommandList->SetGraphicsRootShaderResourceView(1, matBuffer->GetGPUVirtualAddress());
-
-	auto passCB = mCurrFrameResource->PassCB->Resource();
-	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
-
-	mCommandList->SetGraphicsRootDescriptorTable(3, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	mCommandList->SetPipelineState(mPSOs["instancingOpaque"].Get());
 
 	DrawInstancingRenderItems(mCommandList.Get(), mOpaqueRitems);
 	DrawInstancingRenderItems(mCommandList.Get(), mPlayerRitems);
 
 	// 인스턴싱 그리기 끝
-
-	// 그림자
-
-
-
-
-
-
-
-	// 그림자 그리기 끝
-
 	// UI 그리기
 
 	mCommandList->SetPipelineState(mPSOs["UI"].Get());
@@ -556,16 +564,20 @@ void Game::BuildInstancingRootSignature()
 	CD3DX12_DESCRIPTOR_RANGE texTable;
 	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 0);
 
-	CD3DX12_ROOT_PARAMETER slotRootParameter[4];
+	CD3DX12_DESCRIPTOR_RANGE shadowTable;
+	shadowTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3, 0);
+
+	CD3DX12_ROOT_PARAMETER slotRootParameter[5];
 
 	slotRootParameter[0].InitAsShaderResourceView(0, 1); // instancing
 	slotRootParameter[1].InitAsShaderResourceView(1, 1); // instancing
 	slotRootParameter[2].InitAsConstantBufferView(0); // cbpass
 	slotRootParameter[3].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[4].InitAsDescriptorTable(1, &shadowTable, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto staticSamplers = GetStaticSamplers();
 
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter,
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(5, slotRootParameter,
 		(UINT)staticSamplers.size(), staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
@@ -590,44 +602,58 @@ void Game::BuildInstancingRootSignature()
 void Game::BuildDescriptorHeaps()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 4;
+	srvHeapDesc.NumDescriptors = 5;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
-	auto seaFloorTex = mTextures["seaFloorTex"]->Resource;
-	auto tileTex = mTextures["tileTex"]->Resource;
-	auto uiGunTex = mTextures["uiGunTex"]->Resource;
-	auto playerCharTex = mTextures["playerCharTex"]->Resource;
+	std::vector<ComPtr<ID3D12Resource>> tex =
+	{
+		mTextures["seaFloorTex"]->Resource,
+		mTextures["tileTex"]->Resource,
+		mTextures["uiGunTex"]->Resource,
+		mTextures["playerCharTex"]->Resource
+	};
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Format = seaFloorTex->GetDesc().Format;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.MipLevels = seaFloorTex->GetDesc().MipLevels;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-	md3dDevice->CreateShaderResourceView(seaFloorTex.Get(), &srvDesc, hDescriptor);
+	
+	for (int i = 0; i < tex.size(); i++)
+	{
+		srvDesc.Format = tex[i]->GetDesc().Format;
+		srvDesc.Texture2D.MipLevels = tex[i]->GetDesc().MipLevels;
+		md3dDevice->CreateShaderResourceView(tex[i].Get(), &srvDesc, hDescriptor);
 
-	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+		hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+	}
 
-	srvDesc.Format = tileTex->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = tileTex->GetDesc().MipLevels;
-	md3dDevice->CreateShaderResourceView(tileTex.Get(), &srvDesc, hDescriptor);
+	mShadowMapHeapIndex = (UINT)tex.size();
 
-	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+	mNullTexSrvIndex = mShadowMapHeapIndex + 1; 
 
-	srvDesc.Format = uiGunTex->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = uiGunTex->GetDesc().MipLevels;
-	md3dDevice->CreateShaderResourceView(uiGunTex.Get(), &srvDesc, hDescriptor);
+	auto srvCpuStart = mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	auto srvGpuStart = mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	auto dsvCpuStart = mDsvHeap->GetCPUDescriptorHandleForHeapStart();
 
-	hDescriptor.Offset(1, mCbvSrvDescriptorSize);
+	auto nullSrv = CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, mShadowMapHeapIndex, mCbvSrvUavDescriptorSize);
+	mNullSrv = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, mShadowMapHeapIndex, mCbvSrvUavDescriptorSize);
 
-	srvDesc.Format = playerCharTex->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = playerCharTex->GetDesc().MipLevels;
-	md3dDevice->CreateShaderResourceView(playerCharTex.Get(), &srvDesc, hDescriptor);
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+	md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv); // 임의에 리소스에 대한 srvDesc에 해당하는 뷰를 생성해서 nullSrv에 집어넣겟다.
+
+	mShadowMap->BuildDescriptors(
+		CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, mShadowMapHeapIndex, mCbvSrvUavDescriptorSize),
+		CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, mShadowMapHeapIndex, mCbvSrvUavDescriptorSize),
+		CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 1, mDsvDescriptorSize));
 
 }
 
@@ -648,6 +674,9 @@ void Game::BuildShadersAndInputLayout()
 
 	mShaders["uiVS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "UI_VS", "vs_5_1");
 	mShaders["uiPS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "UI_PS", "ps_5_1");
+
+	mShaders["shadowVS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "SHADOW_VS", "vs_5_1");
+	mShaders["shadowPS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "SHADOW_PS", "ps_5_1");
 
     mInputLayout =
     {
@@ -755,12 +784,6 @@ void Game::BuildShapeGeometry()
 		indices.insert(indices.end(), i);
 	}
 	UINT playerIndex = data.size();
-
-	//std::ofstream a("test4.txt");
-	//for (int i = 0; i < data.size(); ++i)
-	//	a << " u : " << data[i].tu << " v : " << data[i].tv 
-	//	<< std::endl;
-	//a.close();
 
     const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
@@ -889,6 +912,23 @@ void Game::BuildPSOs()
 	uiPsoDesc.DepthStencilState.DepthEnable = false;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&uiPsoDesc, IID_PPV_ARGS(&mPSOs["UI"])));
 
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = instancingPsoDesc;
+	shadowPsoDesc.RasterizerState.DepthBias = 100000;
+	shadowPsoDesc.RasterizerState.DepthBiasClamp = 0.0f;
+	shadowPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
+	shadowPsoDesc.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["shadowVS"]->GetBufferPointer()),
+		mShaders["shadowVS"]->GetBufferSize()
+	};
+	shadowPsoDesc.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["shadowPS"]->GetBufferPointer()),
+		mShaders["shadowPS"]->GetBufferSize()
+	};
+	shadowPsoDesc.DepthStencilState.DepthEnable = false;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&shadowPsoDesc, IID_PPV_ARGS(&mPSOs["shadow"])));
+
 }
 
 void Game::BuildFrameResources()
@@ -896,7 +936,7 @@ void Game::BuildFrameResources()
 	for (int i = 0; i < gNumFrameResources; ++i)
 	{
 		mFrameResources.push_back(std::make_unique<FrameResource>(md3dDevice.Get(),
-			1, (UINT)mAllRitems.size(), (UINT)mMaterials.size(), &mInstanceCount[0]));
+			2, (UINT)mAllRitems.size(), (UINT)mMaterials.size(), &mInstanceCount[0]));
 	}
 }
 
@@ -1154,7 +1194,32 @@ void Game::DrawInstancingRenderItems(ID3D12GraphicsCommandList * cmdList, const 
 	}
 }
 
-std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> Game::GetStaticSamplers()
+void Game::DrawSceneToShadowMap()
+{
+	mCommandList->RSSetViewports(1, &mShadowMap->Viewport());
+	mCommandList->RSSetScissorRects(1, &mShadowMap->ScissorRect());
+
+	// Change to DEPTH_WRITE.
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
+		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+
+	// Clear the back buffer and depth buffer.
+	mCommandList->ClearDepthStencilView(mShadowMap->Dsv(),
+		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+	mCommandList->OMSetRenderTargets(0, nullptr, false, &mShadowMap->Dsv());
+
+	mCommandList->SetPipelineState(mPSOs["shadow"].Get());
+
+	DrawInstancingRenderItems(mCommandList.Get(), mOpaqueRitems);
+	DrawInstancingRenderItems(mCommandList.Get(), mPlayerRitems);
+
+	// Change back to GENERIC_READ so we can read the texture in a shader.
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
+}
+
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> Game::GetStaticSamplers()
 {
 	// Applications usually only need a handful of samplers.  So just define them all up front
 	// and keep them available as part of the root signature.  
