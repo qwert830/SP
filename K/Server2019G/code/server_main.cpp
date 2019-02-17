@@ -50,8 +50,8 @@ public:
 	int m_packet_size;
 	int m_prev_packet_size;
 	char m_packet[MAX_PACKET_SIZE];
-
 	Client() {
+		m_ID = L"Temp";
 		m_IsConnected = false;
 		m_RoomNumber = LOBBYNUMBER;
 		m_Condition = US_WAIT;
@@ -494,20 +494,20 @@ inline void ProcessPacket(int id, char *packet)
 				if (g_rooms[packet_join->roomnumber].join(id)) {
 					g_clients[id].m_RoomNumber = packet_join->roomnumber;
 					sc_player_join_packet p;
-					memcpy(p.id, g_clients[id].m_ID.c_str(), sizeof(g_clients[id].m_ID.c_str()));
 					p.type = SC_JOIN_PLAYER;
-					p.size = sizeof(p);
-					////방 인원 전원에게 해당 아이디가 조인했음을 알림
-					//for (int d : g_rooms[packet_join->roomnumber].m_JoinIdList) {
-					//	SendPacket(d, &p);
-					//}
-					////해당 아이디에게 방에 접속중인 인원의 정보를 보냄
-					//for (int d : g_rooms[packet_join->roomnumber].m_JoinIdList) {
-					//	p.id = d;
-					//	p.type = SC_PUT_PLAYER;
-					//	p.size = sizeof(p);
-					//	SendPacket(id, &p);
-					//}
+					p.size = sizeof(sc_player_join_packet);
+					wcscpy(p.id, g_clients[id].m_ID.c_str());
+					//방 인원 전원에게 해당 아이디가 조인했음을 알림
+					for (int d : g_rooms[packet_join->roomnumber].m_JoinIdList) {
+						if (d == id) continue;
+						SendPacket(d, &p);
+					}
+					//해당 아이디에게 방에 접속중인 인원의 정보를 보냄
+					for (int d : g_rooms[packet_join->roomnumber].m_JoinIdList) {
+						if (d == id) continue;
+						wcscpy(p.id, g_clients[d].m_ID.c_str());
+						SendPacket(id, &p);
+					}
 				}
 				g_rooms[packet_join->roomnumber].m_mJoinIdList.unlock();
 			}
@@ -523,21 +523,20 @@ inline void ProcessPacket(int id, char *packet)
 						g_rooms[i].m_mJoinIdList.unlock();
 						g_clients[id].m_RoomNumber = i;
 						sc_player_join_packet p;
-						memcpy(p.id, g_clients[id].m_ID.c_str(), sizeof(g_clients[id].m_ID.c_str()));
 						p.type = SC_JOIN_PLAYER;
-						p.size = sizeof(p);
-						////방 인원 전원에게 해당 아이디가 조인했음을 알림
-						//for (int d : g_rooms[i].m_JoinIdList) {
-						//	SendPacket(d, &p);
-						//}
-						////해당 아이디에게 방에 접속중인 인원의 정보를 보냄
-						//for (int d : g_rooms[i].m_JoinIdList) {
-						//	if (id == d) continue;
-						//	p.id = d;
-						//	p.type = SC_PUT_PLAYER;
-						//	p.size = sizeof(p);
-						//	SendPacket(id, &p);
-						//}
+						p.size = sizeof(sc_player_join_packet);
+						wcscpy(p.id, g_clients[id].m_ID.c_str());
+						//방 인원 전원에게 해당 아이디가 조인했음을 알림
+						for (int d : g_rooms[i].m_JoinIdList) {
+							if (d == id) continue;
+							SendPacket(d, &p);
+						}
+						//해당 아이디에게 방에 접속중인 인원의 정보를 보냄
+						for (int d : g_rooms[i].m_JoinIdList) {
+							if (d == id) continue;
+							wcscpy(p.id, g_clients[d].m_ID.c_str());
+							SendPacket(id, &p);
+						}
 						break;
 					}
 					else {
@@ -552,22 +551,21 @@ inline void ProcessPacket(int id, char *packet)
 		}
 		break;
 	case CS_QUIT:
-		if (g_clients[id].m_RoomNumber == LOBBYNUMBER) break;
-		else {
-			g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.lock();
-			g_rooms[g_clients[id].m_RoomNumber].quit(id);
-			sc_player_quit_packet p;
-			memcpy(p.id, g_clients[id].m_ID.c_str(), sizeof(g_clients[id].m_ID.c_str()));
-			p.type = SC_QUIT_PLAYER;
-			p.size = sizeof(p);
-			//남은 방 인원 전원에게 해당 아이디가 퇴장했음을 알림
-			//for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
-			//	SendPacket(d, &p);
-			//}
-			g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.unlock();
-			g_clients[id].m_RoomNumber = -1;
+	{
+		g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.lock();
+		g_rooms[g_clients[id].m_RoomNumber].quit(id);
+		sc_player_quit_packet p;
+		wcscpy(p.id, g_clients[id].m_ID.c_str());
+		p.type = SC_QUIT_PLAYER;
+		p.size = sizeof(sc_player_quit_packet);
+		//남은 방 인원 전원에게 해당 아이디가 퇴장했음을 알림
+		for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
+			SendPacket(d, &p);
 		}
+		g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.unlock();
+		g_clients[id].m_RoomNumber = -1;
 		break;
+	}
 	case CS_READY:
 		if (g_rooms[g_clients[id].m_RoomNumber].gosign()) {
 			sc_usercondition_packet p;
@@ -581,7 +579,7 @@ inline void ProcessPacket(int id, char *packet)
 			sc_usercondition_packet p;
 			p.size = sizeof(sc_usercondition_packet);
 			p.type = US_READY;
-			memcpy(p.id, g_clients[id].m_ID.c_str(), sizeof(g_clients[id].m_ID.c_str()));
+			wcscpy(p.id, g_clients[id].m_ID.c_str());
 			for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
 				SendPacket(d, &p);
 			}
@@ -591,7 +589,7 @@ inline void ProcessPacket(int id, char *packet)
 		sc_usercondition_packet p;
 		p.size = sizeof(sc_usercondition_packet);
 		p.type = US_WAIT;
-		memcpy(p.id, g_clients[id].m_ID.c_str(), sizeof(g_clients[id].m_ID.c_str()));
+		wcscpy(p.id, g_clients[id].m_ID.c_str());
 		for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
 			SendPacket(d, &p);
 		}
@@ -735,8 +733,8 @@ void Accept_Threads()
 			cout << "MAX_USER_Exceeded\n";
 			continue;
 		}
-		if(id % 100 == 0 || id == MAX_USER -1)
-			cout << "ID of new Client is [" << id << "]\n";
+
+		cout << "ID of new Client is [" << id << "]\n";
 
 		g_clients[id].m_Socket = cs;
 		g_clients[id].m_packet_size = 0;
@@ -744,6 +742,9 @@ void Accept_Threads()
 		g_clients[id].m_RoomNumber = LOBBYNUMBER;
 		CreateIoCompletionPort(reinterpret_cast<HANDLE>(cs), ghiocp, id, 0);
 		g_clients[id].m_IsConnected = true;
+		wchar_t itr[10];
+		_itow(id, itr, 10);
+		g_clients[id].m_ID += itr;
 		StartRecv(id);
 		
 	}

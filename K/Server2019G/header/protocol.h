@@ -30,7 +30,6 @@ enum CS_PacketKind {
 
 enum SC_PacketKind {
 	SC_REFRESH = 50,
-	SC_PUT_PLAYER,
 	SC_JOIN_PLAYER,
 	SC_QUIT_PLAYER,
 	SC_FAIL,
@@ -102,6 +101,7 @@ struct cs_status_packet {
 };
 // 서버 -> 클라이언트------------------------
 
+//id와 패스워드를 똑바로 쳤는지 확인하는 패킷
 struct sc_id_packet {
 	unsigned char size;
 	unsigned char type;
