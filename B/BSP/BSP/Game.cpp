@@ -316,6 +316,11 @@ void Game::Draw(const GameTimer& gt)
 	mCommandList->SetGraphicsRootDescriptorTable(4, mNullSrv);
 
 	DrawSceneToShadowMap();
+	DrawSceneToShadowMap();
+	DrawSceneToShadowMap();
+	DrawSceneToShadowMap();
+	DrawSceneToShadowMap();
+	DrawSceneToShadowMap();
 
 	// 그림자 그리기 끝
 
@@ -555,6 +560,7 @@ void Game::UpdateShadowPassCB(const GameTimer & gt)
 	XMStoreFloat4x4(&mShadowPassCB.InvProj, XMMatrixTranspose(invProj));
 	XMStoreFloat4x4(&mShadowPassCB.ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&mShadowPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
+
 	mShadowPassCB.EyePosW = mLightPosW;
 	mShadowPassCB.RenderTargetSize = XMFLOAT2((float)w, (float)h);
 	mShadowPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / w, 1.0f / h);

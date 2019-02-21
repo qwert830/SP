@@ -103,16 +103,13 @@ struct ShadowVertexOut
 
 float CalcShadowFactor(float4 shadowPosH)
 {
-    // Complete projection by doing division by w.
     shadowPosH.xyz /= shadowPosH.w;
 
-    // Depth in NDC space.
     float depth = shadowPosH.z;
 
     uint width, height, numMips;
     gShadowMap.GetDimensions(0, width, height, numMips);
 
-    // Texel size.
     float dx = 1.0f / (float) width;
 
     float percentLit = 0.0f;

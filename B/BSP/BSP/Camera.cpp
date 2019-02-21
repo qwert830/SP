@@ -36,6 +36,7 @@ void Camera::SetPosition(const XMFLOAT3& v)
 void Camera::SetCamera(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3 & right, const DirectX::XMFLOAT3 & look, const DirectX::XMFLOAT3 & up)
 {
 	mPosition = pos;
+	mPosition.y = mPosition.y + 20.0f;
 	mRight = right;
 	mLook = look;
 	mUp = up;
@@ -229,18 +230,40 @@ void Camera::Forward(float d)
 
 void Camera::Pitch(float angle)
 {
+	XMFLOAT3 tempRight = mRight;
+	XMFLOAT3 tempUp = mUp;
+	XMFLOAT3 tempLook = mLook;
 
 	XMMATRIX R = XMMatrixRotationAxis(XMLoadFloat3(&mRight), angle);
-
+	
 	XMStoreFloat3(&mUp,   XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
 	XMStoreFloat3(&mLook, XMVector3TransformNormal(XMLoadFloat3(&mLook), R));
+
+	XMFLOAT3 z = { 0.0f,0.0f, tempLook.z };
+	float upLength;
+	float lookLength;
+
+	XMStoreFloat(&upLength, XMVector3Length(XMLoadFloat3(&z)));
+	XMStoreFloat(&lookLength, XMVector3Length(XMLoadFloat3(&mLook)));
+	float dot = mLook.x * z.x + mLook.y * z.y + mLook.z * z.z;
+	float cos = dot / upLength * lookLength;
+	float radian = acosf(cos);
+	float degree = radian * (180.0f / 3.141592f);
+
+	if (degree >= 90.0f)
+	{
+		mRight = tempRight;
+		mUp = tempUp;
+		mLook = tempLook;
+
+		return;
+	}
 
 	mViewDirty = true;
 }
 
 void Camera::RotateY(float angle)
 {
-
 	XMMATRIX R = XMMatrixRotationY(angle);
 
 	XMStoreFloat3(&mRight,  XMVector3TransformNormal(XMLoadFloat3(&mRight), R));

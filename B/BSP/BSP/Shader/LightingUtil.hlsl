@@ -97,22 +97,16 @@ float3 ComputePointLight(Light L, Material mat, float3 pos, float3 normal, float
     return BlinnPhong(lightStrength, lightVec, normal, toEye, mat);
 }
 
-//---------------------------------------------------------------------------------------
-// Evaluates the lighting equation for spot lights.
-//---------------------------------------------------------------------------------------
+
 float3 ComputeSpotLight(Light L, Material mat, float3 pos, float3 normal, float3 toEye)
 {
-    // The vector from the surface to the light.
     float3 lightVec = L.Position - pos;
 
-    // The distance from surface to light.
     float d = length(lightVec);
 
-    // Range test.
     if(d > L.FalloffEnd)
         return 0.0f;
 
-    // Normalize the light vector.
     lightVec /= d;
 
     // Scale light down by Lambert's cosine law.
