@@ -22,5 +22,6 @@ public:
 
 	HRESULT LoadFBX(const char* filename, std::vector<ModelData>* pOutData);
 	vec2 ReadUV(FbxMesh* mesh, int controlPointIndex, int vertexCounter);
+	void LoadUV(FbxMesh* mesh, std::vector<ModelData>* data);
 };
 

@@ -16,6 +16,8 @@ vec2 ModelManager::ReadUV(FbxMesh* mesh, int controlPointIndex, int vertexCounte
 	FbxGeometryElementUV* vertexuv = mesh->GetElementUV(0);
 
 	vec2 result;
+
+
 	switch (vertexuv->GetMappingMode())
 	{
 	case FbxGeometryElement::eByControlPoint:
@@ -65,6 +67,71 @@ vec2 ModelManager::ReadUV(FbxMesh* mesh, int controlPointIndex, int vertexCounte
 	}
 
 	return result;
+}
+
+void ModelManager::LoadUV(FbxMesh * pMesh, std::vector<ModelData>* data)
+{
+	FbxGeometryElementUV* lUVElement = pMesh->GetElementUV(0);
+	const bool lUseIndex = lUVElement->GetReferenceMode() != FbxGeometryElement::eDirect;
+	const int lIndexCount = (lUseIndex) ? lUVElement->GetIndexArray().GetCount() : 0;
+	const int lPolyCount = pMesh->GetPolygonCount();
+
+	if (data->size() < lPolyCount)
+		data->resize(lPolyCount);
+
+	if (lUVElement->GetMappingMode() == FbxGeometryElement::eByControlPoint)
+	{
+		for (int lPolyIndex = 0; lPolyIndex < lPolyCount; ++lPolyIndex)
+		{
+			// build the max index array that we need to pass into MakePoly
+			const int lPolySize = pMesh->GetPolygonSize(lPolyIndex);
+			for (int lVertIndex = 0; lVertIndex < lPolySize; ++lVertIndex)
+			{
+				FbxVector2 lUVValue;
+
+				//get the index of the current vertex in control points array
+				int lPolyVertIndex = pMesh->GetPolygonVertex(lPolyIndex, lVertIndex);
+
+				//the UV index depends on the reference mode
+				int lUVIndex = lUseIndex ? lUVElement->GetIndexArray().GetAt(lPolyVertIndex) : lPolyVertIndex;
+
+				lUVValue = lUVElement->GetDirectArray().GetAt(lUVIndex);
+				//User TODO:
+				//Print out the value of UV(lUVValue) or log it to a file
+			}
+		}
+	}
+	else if (lUVElement->GetMappingMode() == FbxGeometryElement::eByPolygonVertex)
+	{
+		int lPolyIndexCounter = 0;
+		for (int lPolyIndex = 0; lPolyIndex < lPolyCount; ++lPolyIndex)
+		{
+			// build the max index array that we need to pass into MakePoly
+			const int lPolySize = pMesh->GetPolygonSize(lPolyIndex);
+			for (int lVertIndex = 0; lVertIndex < lPolySize; ++lVertIndex )
+			{
+				if (lPolyIndexCounter < lIndexCount)
+				{
+					FbxVector2 lUVValue;
+
+					//the UV index depends on the reference mode
+					int lUVIndex = lUseIndex ? lUVElement->GetIndexArray().GetAt(lPolyIndexCounter) : lPolyIndexCounter;
+
+					lUVValue = lUVElement->GetDirectArray().GetAt(lUVIndex);
+					float u = static_cast<float>(lUVValue.mData[0]);
+					float v = static_cast<float>(lUVValue.mData[1]);
+					data[0][lPolyIndexCounter].tu = u;
+					data[0][lPolyIndexCounter].tv = v;
+
+					//User TODO:
+					//Print out the value of UV(lUVValue) or log it to a file
+
+					lPolyIndexCounter++;
+				}
+			}
+		}
+	}
+
 }
 
 HRESULT ModelManager::LoadFBX(const char* filename, std::vector<ModelData>* pOutData)
@@ -124,15 +191,12 @@ HRESULT ModelManager::LoadFBX(const char* filename, std::vector<ModelData>* pOut
 					data.y = (float)pVertices[iControlPointIndex].mData[1];
 					data.z = (float)pVertices[iControlPointIndex].mData[2];
 					data.w = (float)pVertices[iControlPointIndex].mData[3];
-					
-					vec2 uv = ReadUV(pMesh, iControlPointIndex, pMesh->GetTextureUVIndex(j, k));
-					data.tu = uv.x;
-					data.tv = uv.y;
 
 					pOutData->push_back(data);
 				}
 			}
-
+			FbxMesh* mesh = (FbxMesh*)pFbxChildNode->GetMesh();
+			LoadUV(mesh, pOutData);
 		}
 
 	}

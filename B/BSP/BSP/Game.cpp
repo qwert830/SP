@@ -360,8 +360,8 @@ void Game::Draw(const GameTimer& gt)
 	
 	// 디버그
 
-	mCommandList->SetPipelineState(mPSOs["sDebug"].Get());
-	DrawInstancingRenderItems(mCommandList.Get(), mDebugRitems);
+	//mCommandList->SetPipelineState(mPSOs["sDebug"].Get());
+	//DrawInstancingRenderItems(mCommandList.Get(), mDebugRitems);
 	
 	// 디버그 끝
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -899,15 +899,18 @@ void Game::BuildShapeGeometry()
 		vertices[k].Normal = uiGrid.Vertices[i].Normal;
 	}
 	indices.insert(indices.end(), uiGrid.Indices32.begin(), uiGrid.Indices32.end());
+	std::ofstream str("test.txt");
+	
 
 	for (int i = 0; i < data.size(); ++i, ++k)
 	{
 		vertices[k].Pos = XMFLOAT4(data[i].x, data[i].y, data[i].z, 0.0f);
-		vertices[k].Tex = XMFLOAT2(data[i].tu, data[i].tv);
+		vertices[k].Tex = XMFLOAT2(data[i].tu, 1 - data[i].tv);
 		vertices[k].Normal = XMFLOAT3(data[i].nx, data[i].ny, data[i].nz);
-		
 		indices.insert(indices.end(), i);
-	}
+		str << i << "  u : " << data[i].tu << " v : " << data[i].tv << std::endl;
+	}	
+	str.close();
 	UINT playerIndex = data.size();
 
 	for(int i = 0; i < quad.Vertices.size(); ++i, ++k)
@@ -1254,7 +1257,7 @@ void Game::BuildRenderItems()
 					0.0f, 0.0f, 0.1f, 0.0f,
 					x + j * dx, 10, z + k * dz, 1.0f);
 
-				XMStoreFloat4x4(&PlayerRitem->Instances[index].TexTransform, XMMatrixScaling(0.1f, 0.1f, 0.1f));
+				XMStoreFloat4x4(&PlayerRitem->Instances[index].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 				PlayerRitem->Instances[index].MaterialIndex = 3;
 			}
 	}
