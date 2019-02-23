@@ -113,7 +113,6 @@ void ModelManager::LoadUV(FbxMesh * pMesh, std::vector<ModelData>* data)
 				if (lPolyIndexCounter < lIndexCount)
 				{
 					FbxVector2 lUVValue;
-
 					//the UV index depends on the reference mode
 					int lUVIndex = lUseIndex ? lUVElement->GetIndexArray().GetAt(lPolyIndexCounter) : lPolyIndexCounter;
 
@@ -132,6 +131,60 @@ void ModelManager::LoadUV(FbxMesh * pMesh, std::vector<ModelData>* data)
 		}
 	}
 
+}
+
+void ModelManager::LoadNormal(FbxMesh * mesh, std::vector<ModelData>* data)
+{
+	FbxGeometryElementNormal* lNormalElement = mesh->GetElementNormal();
+
+	if (lNormalElement)
+	{
+		if (lNormalElement->GetMappingMode() == FbxGeometryElement::eByControlPoint)
+		{
+			for (int lVertexIndex = 0; lVertexIndex < mesh->GetControlPointsCount(); lVertexIndex++)
+			{
+				int lNormalIndex = 0;
+
+				if (lNormalElement->GetReferenceMode() == FbxGeometryElement::eDirect)
+					lNormalIndex = lVertexIndex;
+
+				if (lNormalElement->GetReferenceMode() == FbxGeometryElement::eIndexToDirect)
+					lNormalIndex = lNormalElement->GetIndexArray().GetAt(lVertexIndex);
+
+				FbxVector4 lNormal = lNormalElement->GetDirectArray().GetAt(lNormalIndex);
+
+			}
+		}
+
+		else if (lNormalElement->GetMappingMode() == FbxGeometryElement::eByPolygonVertex)
+		{
+			int lIndexByPolygonVertex = 0;
+			//Let's get normals of each polygon, since the mapping mode of normal element is by polygon-vertex.
+			for (int lPolygonIndex = 0; lPolygonIndex < mesh->GetPolygonCount(); lPolygonIndex++)
+			{
+				//get polygon size, you know how many vertices in current polygon.
+				int lPolygonSize = mesh->GetPolygonSize(lPolygonIndex);
+				//retrieve each vertex of current polygon.
+				for (int i = 0; i < lPolygonSize; i++)
+				{
+					int lNormalIndex = 0;
+					if (lNormalElement->GetReferenceMode() == FbxGeometryElement::eDirect)
+						lNormalIndex = lIndexByPolygonVertex;
+					else if (lNormalElement->GetReferenceMode() == FbxGeometryElement::eIndexToDirect)
+						lNormalIndex = lNormalElement->GetIndexArray().GetAt(lIndexByPolygonVertex);
+
+					FbxVector4 lNormal = lNormalElement->GetDirectArray().GetAt(lNormalIndex);
+					data[0][lIndexByPolygonVertex].nx = static_cast<float>(lNormal.mData[0]);
+					data[0][lIndexByPolygonVertex].ny = static_cast<float>(lNormal.mData[1]);
+					data[0][lIndexByPolygonVertex].nz = static_cast<float>(lNormal.mData[2]);
+
+
+					lIndexByPolygonVertex++;
+				}
+			}
+
+		}
+	}
 }
 
 HRESULT ModelManager::LoadFBX(const char* filename, std::vector<ModelData>* pOutData)
@@ -197,6 +250,7 @@ HRESULT ModelManager::LoadFBX(const char* filename, std::vector<ModelData>* pOut
 			}
 			FbxMesh* mesh = (FbxMesh*)pFbxChildNode->GetMesh();
 			LoadUV(mesh, pOutData);
+			LoadNormal(mesh, pOutData);
 		}
 
 	}

@@ -899,8 +899,6 @@ void Game::BuildShapeGeometry()
 		vertices[k].Normal = uiGrid.Vertices[i].Normal;
 	}
 	indices.insert(indices.end(), uiGrid.Indices32.begin(), uiGrid.Indices32.end());
-	std::ofstream str("test.txt");
-	
 
 	for (int i = 0; i < data.size(); ++i, ++k)
 	{
@@ -908,9 +906,7 @@ void Game::BuildShapeGeometry()
 		vertices[k].Tex = XMFLOAT2(data[i].tu, 1 - data[i].tv);
 		vertices[k].Normal = XMFLOAT3(data[i].nx, data[i].ny, data[i].nz);
 		indices.insert(indices.end(), i);
-		str << i << "  u : " << data[i].tu << " v : " << data[i].tv << std::endl;
 	}	
-	str.close();
 	UINT playerIndex = data.size();
 
 	for(int i = 0; i < quad.Vertices.size(); ++i, ++k)
