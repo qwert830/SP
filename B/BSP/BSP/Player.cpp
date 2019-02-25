@@ -124,9 +124,26 @@ void Player::PlayerMouseDown(WPARAM btnState, int x, int y)
 {
 	if (btnState == VK_LBUTTON)
 	{
-		superheat += 10;
-		mCamera.ShakeCamera();
+		if (attackState != ATTACK::UNABLE_ATTACK)
+		{
+			LButtonDown = true;
+			RButtonDown = false;
+		}
 	}
+	if (btnState == VK_RBUTTON)
+	{
+		if (attackState != ATTACK::UNABLE_ATTACK)
+		{
+			LButtonDown = false;
+			RButtonDown = true;
+		}
+	}
+}
+
+void Player::PlayerMouseUp(WPARAM btnState, int x, int y)
+{
+	LButtonDown = false;
+	RButtonDown = false;
 }
 
 void Player::SetMousePos(int x, int y)
@@ -184,7 +201,42 @@ void Player::RotateY(float angle)
 void Player::Update(const GameTimer& gt)
 {
 	const float dt = gt.DeltaTime();
-	superheat = ClampFloat(superheat - 1.0f*dt, 0.0f, 100.0f);
+	attackCool += dt;
+	if (attackState != ATTACK::UNABLE_ATTACK)
+	{
+		if (LButtonDown)
+			attackState = ATTACK::GUN;
+		else if (RButtonDown)
+			attackState = ATTACK::LASER;
+	}
+	switch (attackState)
+	{
+	case ATTACK::GUN:
+		if (attackCool < ATTACK_DELAY)
+			break;
+		superheat += 5;
+		mCamera.ShakeCamera();
+		attackState = ATTACK::NOATTACK;
+		attackCool = 0;
+		break;
+	case ATTACK::LASER:
+		superheat += 150 * dt;
+		attackState = ATTACK::NOATTACK;
+		break;
+	case ATTACK::UNABLE_ATTACK:
+		superheat -= 35*dt;
+		if (superheat <= 0)
+		{
+			superheat = 0;
+			attackState = ATTACK::NOATTACK;
+		}
+		break;
+	}
+	superheat = ClampFloat(superheat - 10.0f*dt, 0.0f, 100.0f);
+	if (superheat >= 99.9f)
+	{
+		attackState = ATTACK::UNABLE_ATTACK;
+	}
 	switch (moveState)
 	{
 	case LEFTUP:

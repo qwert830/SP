@@ -2,9 +2,10 @@
 #include"d3dUtil.h"
 #include"GameTimer.h"
 #include"Camera.h"
+#define ATTACK_DELAY 0.1f
 
 enum MOVE{ LEFTUP, UP, RIGHTUP, LEFT, STAND, RIGHT, LEFTDOWN, DOWN, RIGHTDOWN };
-enum ATTACK{ GUN, LASER, NOATTACK};
+enum ATTACK{ GUN, LASER, NOATTACK, UNABLE_ATTACK };
 
 struct WorldVecter
 {
@@ -25,6 +26,10 @@ private:
 	unsigned char attackState = ATTACK::NOATTACK;
 
 	float superheat = 0.0f;
+	float attackCool = 0.1f;
+
+	bool LButtonDown = false;
+	bool RButtonDown = false;
 
 	POINT mouse;
 
@@ -39,6 +44,7 @@ public:
 	void PlayerKeyBoardInput(const GameTimer& gt);
 	void PlayerMouseMove(WPARAM btnState, int x, int y);
 	void PlayerMouseDown(WPARAM btnState, int x, int y);
+	void PlayerMouseUp(WPARAM btnState, int x, int y);
 	void SetMousePos(int x, int y);
 	void Forward(float d);
 	void Strafe(float d);

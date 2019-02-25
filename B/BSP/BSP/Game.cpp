@@ -352,9 +352,9 @@ void Game::Draw(const GameTimer& gt)
 	// 인스턴싱 그리기 끝
 	// UI 그리기
 
-	//mCommandList->SetPipelineState(mPSOs["UI"].Get());
-	//
-	//DrawInstancingRenderItems(mCommandList.Get(), mUIRitems);
+	mCommandList->SetPipelineState(mPSOs["UI"].Get());
+	
+	DrawInstancingRenderItems(mCommandList.Get(), mUIRitems);
 
 	// UI 그리기 끝
 	
@@ -389,6 +389,8 @@ void Game::OnMouseDown(WPARAM btnState, int x, int y)
 
 void Game::OnMouseUp(WPARAM btnState, int x, int y)
 {
+	mPlayer.PlayerMouseUp(btnState, x, y);
+
     ReleaseCapture();
 }
 
