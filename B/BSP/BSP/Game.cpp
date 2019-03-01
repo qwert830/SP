@@ -274,14 +274,6 @@ void Game::Update(const GameTimer& gt)
 		CloseHandle(eventHandle);
 	}
 
-	XMMATRIX R = XMMatrixRotationY(0);
-	for (int i = 0; i < 3; ++i)
-	{
-		XMVECTOR lightDir = XMLoadFloat3(&mBaseLightDirections[i]);
-		lightDir = XMVector3TransformNormal(lightDir, R);
-		XMStoreFloat3(&mRotatedLightDirections[i], lightDir);
-	}
-
 	AnimateMaterials(gt);
 	UpdateObjectCBs(gt);
 	UpdatePlayerData();
@@ -315,11 +307,6 @@ void Game::Draw(const GameTimer& gt)
 
 	mCommandList->SetGraphicsRootDescriptorTable(4, mNullSrv);
 
-	DrawSceneToShadowMap();
-	DrawSceneToShadowMap();
-	DrawSceneToShadowMap();
-	DrawSceneToShadowMap();
-	DrawSceneToShadowMap();
 	DrawSceneToShadowMap();
 
 	// 그림자 그리기 끝
@@ -360,8 +347,8 @@ void Game::Draw(const GameTimer& gt)
 	
 	// 디버그
 
-	//mCommandList->SetPipelineState(mPSOs["sDebug"].Get());
-	//DrawInstancingRenderItems(mCommandList.Get(), mDebugRitems);
+	mCommandList->SetPipelineState(mPSOs["sDebug"].Get());
+	DrawInstancingRenderItems(mCommandList.Get(), mDebugRitems);
 	
 	// 디버그 끝
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -619,7 +606,8 @@ void Game::LoadTextures()
 		"seaFloorTex",
 		"tileTex",
 		"uiGunTex",
-		"playerCharTex"
+		"playerCharTex",
+		"font"
 	};
 
 	std::vector<std::wstring> fileNames =
@@ -627,7 +615,8 @@ void Game::LoadTextures()
 		L"Resource/seafloor.dds",
 		L"Resource/tile.dds",
 		L"Resource/uiGun.dds",
-		L"Resource/playerChar.dds"
+		L"Resource/playerChar.dds",
+		L"Resource/font.dds"
 	};
 
 	for (int i = 0; i < texNames.size(); ++i)
@@ -684,11 +673,13 @@ void Game::BuildRootSignature()
 
 void Game::BuildInstancingRootSignature()
 {
+	// 디스크립터 바꿀댄 셰이더 코드를 꼭 바꾸자 젭라..
+
 	CD3DX12_DESCRIPTOR_RANGE texTable;
-	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 0);
+	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0, 0);
 
 	CD3DX12_DESCRIPTOR_RANGE shadowTable;
-	shadowTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3, 0);
+	shadowTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 5, 0);
 
 	CD3DX12_ROOT_PARAMETER slotRootParameter[5];
 
@@ -725,7 +716,7 @@ void Game::BuildInstancingRootSignature()
 void Game::BuildDescriptorHeaps()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 5;
+	srvHeapDesc.NumDescriptors = 6;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -737,7 +728,8 @@ void Game::BuildDescriptorHeaps()
 		mTextures["seaFloorTex"]->Resource,
 		mTextures["tileTex"]->Resource,
 		mTextures["uiGunTex"]->Resource,
-		mTextures["playerCharTex"]->Resource
+		mTextures["playerCharTex"]->Resource,
+		mTextures["font"]->Resource
 	};
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -1150,9 +1142,9 @@ void Game::BuildRenderItems()
 	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["testModel"].BaseVertexLocation;
 
 	boxRitem->Instances.resize(1);
-	XMStoreFloat4x4(&boxRitem->Instances[0].World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 10.0f, 0.0f));
+	XMStoreFloat4x4(&boxRitem->Instances[0].World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 1.0f, 0.0f));
 	XMStoreFloat4x4(&boxRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-	boxRitem->Instances[0].MaterialIndex = 0;
+	boxRitem->Instances[0].MaterialIndex = 4;
 
 	mInstanceCount.push_back(boxRitem->Instances.size());
 
