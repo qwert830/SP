@@ -157,7 +157,6 @@ private:
 		XMFLOAT3(-0.57735f, -0.57735f, 0.57735f),
 		XMFLOAT3(0.0f, -0.707f, -0.707f)
 	};
-	XMFLOAT3 mRotatedLightDirections[3];
 
 };
 
@@ -519,11 +518,11 @@ void Game::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.TotalTime = gt.TotalTime();
 	mMainPassCB.DeltaTime = gt.DeltaTime();
 	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
-	mMainPassCB.Lights[0].Direction = mRotatedLightDirections[0];
+	mMainPassCB.Lights[0].Direction = mBaseLightDirections[0];
 	mMainPassCB.Lights[0].Strength = { 0.8f, 0.8f, 0.8f };
-	mMainPassCB.Lights[1].Direction = mRotatedLightDirections[1];
+	mMainPassCB.Lights[1].Direction = mBaseLightDirections[1];
 	mMainPassCB.Lights[1].Strength = { 0.4f, 0.4f, 0.4f };
-	mMainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
+	mMainPassCB.Lights[2].Direction = mBaseLightDirections[2];
 	mMainPassCB.Lights[2].Strength = { 0.2f, 0.2f, 0.2f };
 
 	auto currPassCB = mCurrFrameResource->PassCB.get();
@@ -562,7 +561,7 @@ void Game::UpdateShadowPassCB(const GameTimer & gt)
 
 void Game::UpdateShadowTransform(const GameTimer & gt)
 {
-	XMVECTOR lightDir = XMLoadFloat3(&mRotatedLightDirections[0]);
+	XMVECTOR lightDir = XMLoadFloat3(&mBaseLightDirections[0]);
 	XMVECTOR lightPos = -2.0f*mSceneBounds.Radius*lightDir;
 	XMVECTOR targetPos = XMLoadFloat3(&mSceneBounds.Center);
 	XMVECTOR lightUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
@@ -1144,7 +1143,7 @@ void Game::BuildRenderItems()
 	boxRitem->Instances.resize(1);
 	XMStoreFloat4x4(&boxRitem->Instances[0].World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 1.0f, 0.0f));
 	XMStoreFloat4x4(&boxRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-	boxRitem->Instances[0].MaterialIndex = 4;
+	boxRitem->Instances[0].MaterialIndex = 0;
 
 	mInstanceCount.push_back(boxRitem->Instances.size());
 
@@ -1248,7 +1247,7 @@ void Game::BuildRenderItems()
 					x + j * dx, 10, z + k * dz, 1.0f);
 
 				XMStoreFloat4x4(&PlayerRitem->Instances[index].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-				PlayerRitem->Instances[index].MaterialIndex = 3;
+				PlayerRitem->Instances[index].MaterialIndex = 1;
 			}
 	}
 

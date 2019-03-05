@@ -65,7 +65,7 @@ int D3DApp::Run()
 {
 	MSG msg = {0};
  
-	mTimer.Reset();
+mTimer.Reset();
 
 	while(msg.message != WM_QUIT)
 	{
