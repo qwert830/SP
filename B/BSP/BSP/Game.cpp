@@ -6,6 +6,7 @@
 #include "Player.h"
 #include "ModelManager.h"
 #include "ShadowMap.h"
+#include "FontManager.h"
 #include <fstream>
 
 using Microsoft::WRL::ComPtr;
@@ -93,6 +94,7 @@ private:
 
 	Player mPlayer;
 	ModelManager mModelManager;
+	FontManager mFontManager;
 	std::unique_ptr<ShadowMap> mShadowMap;
 
 	DirectX::BoundingSphere mSceneBounds;
@@ -207,6 +209,8 @@ bool Game::Initialize()
 	mCbvSrvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	mShadowMap = std::make_unique<ShadowMap>(
 		md3dDevice.Get(), 2048, 2048);
+	bool h;
+	h = mFontManager.InitFont();
 
 	LoadTextures();
 	BuildDescriptorHeaps();
@@ -1247,7 +1251,7 @@ void Game::BuildRenderItems()
 					x + j * dx, 10, z + k * dz, 1.0f);
 
 				XMStoreFloat4x4(&PlayerRitem->Instances[index].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-				PlayerRitem->Instances[index].MaterialIndex = 1;
+				PlayerRitem->Instances[index].MaterialIndex = 3;
 			}
 	}
 

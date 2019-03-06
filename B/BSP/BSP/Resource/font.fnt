@@ -1,4 +1,3 @@
-chars count=63
 char id=48   x=95    y=140   width=18    height=69    xoffset=-2    yoffset=-2    xadvance=15    page=0  chnl=15
 char id=49   x=201   y=140   width=14    height=69    xoffset=-1    yoffset=-2    xadvance=15    page=0  chnl=15
 char id=50   x=114   y=140   width=18    height=69    xoffset=-2    yoffset=-2    xadvance=15    page=0  chnl=15
@@ -62,50 +61,3 @@ char id=119  x=32    y=0     width=27    height=69    xoffset=-2    yoffset=-2  
 char id=120  x=128   y=70    width=20    height=69    xoffset=-2    yoffset=-2    xadvance=15    page=0  chnl=15
 char id=121  x=149   y=70    width=20    height=69    xoffset=-2    yoffset=-2    xadvance=15    page=0  chnl=15
 char id=122  x=57    y=140   width=18    height=69    xoffset=-2    yoffset=-2    xadvance=14    page=0  chnl=15
-kernings count=46
-kerning first=89  second=118 amount=-1  
-kerning first=89  second=117 amount=-1  
-kerning first=89  second=113 amount=-2  
-kerning first=89  second=112 amount=-1  
-kerning first=89  second=111 amount=-2  
-kerning first=89  second=105 amount=-1  
-kerning first=89  second=101 amount=-1  
-kerning first=89  second=97  amount=-1  
-kerning first=49  second=49  amount=-1  
-kerning first=89  second=65  amount=-2  
-kerning first=65  second=84  amount=-2  
-kerning first=65  second=86  amount=-2  
-kerning first=65  second=87  amount=-1  
-kerning first=65  second=89  amount=-2  
-kerning first=65  second=118 amount=-1  
-kerning first=89  second=58  amount=-2  
-kerning first=65  second=121 amount=-1  
-kerning first=87  second=97  amount=-1  
-kerning first=87  second=65  amount=-1  
-kerning first=86  second=121 amount=-1  
-kerning first=70  second=65  amount=-1  
-kerning first=86  second=117 amount=-1  
-kerning first=76  second=84  amount=-2  
-kerning first=76  second=86  amount=-2  
-kerning first=76  second=87  amount=-1  
-kerning first=76  second=89  amount=-2  
-kerning first=76  second=121 amount=-1  
-kerning first=86  second=114 amount=-1  
-kerning first=86  second=111 amount=-2  
-kerning first=86  second=101 amount=-1  
-kerning first=86  second=97  amount=-1  
-kerning first=80  second=65  amount=-2  
-kerning first=86  second=65  amount=-2  
-kerning first=86  second=58  amount=-1  
-kerning first=82  second=89  amount=-1  
-kerning first=84  second=121 amount=-2  
-kerning first=84  second=119 amount=-2  
-kerning first=84  second=117 amount=-2  
-kerning first=84  second=58  amount=-3  
-kerning first=84  second=115 amount=-2  
-kerning first=84  second=65  amount=-2  
-kerning first=84  second=114 amount=-1  
-kerning first=84  second=97  amount=-2  
-kerning first=84  second=99  amount=-2  
-kerning first=84  second=101 amount=-2  
-kerning first=84  second=111 amount=-2  
