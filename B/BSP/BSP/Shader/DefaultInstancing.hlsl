@@ -20,6 +20,7 @@ struct InstanceData
     uint InstPad0;
     uint InstPad1;
     float4 UIPos;
+    float4 UIUVPos;
 };
 
 struct MaterialConstants
@@ -197,6 +198,7 @@ VertexOut UI_VS(VertexIn vin, uint instanceID : SV_InstanceID, uint vertexID : S
     float4x4 world = instData.World; // 기본행렬 * 회전행렬
     float4x4 texTransform = instData.TexTransform; // 기본행렬
     float4 uiPos = instData.UIPos;
+    float4 uiUVPos = instData.UIUVPos;
     uint matIndex = instData.MaterialIndex;
     MaterialConstants matData = gMaterialData[0];
 	
@@ -205,21 +207,25 @@ VertexOut UI_VS(VertexIn vin, uint instanceID : SV_InstanceID, uint vertexID : S
     if (vertexID == 0)
     {
         vout.PosH = float4(uiPos.x, uiPos.y, 0.0f, 1.0f);
+        vout.TexC = float2(uiUVPos.x, uiUVPos.y);
     }
     else if (vertexID == 1)
     {
         vout.PosH = float4(uiPos.z, uiPos.y, 0.0f, 1.0f);
+        vout.TexC = float2(uiUVPos.x+uiUVPos.z, uiUVPos.y);
     }
     else if (vertexID == 2)
     {
         vout.PosH = float4(uiPos.x, uiPos.w, 0.0f, 1.0f);
+        vout.TexC = float2(uiUVPos.x, uiUVPos.y+uiUVPos.w);
     }
     else if (vertexID == 3)
     {
         vout.PosH = float4(uiPos.z, uiPos.w, 0.0f, 1.0f);
+        vout.TexC = float2(uiUVPos.x + uiUVPos.z, uiUVPos.y + uiUVPos.w);
     }
 
-    float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), texTransform);
+    float4 texC = mul(float4(vout.TexC, 0.0f, 1.0f), texTransform);
     vout.TexC = mul(texC, matData.MatTransform).xy;
 	
     return vout;
@@ -237,11 +243,11 @@ float4 UI_PS(VertexOut pin) : SV_Target
 
     if (diffuseAlbedo.a < 0.00001)
         discard;
-
+    if (pin.MatIndex == 2)
     if (superheat / 100.0f > pin.TexC.x)
         return float4(1.0f, 0.0f, 0.0f, 0.0f);
 
-    return float4(1.0f, 1.0f, 1.0f, 1.0f);
+    return diffuseAlbedo;
 };
 
 ShadowVertexOut SHADOW_VS(ShadowVertexIn vin, uint instanceID : SV_InstanceID)

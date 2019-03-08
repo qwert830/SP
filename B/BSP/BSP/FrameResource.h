@@ -14,6 +14,7 @@ struct InstanceData
 	UINT InstancePad0;
 	UINT InstancePad1;
 	DirectX::XMFLOAT4 UIPos;
+	DirectX::XMFLOAT4 UIUVPos;
 };
 
 struct ObjectConstants

@@ -75,7 +75,8 @@ bool FontManager::InitFont()
 				{
 					f.getline(temp, 100, ' ');
 					height[i] = atoi(temp);
-					uvInfo[id[i++]] = UVPos{ x[i] / 512.0f,y[i] / 512.0f ,width[i] / 512.0f ,height[i] / 512.0f };
+					uvInfo[id[i]] = UVPos{ x[i] / 512.0f,y[i] / 512.0f ,width[i] / 512.0f ,height[i] / 512.0f };
+					i++;
 				}
 			}
 		}

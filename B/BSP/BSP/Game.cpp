@@ -71,6 +71,7 @@ private:
 	void UpdateMainPassCB(const GameTimer& gt);
 	void UpdateShadowPassCB(const GameTimer& gt);
 	void UpdateShadowTransform(const GameTimer& gt);
+	void UpdateTime(const GameTimer& gt);
 
 	void OnKeyboardInput(const GameTimer& gt);
 
@@ -159,6 +160,8 @@ private:
 		XMFLOAT3(-0.57735f, -0.57735f, 0.57735f),
 		XMFLOAT3(0.0f, -0.707f, -0.707f)
 	};
+
+	float time = 600.0f;
 
 };
 
@@ -277,6 +280,7 @@ void Game::Update(const GameTimer& gt)
 		CloseHandle(eventHandle);
 	}
 
+	UpdateTime(gt);
 	AnimateMaterials(gt);
 	UpdateObjectCBs(gt);
 	UpdatePlayerData();
@@ -351,7 +355,7 @@ void Game::Draw(const GameTimer& gt)
 	// 디버그
 
 	mCommandList->SetPipelineState(mPSOs["sDebug"].Get());
-	DrawInstancingRenderItems(mCommandList.Get(), mDebugRitems);
+	//DrawInstancingRenderItems(mCommandList.Get(), mDebugRitems);
 	
 	// 디버그 끝
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -460,6 +464,7 @@ void Game::UpdateInstanceData(const GameTimer & gt)
 				XMStoreFloat4x4(&d.TexTransform, XMMatrixTranspose(texTransform));
 				d.MaterialIndex = data[i].MaterialIndex;
 				d.UIPos = data[i].UIPos;
+				d.UIUVPos = data[i].UIUVPos;
 
 				currInstanceBuffer->CopyData(drawCount++, d);
 			}
@@ -600,6 +605,29 @@ void Game::UpdateShadowTransform(const GameTimer & gt)
 	XMStoreFloat4x4(&mLightView, lightView);
 	XMStoreFloat4x4(&mLightProj, lightProj);
 	XMStoreFloat4x4(&mShadowTransform, S);
+}
+
+void Game::UpdateTime(const GameTimer & gt)
+{
+	time -= gt.DeltaTime();
+	int tempTime = (int)time;
+	char id[10];
+	UVPos uv;
+	_itoa_s(tempTime / 60 / 10, id, _countof(id), 10);
+	uv = (mFontManager.GetUV(id[0]));
+	mUIRitems[0]->Instances[5].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+	
+	_itoa_s(tempTime / 60 % 10, id, _countof(id), 10);
+	uv = (mFontManager.GetUV(id[0]));
+	mUIRitems[0]->Instances[6].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+	
+	_itoa_s(tempTime % 60 / 10, id, _countof(id), 10);
+	uv = (mFontManager.GetUV(id[0]));
+	mUIRitems[0]->Instances[8].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+	
+	_itoa_s(tempTime % 60 % 10 , id, _countof(id), 10);
+	uv = (mFontManager.GetUV(id[0]));
+	mUIRitems[0]->Instances[9].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 }
 
 void Game::LoadTextures()
@@ -1269,10 +1297,36 @@ void Game::BuildRenderItems()
 	UIRitem->StartIndexLocation = UIRitem->Geo->DrawArgs["uiGrid"].StartIndexLocation;
 	UIRitem->BaseVertexLocation = UIRitem->Geo->DrawArgs["uiGrid"].BaseVertexLocation;
 
-	UIRitem->Instances.resize(1);
+	UIRitem->Instances.resize(10);
 	UIRitem->Instances[0].UIPos = XMFLOAT4(0.5f,-0.5f,1.0f,-1.0f);
+	UIRitem->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
 	XMStoreFloat4x4(&UIRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 0.8f, 1.0f));
 	UIRitem->Instances[0].MaterialIndex = 2;
+
+	UVPos uv;
+
+	char id[9] = { 'T','i','M','E','1','0',':','0','0' };
+
+	for (int i = 0; i < 4; ++i)
+	{
+		UIRitem->Instances[i+1].UIPos = XMFLOAT4(-0.2f + i*0.1f, 1.0f, -0.1f + i*0.1f, 0.8f);
+		uv = mFontManager.GetUV(id[i]);
+		UIRitem->Instances[i+1].UIUVPos = XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+		XMStoreFloat4x4(&UIRitem->Instances[i+1].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+		UIRitem->Instances[i+1].MaterialIndex = 4;
+	}
+
+	for (int i = 0; i < 5; ++i)
+	{
+		UIRitem->Instances[i + 5].UIPos = XMFLOAT4(-0.25f + i * 0.1f, 0.8f, -0.15f + i * 0.1f, 0.6f);
+		uv = mFontManager.GetUV(id[i+4]);
+		UIRitem->Instances[i + 5].UIUVPos = XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+		XMStoreFloat4x4(&UIRitem->Instances[i + 5].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+		UIRitem->Instances[i + 5].MaterialIndex = 4;
+	}
+
+	UIRitem->Instances[7].UIPos = XMFLOAT4(-0.025f , 0.8f, 0.025f , 0.625f);
+
 	mInstanceCount.push_back(UIRitem->Instances.size());
 
 	for (auto& e : mAllRitems)
