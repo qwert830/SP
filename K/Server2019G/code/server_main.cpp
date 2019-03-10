@@ -26,7 +26,7 @@
 using namespace std;
 
 
-enum kind_of_work { RECV = 1 };
+enum kind_of_work { RECV = 1, GAMEACTION };
 
 
 HANDLE ghiocp;
@@ -44,8 +44,12 @@ public:
 	bool m_IsConnected;
 	wstring m_ID;
 	int m_Score;
+	float x;
+	float y;
+	float z;
 	int m_RoomNumber;
 	char m_Condition;
+	unsigned char m_MoveDirection;
 	EXOVER m_rxover;
 	int m_packet_size;
 	int m_prev_packet_size;
@@ -60,6 +64,10 @@ public:
 		m_rxover.m_wsabuf.buf = m_rxover.m_iobuf;
 		m_rxover.m_wsabuf.len = sizeof(m_rxover.m_wsabuf.buf);
 		m_rxover.work = RECV;
+		x = 0;
+		y = 0;
+		z = 0;
+		m_MoveDirection = STOP_DR;
 	}
 };
 
@@ -103,8 +111,10 @@ public:
 	}
 
 	bool gosign() {
+		if (m_CurrentNum % 2 != 0)
+			return false;
 		for (int d : m_JoinIdList) {
-			if (g_clients[d].m_Condition != US_READY && m_CurrentNum % 2 != 0)
+			if (g_clients[d].m_Condition != US_READY)
 				return false;
 		}
 		m_RoomStatus = RS_PLAY;
@@ -212,9 +222,7 @@ bool DBCall_Login(int key, const wstring& id, const wstring& password) {
 						// Fetch and print each row of data. On an error, display a message and exit.  
 						while (1) {
 							retcode = SQLFetch(hstate);
-							if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
-								cout << "요기까진 왔는데?" << endl;
-								
+							if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {	
 								if (id == szID) {
 									g_clients[key].m_ID = szID;
 									g_clients[key].m_Score = szScore;
@@ -452,11 +460,10 @@ inline void ProcessPacket(int id, char *packet)
 		idp.size = sizeof(sc_id_packet);
 		cs_userinfo_packet* packet_regist = reinterpret_cast<cs_userinfo_packet*>(packet);
 		if (DBCall_Regist(id, packet_regist->id, packet_regist->password)) {
-			cout << id << " 번 유저 회원가입 성공" << endl;
-			idp.type = SC_SUCCESS;
+			idp.type = SC_REGISTSUCCESS;
 		}
 		else
-			idp.type = SC_FAIL;
+			idp.type = SC_REGISTFAIL;
 		SendPacket(id, &idp);
 	}
 		break;
@@ -464,13 +471,19 @@ inline void ProcessPacket(int id, char *packet)
 	{
 		sc_id_packet idp;
 		idp.size = sizeof(sc_id_packet);
-		cs_userinfo_packet * packet_login = reinterpret_cast<cs_userinfo_packet*>(packet);
+		cs_userinfo_packet* packet_login = reinterpret_cast<cs_userinfo_packet*>(packet);
+		for (int i = 0; i < MAX_USER; ++i) {
+			if (g_clients[i].m_ID == packet_login->id) {
+				idp.type = SC_LOGINFAIL;
+				SendPacket(id, &idp);
+				return;
+			}
+		}
 		if (DBCall_Login(id, packet_login->id, packet_login->password)) {
-			cout << id << " 번 유저 로그인 성공" << endl;
-			idp.type = SC_SUCCESS;
+			idp.type = SC_LOGINSUCCESS;
 		}
 		else
-			idp.type = SC_FAIL;
+			idp.type = SC_LOGINFAIL;
 		SendPacket(id, &idp);
 	}
 		break;
@@ -563,14 +576,16 @@ inline void ProcessPacket(int id, char *packet)
 			SendPacket(d, &p);
 		}
 		g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.unlock();
-		g_clients[id].m_RoomNumber = -1;
+		g_clients[id].m_RoomNumber = LOBBYNUMBER;
 		break;
 	}
 	case CS_READY:
+		g_clients[id].m_Condition = US_READY;
 		if (g_rooms[g_clients[id].m_RoomNumber].gosign()) {
+			g_clients[id].m_Condition = US_PLAY;
 			sc_usercondition_packet p;
 			p.size = sizeof(sc_usercondition_packet);
-			p.type = US_PLAY;
+			p.type = SC_GO;
 			for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
 				SendPacket(d, &p);
 			}
@@ -586,6 +601,7 @@ inline void ProcessPacket(int id, char *packet)
 		}
 		break;
 	case CS_UNREADY:
+		g_clients[id].m_Condition = US_WAIT;
 		sc_usercondition_packet p;
 		p.size = sizeof(sc_usercondition_packet);
 		p.type = US_WAIT;
@@ -598,6 +614,35 @@ inline void ProcessPacket(int id, char *packet)
 	{
 		cs_gameresult_packet* packet_gs = reinterpret_cast<cs_gameresult_packet*>(packet);
 		DBCall_SetData(id, g_clients[id].m_Score + packet_gs->score);
+
+		g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.lock();
+		g_rooms[g_clients[id].m_RoomNumber].quit(id);
+		g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.unlock();
+		g_clients[id].m_RoomNumber = LOBBYNUMBER;
+		break;
+	}
+	{
+	case STOP_DR:
+	case LEFT_DR:
+	case RIGHT_DR:
+	case UP_DR:
+	case DOWN_DR:
+	case ULEFT_DR:
+	case URIGHT_DR:
+	case DLEFT_DR:
+	case DRIGHT_DR:
+		g_clients[id].m_MoveDirection = packet[1];
+		{
+			sc_movestatus_packet p;
+			p.size = sizeof(sc_movestatus_packet);
+			p.type = packet[1];
+			wcscpy(p.id, g_clients[id].m_ID.c_str());
+			p.x = g_clients[id].x;
+			p.y = g_clients[id].y;
+			for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
+				SendPacket(d, &p);
+			}
+		}
 		break;
 	}
 	default:
@@ -635,15 +680,13 @@ void worker_thread()
 		if (FALSE == ret)
 		{
 			cout << "Error in GQCS" << endl;
-			DisconnectPlayer(key);
 			continue;
 		}
-		//else if (0 == io_size)
-		//{
-		//	cout << "Error in GQCS?" << endl;
-		//	DisconnectPlayer(key);
-		//	continue;
-		//}
+		else if (0 == io_size)
+		{
+			cout << "Error in GQCS?" << endl;
+			continue;
+		}
 
 		EXOVER *p_over = reinterpret_cast<EXOVER*>(over);
 		if (RECV == p_over->work)
@@ -681,6 +724,40 @@ void worker_thread()
 				}
 			}
 			StartRecv(key);
+		}
+		else if (GAMEACTION == p_over->work)
+		{
+			switch (g_clients[key].m_MoveDirection) {
+			case LEFT_DR:
+				g_clients[key].x--;
+				break;
+			case RIGHT_DR:
+				g_clients[key].x++;
+				break;
+			case UP_DR:
+				g_clients[key].y--;
+				break;
+			case DOWN_DR:
+				g_clients[key].y++;
+				break;
+			case ULEFT_DR:
+				g_clients[key].y--;
+				g_clients[key].x--;
+				break;
+			case URIGHT_DR:
+				g_clients[key].y--;
+				g_clients[key].x++;
+				break;
+			case DLEFT_DR:
+				g_clients[key].y++;
+				g_clients[key].x--;
+				break;
+			case DRIGHT_DR:
+				g_clients[key].y++;
+				g_clients[key].x++;
+				break;
+			}
+
 		}
 		else
 		{
@@ -745,8 +822,32 @@ void Accept_Threads()
 		wchar_t itr[10];
 		_itow(id, itr, 10);
 		g_clients[id].m_ID += itr;
-		StartRecv(id);
-		
+		StartRecv(id);		
+	}
+}
+
+void Timer_Thread() {
+	double delay;
+	EXOVER over;
+	ZeroMemory(&over.m_over, sizeof(WSAOVERLAPPED));
+	over.m_wsabuf.buf = over.m_iobuf;
+	over.m_wsabuf.len = sizeof(over.m_wsabuf.buf);
+	over.work = GAMEACTION;
+	while (true) {
+		chrono::system_clock::time_point t1 = chrono::system_clock::now();
+
+		for (Room& d : g_rooms) {
+			if (d.m_RoomStatus == RS_PLAY) {
+				for (int d : d.m_JoinIdList) {
+					PostQueuedCompletionStatus(ghiocp, 1, d, &over.m_over);
+				}
+			}
+		}
+
+		chrono::system_clock::time_point t2 = chrono::system_clock::now();
+		chrono::duration<double> sptime = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
+		delay = MAX(0, 1 - sptime.count());
+		Sleep(delay * 16);
 	}
 }
 
@@ -758,10 +859,11 @@ int main()
 		w_threads.push_back(thread{ worker_thread });
 
 	thread a_thread{ Accept_Threads };
+	thread t_thread{ Timer_Thread };
 
 	for (auto &t : w_threads)
 		t.join();
 
 	a_thread.join();
-
+	t_thread.join();
 }

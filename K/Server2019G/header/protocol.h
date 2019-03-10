@@ -15,6 +15,18 @@ enum room_status { RS_JOINABLE = 1, RS_FULL = 2, RS_EMPTY = 3, RS_PLAY = 4 };
 
 enum user_status { US_WAIT, US_READY, US_PLAY, US_LOBBY};
 
+enum move_direction {
+	STOP_DR = 100,
+	UP_DR,
+	DOWN_DR,
+	LEFT_DR,
+	RIGHT_DR,
+	ULEFT_DR,
+	URIGHT_DR,
+	DLEFT_DR,
+	DRIGHT_DR
+};
+
 enum CS_PacketKind { 
 	CS_REFRESH = 50,
 	CS_JOIN,
@@ -25,15 +37,17 @@ enum CS_PacketKind {
 	CS_READY,
 	CS_UNREADY,
 	CS_GAMERESULT,
-
+	CS_MOVE
 };
 
 enum SC_PacketKind {
 	SC_REFRESH = 50,
 	SC_JOIN_PLAYER,
 	SC_QUIT_PLAYER,
-	SC_FAIL,
-	SC_SUCCESS,
+	SC_LOGINFAIL,
+	SC_LOGINSUCCESS,
+	SC_REGISTFAIL,
+	SC_REGISTSUCCESS, 
 	SC_GO
 };
 #pragma pack (push, 1)
@@ -94,10 +108,9 @@ struct cs_angle_packet {
 	float look;
 };
 
-struct cs_status_packet {
+struct cs_movestatus_packet {
 	unsigned char size;
 	unsigned char type;
-	unsigned char status;
 };
 // 서버 -> 클라이언트------------------------
 
@@ -131,10 +144,12 @@ struct sc_player_quit_packet {
 	wchar_t id[10];
 };
 
-struct sc_status_packet {
+struct sc_movestatus_packet {
 	unsigned char size;
 	unsigned char type;
-	unsigned char status;
+	wchar_t id[10];
+	float x;
+	float y;
 };
 
 struct sc_timer_packet {
@@ -146,6 +161,7 @@ struct sc_timer_packet {
 struct sc_angle_packet {
 	unsigned char size;
 	unsigned char type;
+	wchar_t id[10];
 	float up;
 	float right;
 	float look;
@@ -154,14 +170,17 @@ struct sc_angle_packet {
 struct sc_attack_packet {
 	unsigned char size;
 	unsigned char type;
+	wchar_t id[10];
 	float up;
 	float right;
 	float look;
 };
+
 struct sc_hit_packet {
 	unsigned char size;
 	unsigned char type;
 	unsigned int hp;
 };
+
 
 #pragma pack (pop)
