@@ -44,14 +44,16 @@ void Camera::SetCamera(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3 & r
 	mViewDirty = true;
 }
 
-void Camera::ShakeCamera()
+float Camera::ShakeCamera()
 {
-	float r = -5 + rand() % 10;
-	float r2 = rand() % 5;
+	float r = -2 + rand() % 5;
+	float r2 = rand() % 2;
 	r = r / 90.0f;
 	r2 = r2 / 90.0f;
 	RotateY(r);
 	Pitch(-r2);
+
+	return r;
 }
 
 XMVECTOR Camera::GetRight()const

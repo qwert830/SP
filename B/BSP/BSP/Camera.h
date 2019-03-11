@@ -16,7 +16,7 @@ public:
 	void SetPosition(float x, float y, float z);
 	void SetPosition(const DirectX::XMFLOAT3& v);
 	void SetCamera(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& right, const DirectX::XMFLOAT3& look, const DirectX::XMFLOAT3& up);
-	void ShakeCamera();
+	float ShakeCamera();
 
 	DirectX::XMVECTOR GetRight()const;
 	DirectX::XMFLOAT3 GetRight3f()const;

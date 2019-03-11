@@ -201,6 +201,12 @@ void Player::RotateY(float angle)
 void Player::Update(const GameTimer& gt)
 {
 	const float dt = gt.DeltaTime();
+	AttackUpdate(dt);
+	MoveUpdate(dt);
+}
+
+void Player::AttackUpdate(const float & dt)
+{
 	attackCool += dt;
 	if (attackState != ATTACK::UNABLE_ATTACK)
 	{
@@ -215,7 +221,7 @@ void Player::Update(const GameTimer& gt)
 		if (attackCool < ATTACK_DELAY)
 			break;
 		superheat += 5;
-		mCamera.ShakeCamera();
+		RotateY(mCamera.ShakeCamera());
 		attackState = ATTACK::NOATTACK;
 		attackCool = 0;
 		break;
@@ -224,7 +230,7 @@ void Player::Update(const GameTimer& gt)
 		attackState = ATTACK::NOATTACK;
 		break;
 	case ATTACK::UNABLE_ATTACK:
-		superheat -= 35*dt;
+		superheat -= 35 * dt;
 		if (superheat <= 0)
 		{
 			superheat = 0;
@@ -237,50 +243,61 @@ void Player::Update(const GameTimer& gt)
 	{
 		attackState = ATTACK::UNABLE_ATTACK;
 	}
+}
+
+void Player::MoveUpdate(const float & dt)
+{
 	switch (moveState)
 	{
 	case LEFTUP:
 		Strafe(-100.0f*dt);
 		Forward(100.0f*dt);
-		mCamera.Strafe(-10.0f*dt);
-		mCamera.Forward(10.0f*dt);
+		/*mCamera.Strafe(-10.0f*dt);
+		mCamera.Forward(10.0f*dt);*/
+		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + 20, mVector[PlayerID].mPosition.z);
 		break;
 	case UP:
 		Forward(100.0f*dt);
-		mCamera.Forward(10.0f*dt);
+	/*	mCamera.Forward(10.0f*dt);*/
+		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + 20, mVector[PlayerID].mPosition.z);
 		break;
 	case RIGHTUP:
 		Strafe(100.0f*dt);
 		Forward(100.0f*dt);
-		mCamera.Strafe(10.0f*dt);
-		mCamera.Forward(10.0f*dt);
+		//mCamera.Strafe(10.0f*dt);
+		//mCamera.Forward(10.0f*dt);
+		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + 20, mVector[PlayerID].mPosition.z);
 		break;
 	case LEFT:
 		Strafe(-100.0f*dt);
-		mCamera.Strafe(-10.0f*dt);
+		/*mCamera.Strafe(-10.0f*dt);*/
+		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + 20, mVector[PlayerID].mPosition.z);
 		break;
 	case RIGHT:
 		Strafe(100.0f*dt);
-		mCamera.Strafe(10.0f*dt);
+		/*mCamera.Strafe(10.0f*dt);*/
+		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + 20, mVector[PlayerID].mPosition.z);
 		break;
 	case LEFTDOWN:
 		Strafe(-100.0f*dt);
 		Forward(-100.0f*dt);
-		mCamera.Strafe(-10.0f*dt);
-		mCamera.Forward(-10.0f*dt);
+		//mCamera.Strafe(-10.0f*dt);
+		//mCamera.Forward(-10.0f*dt);
+		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + 20, mVector[PlayerID].mPosition.z);
 		break;
 	case DOWN:
 		Forward(-100.0f*dt);
-		mCamera.Forward(-10.0f*dt);
+		//mCamera.Forward(-10.0f*dt);
+		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + 20, mVector[PlayerID].mPosition.z);
 		break;
 	case RIGHTDOWN:
 		Strafe(100.0f*dt);
 		Forward(-100.0f*dt);
-		mCamera.Strafe(10.0f*dt);
-		mCamera.Forward(-10.0f*dt);
+		//mCamera.Strafe(10.0f*dt);
+		//mCamera.Forward(-10.0f*dt);
+		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + 20, mVector[PlayerID].mPosition.z);
 		break;
 	}
-
 }
 
 const char Player::GetPlayerID()

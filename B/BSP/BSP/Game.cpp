@@ -610,6 +610,8 @@ void Game::UpdateShadowTransform(const GameTimer & gt)
 void Game::UpdateTime(const GameTimer & gt)
 {
 	time -= gt.DeltaTime();
+	if (time <= 0)
+		time = 0;
 	int tempTime = (int)time;
 	char id[10];
 	UVPos uv;

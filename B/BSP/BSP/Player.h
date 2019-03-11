@@ -51,6 +51,8 @@ public:
 	void Pitch(float angle);
 	void RotateY(float angle);
 	void Update(const GameTimer& gt);
+	void AttackUpdate(const float& dt);
+	void MoveUpdate(const float& dt);
 	const char GetPlayerID();
 	float GetSuperheat();
 	POINT mLastMousePos;
