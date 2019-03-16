@@ -1,4 +1,3 @@
-
 #ifndef CAMERA_H
 #define CAMERA_H
 
@@ -63,7 +62,6 @@ private:
 	DirectX::XMFLOAT3 mUp = { 0.0f, 1.0f, 0.0f };
 	DirectX::XMFLOAT3 mLook = { 0.0f, 0.0f, 1.0f };
 
-	// Cache frustum properties.
 	float mNearZ = 0.0f;
 	float mFarZ = 0.0f;
 	float mAspect = 0.0f;
@@ -73,9 +71,8 @@ private:
 
 	bool mViewDirty = true;
 
-	// Cache View/Proj matrices.
 	DirectX::XMFLOAT4X4 mView = MathHelper::Identity4x4();
 	DirectX::XMFLOAT4X4 mProj = MathHelper::Identity4x4();
 };
 
-#endif // CAMERA_H
+#endif

@@ -134,7 +134,6 @@ float Camera::GetFarWindowHeight()const
 
 void Camera::SetLens(float fovY, float aspect, float zn, float zf)
 {
-	// cache properties
 	mFovY = fovY;
 	mAspect = aspect;
 	mNearZ = zn;
@@ -197,7 +196,6 @@ XMFLOAT4X4 Camera::GetProj4x4f()const
 
 void Camera::Strafe(float d)
 {
-	// mPosition += d*mRight
 	XMVECTOR s = XMVectorReplicate(d);
 	XMVECTOR r = XMLoadFloat3(&mRight);
 	XMVECTOR p = XMLoadFloat3(&mPosition);
@@ -208,7 +206,6 @@ void Camera::Strafe(float d)
 
 void Camera::Walk(float d)
 {
-	// mPosition += d*mLook
 	XMVECTOR s = XMVectorReplicate(d);
 	XMVECTOR l = XMLoadFloat3(&mLook);
 	XMVECTOR p = XMLoadFloat3(&mPosition);
@@ -257,7 +254,6 @@ void Camera::Pitch(float angle)
 		mRight = tempRight;
 		mUp = tempUp;
 		mLook = tempLook;
-
 		return;
 	}
 
