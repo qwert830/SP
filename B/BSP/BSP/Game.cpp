@@ -240,9 +240,9 @@ bool Game::Initialize()
 
 void Game::CreateRtvAndDsvDescriptorHeaps()
 {
-	//
+	// µðÆÛµå·»´õ¸µ¿ë ·»´õÅ¸°Ù 4°³Ãß°¡ depth, color & Spec, normal, SpecPow
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
-	rtvHeapDesc.NumDescriptors = SwapChainBufferCount;
+	rtvHeapDesc.NumDescriptors = SwapChainBufferCount+4;
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	rtvHeapDesc.NodeMask = 0;

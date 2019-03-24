@@ -109,5 +109,8 @@
     <FxCompile Include="Shader\DefaultInstancing.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="Shader\Deferred.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
