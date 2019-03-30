@@ -137,9 +137,10 @@ private:
 
 	UINT mShadowMapHeapIndex = 0;
 
-	UINT mNullTexSrvIndex = 0;
+	UINT mDeferredMapHeapIndex = 0;
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mNullSrv;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE mDeferredNullSrv[4];
 
 	PassConstants mMainPassCB;
 	PassConstants mShadowPassCB;
@@ -717,17 +718,21 @@ void Game::BuildInstancingRootSignature()
 	CD3DX12_DESCRIPTOR_RANGE shadowTable;
 	shadowTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 5, 0);
 
-	CD3DX12_ROOT_PARAMETER slotRootParameter[5];
+	CD3DX12_DESCRIPTOR_RANGE deferredTable;
+	deferredTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 6, 0);
+
+	CD3DX12_ROOT_PARAMETER slotRootParameter[6];
 
 	slotRootParameter[0].InitAsShaderResourceView(0, 1); // instancing
 	slotRootParameter[1].InitAsShaderResourceView(1, 1); // instancing
 	slotRootParameter[2].InitAsConstantBufferView(0); // cbpass
 	slotRootParameter[3].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
 	slotRootParameter[4].InitAsDescriptorTable(1, &shadowTable, D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[5].InitAsDescriptorTable(1, &deferredTable, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto staticSamplers = GetStaticSamplers();
 
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(5, slotRootParameter,
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(6, slotRootParameter,
 		(UINT)staticSamplers.size(), staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
@@ -752,7 +757,7 @@ void Game::BuildInstancingRootSignature()
 void Game::BuildDescriptorHeaps()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 6;
+	srvHeapDesc.NumDescriptors = 10;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -784,8 +789,7 @@ void Game::BuildDescriptorHeaps()
 	}
 
 	mShadowMapHeapIndex = (UINT)tex.size();
-
-	mNullTexSrvIndex = mShadowMapHeapIndex + 1; 
+	mDeferredMapHeapIndex = mShadowMapHeapIndex + 1;
 
 	auto srvCpuStart = mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	auto srvGpuStart = mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
@@ -806,7 +810,24 @@ void Game::BuildDescriptorHeaps()
 		CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, mShadowMapHeapIndex, mCbvSrvUavDescriptorSize),
 		CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 1, mDsvDescriptorSize));
 
+	std::vector<DXGI_FORMAT> format
+	{
+		DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_FORMAT_R11G11B10_FLOAT,
+		DXGI_FORMAT_R8G8B8A8_UNORM
+	};
+
+	for (int i = 0; i < 4; ++i)
+	{
+		nullSrv = CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, mDeferredMapHeapIndex+i, mCbvSrvUavDescriptorSize);
+		mDeferredNullSrv[i] = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, mDeferredMapHeapIndex+i, mCbvSrvUavDescriptorSize);
+		srvDesc.Format = format[i];
+		md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
+	}
 }
+
+
 
 
 void Game::BuildShadersAndInputLayout()
