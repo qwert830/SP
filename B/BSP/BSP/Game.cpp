@@ -853,6 +853,8 @@ void Game::BuildShadersAndInputLayout()
 	mShaders["sDebugVS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "SDEBUG_VS", "vs_5_1");
 	mShaders["sDebugPS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "SDEBUG_PS", "ps_5_1");
 
+	mShaders["drawPS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "DrawPS", "ps_5_1");
+
     mInputLayout =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },

@@ -115,9 +115,10 @@ struct VS_OUTPUT
 
 struct PS_GBUFFER_OUT
 {
-    float4 ColorSpecInt : SV_TARGET0;
-    float4 Normal : SV_TARGET1;
-    float4 specPow : SV_TARGET2;
+    float4 Position : SV_TARGET0;
+    float4 ColorSpecInt : SV_TARGET1;
+    float4 Normal : SV_TARGET2;
+    float4 specPow : SV_TARGET3;
 };
 
 struct SURFACE_DATA
@@ -135,12 +136,13 @@ float ConvertDepthToLinear(float depth)
     return linearDepth;
 }
 
-PS_GBUFFER_OUT PackGBuffer(float3 BaseColor, float3 Normal, float SpecIntensity, float SpecPower)
+PS_GBUFFER_OUT PackGBuffer(float3 Position, float3 BaseColor, float3 Normal, float SpecIntensity, float SpecPower)
 {
     PS_GBUFFER_OUT Out;
 
     float SpecPowerNorm = (SpecPower - g_SpecPowerRange.x) / g_SpecPowerRange.y;
 
+    Out.Position = float4(Position.xyz, 1.0f);
     Out.ColorSpecInt = float4(BaseColor.rgb, SpecIntensity);
     Out.Normal = float4(Normal.xyz * 0.5 + 0.5, 0.0);
     Out.specPow = float4(SpecPowerNorm, 0.0, 0.0, 0.0);
@@ -257,6 +259,20 @@ float4 PS(VertexOut pin) : SV_Target
 
     return litColor;
 };
+
+PS_GBUFFER_OUT DrawPS(VertexOut pin)
+{
+    MaterialConstants matData = gMaterialData[0];
+    float4 diffuseAlbedo = matData.DiffuseAlbedo;
+    float3 fresnelR0 = matData.FresnelR0;
+    float roughness = matData.Roughness;
+    uint diffuseTexIndex = matData.DiffuseMapIndex;
+    diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamAnisotropicWrap, pin.TexC);
+    pin.NormalW = normalize(pin.NormalW);
+    const float shininess = 1.0f - roughness;
+
+    return PackGBuffer(pin.PosW, diffuseAlbedo.xyz, pin.NormalW, fresnelR0.x, shininess);
+}
 
 VertexOut UI_VS(VertexIn vin, uint instanceID : SV_InstanceID, uint vertexID : SV_VertexID)
 {
