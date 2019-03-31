@@ -26,7 +26,7 @@
 using namespace std;
 
 
-enum kind_of_work { RECV = 1, GAMEACTION };
+enum kind_of_work { RECV = 1, GAMEACTION, PERIODICACTION };
 
 
 HANDLE ghiocp;
@@ -659,6 +659,7 @@ void DisconnectPlayer(int id)
 	p.size = sizeof(p);
 	if (g_clients[id].m_RoomNumber != -1) {
 		for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
+			if (d == id) continue;
 			SendPacket(d, &p);
 		}
 	}
@@ -680,11 +681,13 @@ void worker_thread()
 		if (FALSE == ret)
 		{
 			cout << "Error in GQCS" << endl;
+			DisconnectPlayer(key);
 			continue;
 		}
 		else if (0 == io_size)
 		{
 			cout << "Error in GQCS?" << endl;
+			DisconnectPlayer(key);
 			continue;
 		}
 
@@ -741,23 +744,32 @@ void worker_thread()
 				g_clients[key].y++;
 				break;
 			case ULEFT_DR:
-				g_clients[key].y--;
-				g_clients[key].x--;
+				g_clients[key].y -= 0.7;
+				g_clients[key].x -= 0.7;
 				break;
 			case URIGHT_DR:
-				g_clients[key].y--;
-				g_clients[key].x++;
+				g_clients[key].y -= 0.7;
+				g_clients[key].x += 0.7;
 				break;
 			case DLEFT_DR:
-				g_clients[key].y++;
-				g_clients[key].x--;
+				g_clients[key].y += 0.7;
+				g_clients[key].x -= 0.7;
 				break;
 			case DRIGHT_DR:
-				g_clients[key].y++;
-				g_clients[key].x++;
+				g_clients[key].y += 0.7;
+				g_clients[key].x += 0.7;
 				break;
 			}
 
+		}
+		else if (PERIODICACTION == p_over->work) {
+			sc_movestatus_packet p;
+			p.size = sizeof(sc_movestatus_packet);
+			p.type = g_clients[key].m_MoveDirection;
+			wcscpy(p.id, g_clients[key].m_ID.c_str());
+			p.x = g_clients[key].x;
+			p.y = g_clients[key].y;
+			SendPacket(key, &p);
 		}
 		else
 		{
@@ -828,26 +840,34 @@ void Accept_Threads()
 
 void Timer_Thread() {
 	double delay;
-	EXOVER over;
+	int count = 0;
+	EXOVER over, periodic;
 	ZeroMemory(&over.m_over, sizeof(WSAOVERLAPPED));
 	over.m_wsabuf.buf = over.m_iobuf;
 	over.m_wsabuf.len = sizeof(over.m_wsabuf.buf);
 	over.work = GAMEACTION;
+
+	ZeroMemory(&periodic.m_over, sizeof(WSAOVERLAPPED));
+	periodic.m_wsabuf.buf = periodic.m_iobuf;
+	periodic.m_wsabuf.len = sizeof(periodic.m_wsabuf.buf);
+	periodic.work = PERIODICACTION;
+
+
 	while (true) {
 		chrono::system_clock::time_point t1 = chrono::system_clock::now();
-
+		count = (count + 1) % 60;
 		for (Room& d : g_rooms) {
-			if (d.m_RoomStatus == RS_PLAY) {
-				for (int d : d.m_JoinIdList) {
-					PostQueuedCompletionStatus(ghiocp, 1, d, &over.m_over);
-				}
+			if (d.m_RoomStatus != RS_PLAY) continue;
+			for (int d : d.m_JoinIdList) {
+				PostQueuedCompletionStatus(ghiocp, 1, d, &over.m_over);
+				if(!count)
+					PostQueuedCompletionStatus(ghiocp, 1, d, &periodic.m_over);
 			}
 		}
-
 		chrono::system_clock::time_point t2 = chrono::system_clock::now();
 		chrono::duration<double> sptime = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
 		delay = MAX(0, 1 - sptime.count());
-		Sleep(delay * 16);
+		Sleep(delay * 16.6);
 	}
 }
 

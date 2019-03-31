@@ -8,17 +8,19 @@
 #include <winsock2.h>
 #include <string>
 #include <vector>
+#include <chrono>
+#include <thread>
 
 using namespace std;
 
+
+#define MAX(a,b)	((a)>(b))?(a):(b)
+#define	MIN(a,b)	((a)<(b))?(a):(b)
+
+
 #define	WM_SOCKET	WM_USER + 1
 #define SERVERPORT 9000
 #define BUF_SIZE    512
-
-
-#define SERVERPORT 9000
-#define BUF_SIZE    512
-#define	WM_SOCKET	WM_USER + 1
 
 SOCKET g_mysocket;
 WSABUF	send_wsabuf;
@@ -54,6 +56,7 @@ HWND hJoinB, hAutoJoinB, hRefB, hReadyB, hQuitB, hLoginB, hRegistB;
 char game_status = US_LOBBY;
 char movedirection = STOP_DR;
 int timer;
+bool dragchk = false;
 
 vector<Client> g_client;
 
@@ -151,6 +154,16 @@ void ProcessPacket(char *ptr)
 		EnableWindow(hRNInput, FALSE);
 		EnableWindow(hQuitB, FALSE);
 		EnableWindow(hList, FALSE);
+
+		EnableWindow(GetDlgItem(hDlgC, IDC_BUTTON1), TRUE);
+		EnableWindow(GetDlgItem(hDlgC, IDC_BUTTON2), TRUE);
+		EnableWindow(GetDlgItem(hDlgC, IDC_BUTTON3), TRUE);
+		EnableWindow(GetDlgItem(hDlgC, IDC_BUTTON4), TRUE);
+		EnableWindow(GetDlgItem(hDlgC, IDC_BUTTON5), TRUE);
+		EnableWindow(GetDlgItem(hDlgC, IDC_BUTTON6), TRUE);
+		EnableWindow(GetDlgItem(hDlgC, IDC_BUTTON7), TRUE);
+		EnableWindow(GetDlgItem(hDlgC, IDC_BUTTON8), TRUE);
+		EnableWindow(GetDlgItem(hDlgC, IDC_BUTTON9), TRUE);
 
 		game_status = US_PLAY;
 		SendMessage(hList, LB_RESETCONTENT, 0, 0);
@@ -253,31 +266,79 @@ void ReadPacket(SOCKET sock)
 
 
 char ipaddr[17];
+bool timeract = true;
+
+void Timer_Thread() {
+	double delay;
+	while (timeract) {
+		chrono::system_clock::time_point t1 = chrono::system_clock::now();
+		if (game_status == US_PLAY) {
+			for (Client& d : g_client) {
+				switch (d.movedir) {
+				case LEFT_DR:
+					d.x--;
+					break;
+				case RIGHT_DR:
+					d.x++;
+					break;
+				case UP_DR:
+					d.y--;
+					break;
+				case DOWN_DR:
+					d.y++;
+					break;
+				case ULEFT_DR:
+					d.y -= 0.7;
+					d.x -= 0.7;
+					break;
+				case URIGHT_DR:
+					d.y -= 0.7;
+					d.x += 0.7;
+					break;
+				case DLEFT_DR:
+					d.y += 0.7;
+					d.x -= 0.7;
+					break;
+				case DRIGHT_DR:
+					d.y += 0.7;
+					d.x += 0.7;
+					break;
+				}
+			}
+		}
+
+		chrono::system_clock::time_point t2 = chrono::system_clock::now();
+		chrono::duration<double> sptime = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
+		delay = MAX(0, 1 - sptime.count());
+		Sleep(delay * 16.6);
+	}
+}
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	LPSTR lpCmdLine, int nCmdShow)
 {
-	//cout << "서버의 IP주소 입력 : ";
-	//cin >> ipaddr;
+	cout << "서버의 IP주소 입력 : ";
+	cin >> ipaddr;
 	FreeConsole();
+
+	thread t_thread{ Timer_Thread };
 	DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, DlgProc);
-
-
+	t_thread.join();
 	closesocket(g_mysocket);
 	WSACleanup();
 	return 0;
 }
 
+
 BOOL CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	static WSADATA wsadata;
 	static RECT Wnd;
-	static HBITMAP hBit;
-	HDC hdc, memdc;
-	PAINTSTRUCT ps;
+
 	switch (uMsg) {
 	case WM_INITDIALOG:
 	{
+
 		timer = 500;
 		WSAStartup(MAKEWORD(2, 2), &wsadata);
 
@@ -287,8 +348,8 @@ BOOL CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		ZeroMemory(&ServerAddr, sizeof(SOCKADDR_IN));
 		ServerAddr.sin_family = AF_INET;
 		ServerAddr.sin_port = htons(MY_SERVER_PORT);
-		//ServerAddr.sin_addr.s_addr = inet_addr(ipaddr);
-		ServerAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+		ServerAddr.sin_addr.s_addr = inet_addr(ipaddr);
+		//ServerAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
 		WSAConnect(g_mysocket, (sockaddr *)&ServerAddr, sizeof(ServerAddr), NULL, NULL, NULL, NULL);
 
@@ -312,6 +373,16 @@ BOOL CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		hPWEdit = GetDlgItem(hDlg, IDC_PWEDIT);
 		hRNInput = GetDlgItem(hDlg, RNINPUT);
 
+		EnableWindow(GetDlgItem(hDlg, IDC_BUTTON1), FALSE);
+		EnableWindow(GetDlgItem(hDlg, IDC_BUTTON2), FALSE);
+		EnableWindow(GetDlgItem(hDlg, IDC_BUTTON3), FALSE);
+		EnableWindow(GetDlgItem(hDlg, IDC_BUTTON4), FALSE);
+		EnableWindow(GetDlgItem(hDlg, IDC_BUTTON5), FALSE);
+		EnableWindow(GetDlgItem(hDlg, IDC_BUTTON6), FALSE);
+		EnableWindow(GetDlgItem(hDlg, IDC_BUTTON7), FALSE);
+		EnableWindow(GetDlgItem(hDlg, IDC_BUTTON8), FALSE);
+		EnableWindow(GetDlgItem(hDlg, IDC_BUTTON9), FALSE);
+
 		EnableWindow(hRefB, FALSE);
 		EnableWindow(hReadyB, FALSE);
 		EnableWindow(hQuitB, FALSE);
@@ -325,30 +396,6 @@ BOOL CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 		return TRUE;
 	}
-	case WM_LBUTTONDOWN:
-		if (game_status == US_PLAY)
-		{
-			DWORD iobyte;
-			cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
-			send_wsabuf.len = sizeof(cs_movestatus_packet);
-			msp->size = sizeof(cs_movestatus_packet);
-			msp->type = rand() % 8 + UP_DR;
-			g_client[0].movedir = msp->type;
-			WSASend(g_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
-		}
-		return TRUE;
-	case WM_LBUTTONUP:
-		if (game_status == US_PLAY)
-		{
-			DWORD iobyte;
-			cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
-			send_wsabuf.len = sizeof(cs_movestatus_packet);
-			msp->size = sizeof(cs_movestatus_packet);
-			msp->type = STOP_DR;
-			g_client[0].movedir = msp->type;
-			WSASend(g_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
-		}
-	return TRUE;
 	case WM_COMMAND:
 		switch (LOWORD(wParam)) {
 		case IDOK:
@@ -481,6 +528,114 @@ BOOL CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			EnableWindow(hRegistB, FALSE);
 			return TRUE;
 		}
+		case IDC_BUTTON1:
+			if (game_status == US_PLAY)
+			{
+				DWORD iobyte;
+				cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
+				send_wsabuf.len = sizeof(cs_movestatus_packet);
+				msp->size = sizeof(cs_movestatus_packet);
+				msp->type = ULEFT_DR;
+				g_client[0].movedir = msp->type;
+				WSASend(g_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
+			}
+			return TRUE;
+		case IDC_BUTTON2:
+			if (game_status == US_PLAY)
+			{
+				DWORD iobyte;
+				cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
+				send_wsabuf.len = sizeof(cs_movestatus_packet);
+				msp->size = sizeof(cs_movestatus_packet);
+				msp->type = UP_DR;
+				g_client[0].movedir = msp->type;
+				WSASend(g_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
+			}
+			return TRUE;
+		case IDC_BUTTON3:
+			if (game_status == US_PLAY)
+			{
+				DWORD iobyte;
+				cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
+				send_wsabuf.len = sizeof(cs_movestatus_packet);
+				msp->size = sizeof(cs_movestatus_packet);
+				msp->type = URIGHT_DR;
+				g_client[0].movedir = msp->type;
+				WSASend(g_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
+			}
+			return TRUE;
+		case IDC_BUTTON4:
+			if (game_status == US_PLAY)
+			{
+				DWORD iobyte;
+				cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
+				send_wsabuf.len = sizeof(cs_movestatus_packet);
+				msp->size = sizeof(cs_movestatus_packet);
+				msp->type = LEFT_DR;
+				g_client[0].movedir = msp->type;
+				WSASend(g_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
+			}
+			return TRUE;
+		case IDC_BUTTON5:
+			if (game_status == US_PLAY)
+			{
+				DWORD iobyte;
+				cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
+				send_wsabuf.len = sizeof(cs_movestatus_packet);
+				msp->size = sizeof(cs_movestatus_packet);
+				msp->type = RIGHT_DR;
+				g_client[0].movedir = msp->type;
+				WSASend(g_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
+			}
+			return TRUE;
+		case IDC_BUTTON6:
+			if (game_status == US_PLAY)
+			{
+				DWORD iobyte;
+				cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
+				send_wsabuf.len = sizeof(cs_movestatus_packet);
+				msp->size = sizeof(cs_movestatus_packet);
+				msp->type = DLEFT_DR;
+				g_client[0].movedir = msp->type;
+				WSASend(g_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
+			}
+			return TRUE;
+		case IDC_BUTTON7:
+			if (game_status == US_PLAY)
+			{
+				DWORD iobyte;
+				cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
+				send_wsabuf.len = sizeof(cs_movestatus_packet);
+				msp->size = sizeof(cs_movestatus_packet);
+				msp->type = DOWN_DR;
+				g_client[0].movedir = msp->type;
+				WSASend(g_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
+			}
+			return TRUE;
+		case IDC_BUTTON8:
+			if (game_status == US_PLAY)
+			{
+				DWORD iobyte;
+				cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
+				send_wsabuf.len = sizeof(cs_movestatus_packet);
+				msp->size = sizeof(cs_movestatus_packet);
+				msp->type = DRIGHT_DR;
+				g_client[0].movedir = msp->type;
+				WSASend(g_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
+			}
+			return TRUE;
+		case IDC_BUTTON9:
+			if (game_status == US_PLAY)
+			{
+				DWORD iobyte;
+				cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
+				send_wsabuf.len = sizeof(cs_movestatus_packet);
+				msp->size = sizeof(cs_movestatus_packet);
+				msp->type = STOP_DR;
+				g_client[0].movedir = msp->type;
+				WSASend(g_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
+			}
+			return TRUE;
 		}
 		return FALSE;
 	case WM_TIMER:
@@ -519,41 +674,13 @@ BOOL CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			EnableWindow(hJoinB, TRUE);
 		}
 	}
-	for (Client& d : g_client) {
-		switch (d.movedir) {
-		case LEFT_DR:
-			d.x--;
-			break;
-		case RIGHT_DR:
-			d.x++;
-			break;
-		case UP_DR:
-			d.y--;
-			break;
-		case DOWN_DR:
-			d.y++;
-			break;
-		case ULEFT_DR:
-			d.y--;
-			d.x--;
-			break;
-		case URIGHT_DR:
-			d.y--;
-			d.x++;
-			break;
-		case DLEFT_DR:
-			d.y++;
-			d.x--;
-			break;
-		case DRIGHT_DR:
-			d.y++;
-			d.x++;
-			break;
-		}
-	}
 	InvalidateRgn(hDlg, NULL, FALSE);
 		return TRUE;
 	case WM_PAINT:
+	{
+		HBITMAP hBit;
+		HDC hdc, memdc;
+		PAINTSTRUCT ps;
 		hdc = BeginPaint(hDlg, &ps);
 		memdc = CreateCompatibleDC(hdc);
 		hBit = CreateCompatibleBitmap(hdc, Wnd.right, Wnd.bottom);
@@ -564,15 +691,16 @@ BOOL CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		for (Client& d : g_client) {
 			Ellipse(memdc, Wnd.right / 2 - 10 + d.x, Wnd.bottom / 2 - 10 + d.y, Wnd.right / 2 + 10 + d.x, Wnd.bottom / 2 + 10 + d.y);
 		}
-		if(!g_client.empty())
+		if (!g_client.empty())
 			Ellipse(memdc, Wnd.right / 2 - 5 + g_client[0].x, Wnd.bottom / 2 - 5 + g_client[0].y, Wnd.right / 2 + 5 + g_client[0].x, Wnd.bottom / 2 + 5 + g_client[0].y);
-			
-			
+
+
 
 		BitBlt(hdc, 0, 0, Wnd.right, Wnd.bottom, memdc, 0, 0, SRCCOPY);
 
 		DeleteDC(memdc);
 		EndPaint(hDlg, &ps);
+	}
 		return TRUE;
 	case WM_SOCKET:
 		if (WSAGETSELECTERROR(lParam)) {
@@ -589,6 +717,7 @@ BOOL CALLBACK DlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		}
 		break;
 	case WM_CLOSE:
+		timeract = false;
 		closesocket(g_mysocket);
 		WSACleanup();
 		EndDialog(hDlg, 0);
