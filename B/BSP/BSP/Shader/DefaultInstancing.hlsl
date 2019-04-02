@@ -107,15 +107,15 @@ struct ShadowVertexOut
     nointerpolation uint MatIndex : MATINDEX;
 };
 
-struct VS_OUTPUT
+struct DeferredVSOut
 {
-    float4 Position : SV_POSITON;
-    float2 UV : TEXCOORD0;
+    float4 Pos : SV_POSITION;
+    float2 UV : TEXCOORD;
 };
 
 struct PS_GBUFFER_OUT
 {
-    float4 Position : SV_TARGET0;
+    float Position : SV_TARGET0;
     float4 ColorSpecInt : SV_TARGET1;
     float4 Normal : SV_TARGET2;
     float4 specPow : SV_TARGET3;
@@ -142,7 +142,7 @@ PS_GBUFFER_OUT PackGBuffer(float3 Position, float3 BaseColor, float3 Normal, flo
 
     float SpecPowerNorm = (SpecPower - g_SpecPowerRange.x) / g_SpecPowerRange.y;
 
-    Out.Position = float4(Position.xyz, 1.0f);
+    Out.Position = float(Position.z);
     Out.ColorSpecInt = float4(BaseColor.rgb, SpecIntensity);
     Out.Normal = float4(Normal.xyz * 0.5 + 0.5, 0.0);
     Out.specPow = float4(SpecPowerNorm, 0.0, 0.0, 0.0);
@@ -260,6 +260,15 @@ float4 PS(VertexOut pin) : SV_Target
     return litColor;
 };
 
+DeferredVSOut DVS(VertexIn vin, uint instanceID : SV_InstanceID, uint vertexID : SV_VertexID)
+{
+    DeferredVSOut vout = (DeferredVSOut) 0.0f;
+    vout.Pos = float4(arrBasePos[vertexID].xy, 0.0f, 1.0f);
+    vout.UV = vout.Pos.xy;
+
+    return vout;
+};
+
 PS_GBUFFER_OUT DrawPS(VertexOut pin)
 {
     MaterialConstants matData = gMaterialData[0];
@@ -272,7 +281,7 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
     const float shininess = 1.0f - roughness;
 
     return PackGBuffer(pin.PosW, diffuseAlbedo.xyz, pin.NormalW, fresnelR0.x, shininess);
-}
+};
 
 VertexOut UI_VS(VertexIn vin, uint instanceID : SV_InstanceID, uint vertexID : SV_VertexID)
 {

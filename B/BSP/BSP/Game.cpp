@@ -827,9 +827,6 @@ void Game::BuildDescriptorHeaps()
 	}
 }
 
-
-
-
 void Game::BuildShadersAndInputLayout()
 {
 	const D3D_SHADER_MACRO alphaTestDefines[] =
@@ -854,6 +851,9 @@ void Game::BuildShadersAndInputLayout()
 	mShaders["sDebugPS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "SDEBUG_PS", "ps_5_1");
 
 	mShaders["drawPS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "DrawPS", "ps_5_1");
+
+	mShaders["dVS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "DVS", "vs_5_1");
+
 
     mInputLayout =
     {
