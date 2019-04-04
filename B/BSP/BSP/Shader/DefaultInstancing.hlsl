@@ -65,7 +65,7 @@ cbuffer cbPass : register(b0)
 };
 Texture2D gDiffuseMap[5] : register(t0);
 Texture2D gShadowMap : register(t5);
-Texture2D GBufferResource[4] : register(t6);
+Texture2D gBufferResource[4] : register(t6);
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
@@ -115,10 +115,9 @@ struct DeferredVSOut
 
 struct PS_GBUFFER_OUT
 {
-    float Position : SV_TARGET0;
-    float4 ColorSpecInt : SV_TARGET1;
-    float4 Normal : SV_TARGET2;
-    float4 specPow : SV_TARGET3;
+    float4 ColorSpecInt : SV_TARGET0;
+    float4 Normal : SV_TARGET1;
+    float4 specPow : SV_TARGET2;
 };
 
 struct SURFACE_DATA
@@ -136,13 +135,12 @@ float ConvertDepthToLinear(float depth)
     return linearDepth;
 }
 
-PS_GBUFFER_OUT PackGBuffer(float3 Position, float3 BaseColor, float3 Normal, float SpecIntensity, float SpecPower)
+PS_GBUFFER_OUT PackGBuffer(float3 BaseColor, float3 Normal, float SpecIntensity, float SpecPower)
 {
     PS_GBUFFER_OUT Out;
 
     float SpecPowerNorm = (SpecPower - g_SpecPowerRange.x) / g_SpecPowerRange.y;
 
-    Out.Position = float(Position.z);
     Out.ColorSpecInt = float4(BaseColor.rgb, SpecIntensity);
     Out.Normal = float4(Normal.xyz * 0.5 + 0.5, 0.0);
     Out.specPow = float4(SpecPowerNorm, 0.0, 0.0, 0.0);
@@ -156,17 +154,17 @@ SURFACE_DATA UnpackGBuffer(int2 location)
 
     int3 location3 = int3(location, 0);
 
-    float depth = GBufferResource[0].Load(location3).x;
+    float depth = gBufferResource[0].Load(location3).x;
     Out.LinearDepth = ConvertDepthToLinear(depth);
 
-    float4 baseColorSpecInt = GBufferResource[1].Load(location3);
+    float4 baseColorSpecInt = gBufferResource[1].Load(location3);
     Out.Color = baseColorSpecInt.xyz;
     Out.SpecInt = baseColorSpecInt.w;
 
-    Out.Normal = GBufferResource[2].Load(location3);
+    Out.Normal = gBufferResource[2].Load(location3);
     Out.Normal = normalize(Out.Normal * 2.0 - 1.0);
 
-    float SpecPowerNorm = GBufferResource[3].Load(location3).x;
+    float SpecPowerNorm = gBufferResource[3].Load(location3).x;
     Out.SpecPow = SpecPowerNorm.x + SpecPowerNorm * g_SpecPowerRange.y;
 
     return Out;
@@ -199,6 +197,17 @@ float CalcShadowFactor(float4 shadowPosH)
     }
     
     return percentLit / 9.0f;
+}
+
+float3 CalcWorldPos(float2 csPos, float linearDepth)
+{
+    float4 position;
+
+    position.xy = csPos.xy * float2(1/gProj[0][0], 1/gProj[1][1]) * linearDepth;
+    position.z = linearDepth;
+    position.w = 1.0f;
+
+    return mul(position, gInvView).xyz;
 }
 
 VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
@@ -269,6 +278,32 @@ DeferredVSOut DVS(VertexIn vin, uint instanceID : SV_InstanceID, uint vertexID :
     return vout;
 };
 
+float4 DPS(DeferredVSOut pin) : SV_Target
+{
+    SURFACE_DATA data = UnpackGBuffer(pin.UV);
+
+    float3 normal = data.Normal;
+    float3 position = CalcWorldPos(pin.UV, data.LinearDepth);
+
+    float4 ambient = gAmbientLight * float4(data.Color, 1.0f);
+    float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
+    
+    const float shininess = data.SpecPow;
+    float3 fresnelR0 = data.SpecInt;
+    
+    float3 toEyeW = normalize(gEyePosW - position);
+
+    Material mat = { float4(data.Color,1.0f), fresnelR0, shininess};
+    
+    float4 directLight = ComputeLighting(gLights, mat, position,
+       normal, toEyeW, shadowFactor);
+
+    float4 color = ambient + directLight;
+
+    return color;
+
+}
+
 PS_GBUFFER_OUT DrawPS(VertexOut pin)
 {
     MaterialConstants matData = gMaterialData[0];
@@ -280,7 +315,7 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
     pin.NormalW = normalize(pin.NormalW);
     const float shininess = 1.0f - roughness;
 
-    return PackGBuffer(pin.PosW, diffuseAlbedo.xyz, pin.NormalW, fresnelR0.x, shininess);
+    return PackGBuffer(diffuseAlbedo.xyz, pin.NormalW, fresnelR0.x, shininess);
 };
 
 VertexOut UI_VS(VertexIn vin, uint instanceID : SV_InstanceID, uint vertexID : SV_VertexID)
