@@ -58,6 +58,9 @@ private:
     virtual void Update(const GameTimer& gt)override;
     virtual void Draw(const GameTimer& gt)override;
 
+	void BeforeDraw(const GameTimer& gt);
+	void DeferredDraw(const GameTimer& gt);
+
     virtual void OnMouseDown(WPARAM btnState, int x, int y)override;
     virtual void OnMouseUp(WPARAM btnState, int x, int y)override;
     virtual void OnMouseMove(WPARAM btnState, int x, int y)override;
@@ -321,16 +324,32 @@ void Game::Draw(const GameTimer& gt)
 	DrawSceneToShadowMap();
 
 	// 그림자 그리기 끝
+	mCommandList->RSSetViewports(1, &mScreenViewport);
+	mCommandList->RSSetScissorRects(1, &mScissorRect);
 
-    mCommandList->RSSetViewports(1, &mScreenViewport);
-    mCommandList->RSSetScissorRects(1, &mScissorRect);
+	BeforeDraw(gt);
 
+	ThrowIfFailed(mCommandList->Close());
+
+	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+
+	ThrowIfFailed(mSwapChain->Present(0, 0));
+	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
+
+	mCurrFrameResource->Fence = ++mCurrentFence;
+
+	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
+}
+
+void Game::BeforeDraw(const GameTimer & gt)
+{
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-    mCommandList->ClearRenderTargetView(CurrentBackBufferView(), XMVECTORF32{ { { 0.700000000f, 0.700000000f, 0.700000000f, 1.000000000f } } } , 0, nullptr);
-    mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-	
+	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), XMVECTORF32{ { { 0.700000000f, 0.700000000f, 0.700000000f, 1.000000000f } } }, 0, nullptr);
+	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
 	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 
 	auto passCB = mCurrFrameResource->PassCB->Resource();
@@ -351,31 +370,23 @@ void Game::Draw(const GameTimer& gt)
 	// UI 그리기
 
 	mCommandList->SetPipelineState(mPSOs["UI"].Get());
-	
+
 	DrawInstancingRenderItems(mCommandList.Get(), mUIRitems);
 
 	// UI 그리기 끝
-	
+
 	// 디버그
 
 	mCommandList->SetPipelineState(mPSOs["sDebug"].Get());
 	//DrawInstancingRenderItems(mCommandList.Get(), mDebugRitems);
-	
+
 	// 디버그 끝
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+}
 
-	ThrowIfFailed(mCommandList->Close());
-
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-
-	ThrowIfFailed(mSwapChain->Present(0, 0));
-	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
-
-	mCurrFrameResource->Fence = ++mCurrentFence;
-
-	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
+void Game::DeferredDraw(const GameTimer & gt)
+{
 }
 
 void Game::OnMouseDown(WPARAM btnState, int x, int y)
@@ -1136,6 +1147,31 @@ void Game::BuildPSOs()
 		mShaders["sDebugPS"]->GetBufferSize()
 	};
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&sDebugPsoDesc, IID_PPV_ARGS(&mPSOs["sDebug"])));
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC deferredPsoDesc = instancingPsoDesc;
+	deferredPsoDesc.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["instancingVS"]->GetBufferPointer()),
+		mShaders["instancingVS"]->GetBufferSize()
+	};
+	deferredPsoDesc.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["drawPS"]->GetBufferPointer()),
+		mShaders["drawPS"]->GetBufferSize()
+	};
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&deferredPsoDesc, IID_PPV_ARGS(&mPSOs["DeferredResource"])));
+
+	deferredPsoDesc.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["dVS"]->GetBufferPointer()),
+		mShaders["dVS"]->GetBufferSize()
+	};
+	deferredPsoDesc.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["dPS"]->GetBufferPointer()),
+		mShaders["dPS"]->GetBufferSize()
+	};
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&deferredPsoDesc, IID_PPV_ARGS(&mPSOs["DeferredDraw"])));
 }
 
 void Game::BuildFrameResources()

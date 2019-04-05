@@ -4,3 +4,5 @@ PSO
 3. UI
 4. shadow
 5. sDebug
+6. DeferredResource
+7. DeferredDraw
