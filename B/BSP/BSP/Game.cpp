@@ -53,7 +53,6 @@ public:
 	virtual bool Initialize()override;
 
 private:
-	virtual void CreateRtvAndDsvDescriptorHeaps()override;
     virtual void OnResize()override;
     virtual void Update(const GameTimer& gt)override;
     virtual void Draw(const GameTimer& gt)override;
@@ -100,6 +99,8 @@ private:
 	ModelManager mModelManager;
 	FontManager mFontManager;
 	std::unique_ptr<ShadowMap> mShadowMap;
+	
+	Microsoft::WRL::ComPtr<ID3D12Resource> mDeferredResource[4] = { nullptr, };
 
 	DirectX::BoundingSphere mSceneBounds;
 
@@ -242,28 +243,6 @@ bool Game::Initialize()
 	return true;
 }
 
-void Game::CreateRtvAndDsvDescriptorHeaps()
-{
-	// 디퍼드렌더링용 렌더타겟 4개추가 depth, color & Spec, normal, SpecPow
-	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
-	rtvHeapDesc.NumDescriptors = SwapChainBufferCount+4;
-	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	rtvHeapDesc.NodeMask = 0;
-	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(
-		&rtvHeapDesc, IID_PPV_ARGS(mRtvHeap.GetAddressOf())));
-
-
-	// 그림자용 깊이버퍼 하나 추가됨.
-	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
-	dsvHeapDesc.NumDescriptors = 2;
-	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	dsvHeapDesc.NodeMask = 0;
-	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(
-		&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
-}
-
 void Game::OnResize()
 {
 	D3DApp::OnResize();
@@ -327,6 +306,9 @@ void Game::Draw(const GameTimer& gt)
 	mCommandList->RSSetViewports(1, &mScreenViewport);
 	mCommandList->RSSetScissorRects(1, &mScissorRect);
 
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
+		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+
 	BeforeDraw(gt);
 
 	ThrowIfFailed(mCommandList->Close());
@@ -387,6 +369,7 @@ void Game::BeforeDraw(const GameTimer & gt)
 
 void Game::DeferredDraw(const GameTimer & gt)
 {
+
 }
 
 void Game::OnMouseDown(WPARAM btnState, int x, int y)
@@ -832,7 +815,7 @@ void Game::BuildDescriptorHeaps()
 	for (int i = 0; i < 4; ++i)
 	{
 		nullSrv = CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, mDeferredMapHeapIndex+i, mCbvSrvUavDescriptorSize);
-		mDeferredNullSrv[i] = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, mDeferredMapHeapIndex+i, mCbvSrvUavDescriptorSize);
+		mDeferredNullSrv[i] = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, mDeferredMapHeapIndex+i, mCbvSrvUavDescriptorSize); 
 		srvDesc.Format = format[i];
 		md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
 	}
@@ -1149,6 +1132,7 @@ void Game::BuildPSOs()
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&sDebugPsoDesc, IID_PPV_ARGS(&mPSOs["sDebug"])));
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC deferredPsoDesc = instancingPsoDesc;
+	deferredPsoDesc.NumRenderTargets = 3;
 	deferredPsoDesc.VS =
 	{
 		reinterpret_cast<BYTE*>(mShaders["instancingVS"]->GetBufferPointer()),
