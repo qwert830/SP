@@ -215,8 +215,7 @@ bool Game::Initialize()
     ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
 	mCbvSrvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	mShadowMap = std::make_unique<ShadowMap>(
-		md3dDevice.Get(), 2048, 2048);
+	mShadowMap = std::make_unique<ShadowMap>(md3dDevice.Get(), 2048, 2048);
 	bool h;
 	h = mFontManager.InitFont();
 
@@ -309,8 +308,8 @@ void Game::Draw(const GameTimer& gt)
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
 		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
-	BeforeDraw(gt);
-
+	//BeforeDraw(gt);
+	//DeferredDraw(gt);
 	ThrowIfFailed(mCommandList->Close());
 
 	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
@@ -369,7 +368,50 @@ void Game::BeforeDraw(const GameTimer & gt)
 
 void Game::DeferredDraw(const GameTimer & gt)
 {
+	auto startDeferredBufferView = CD3DX12_CPU_DESCRIPTOR_HANDLE(mRtvHeap->GetCPUDescriptorHandleForHeapStart(), 2, mRtvDescriptorSize);
+	auto deferredBufferView = startDeferredBufferView;
+	for (UINT i = 0; i < 3; i++)
+	{
+		mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDeferredBuffer[i].Get(),
+			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		mCommandList->ClearRenderTargetView(deferredBufferView, XMVECTORF32{ { { 0.700000000f, 0.700000000f, 0.700000000f, 1.000000000f } } }, 0, nullptr);
+		deferredBufferView.Offset(1, mRtvDescriptorSize);
+	}
+	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
+	mCommandList->OMSetRenderTargets(3, &startDeferredBufferView, true, &DepthStencilView());
+
+	auto passCB = mCurrFrameResource->PassCB->Resource();
+	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+
+
+	//인스턴싱으로 리소스 생성 : ui / 반투명은 따로 그리기
+	CD3DX12_GPU_DESCRIPTOR_HANDLE shadowTexDescriptor(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	shadowTexDescriptor.Offset(mShadowMapHeapIndex, mCbvSrvUavDescriptorSize);
+	mCommandList->SetGraphicsRootDescriptorTable(4, shadowTexDescriptor); //그림자 정보 설정
+
+	mCommandList->SetPipelineState(mPSOs["DeferredResource"].Get()); // 파이프라인 설정
+
+	DrawInstancingRenderItems(mCommandList.Get(), mOpaqueRitems);
+	DrawInstancingRenderItems(mCommandList.Get(), mPlayerRitems);
+
+	//인스턴싱으로 리소스 생성 끝
+	for (UINT i = 0; i < 3; i++)
+	{
+		mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDeferredBuffer[i].Get(),
+			D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_GENERIC_READ));
+	}
+	//리소스를 이용해서 최종 혼합색상 출력
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+	mCommandList->SetPipelineState(mPSOs["DeferredDraw"].Get());
+
+
+
+
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 }
 
 void Game::OnMouseDown(WPARAM btnState, int x, int y)

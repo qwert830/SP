@@ -274,7 +274,6 @@ DeferredVSOut DVS(VertexIn vin, uint instanceID : SV_InstanceID, uint vertexID :
     DeferredVSOut vout = (DeferredVSOut) 0.0f;
     vout.Pos = float4(arrBasePos[vertexID].xy, 0.0f, 1.0f);
     vout.UV = vout.Pos.xy;
-
     return vout;
 };
 
