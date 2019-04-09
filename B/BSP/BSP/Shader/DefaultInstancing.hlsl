@@ -65,7 +65,8 @@ cbuffer cbPass : register(b0)
 };
 Texture2D gDiffuseMap[5] : register(t0);
 Texture2D gShadowMap : register(t5);
-Texture2D gBufferResource[4] : register(t6);
+Texture2D gDepthResource : register(t6);
+Texture2D gBufferResource[3] : register(t7);
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
@@ -154,17 +155,17 @@ SURFACE_DATA UnpackGBuffer(int2 location)
 
     int3 location3 = int3(location, 0);
 
-    float depth = gBufferResource[0].Load(location3).x;
+    float depth = gDepthResource.Load(location3).x;
     Out.LinearDepth = ConvertDepthToLinear(depth);
 
-    float4 baseColorSpecInt = gBufferResource[1].Load(location3);
+    float4 baseColorSpecInt = gBufferResource[0].Load(location3);
     Out.Color = baseColorSpecInt.xyz;
     Out.SpecInt = baseColorSpecInt.w;
 
-    Out.Normal = gBufferResource[2].Load(location3);
+    Out.Normal = gBufferResource[1].Load(location3);
     Out.Normal = normalize(Out.Normal * 2.0 - 1.0);
 
-    float SpecPowerNorm = gBufferResource[3].Load(location3).x;
+    float SpecPowerNorm = gBufferResource[2].Load(location3).x;
     Out.SpecPow = SpecPowerNorm.x + SpecPowerNorm * g_SpecPowerRange.y;
 
     return Out;
@@ -269,7 +270,7 @@ float4 PS(VertexOut pin) : SV_Target
     return litColor;
 };
 
-DeferredVSOut DVS(VertexIn vin, uint instanceID : SV_InstanceID, uint vertexID : SV_VertexID)
+DeferredVSOut DVS(VertexIn vin, uint vertexID : SV_VertexID)
 {
     DeferredVSOut vout = (DeferredVSOut) 0.0f;
     vout.Pos = float4(arrBasePos[vertexID].xy, 0.0f, 1.0f);
@@ -300,7 +301,6 @@ float4 DPS(DeferredVSOut pin) : SV_Target
     float4 color = ambient + directLight;
 
     return color;
-
 }
 
 PS_GBUFFER_OUT DrawPS(VertexOut pin)
@@ -428,6 +428,7 @@ ShadowVertexOut SDEBUG_VS(ShadowVertexIn vin)
 
 float4 SDEBUG_PS(ShadowVertexOut pin) : SV_Target
 {
-    return float4(gShadowMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
+    //    return float4(gShadowMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
+    return float4(gDepthResource.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
 }
 

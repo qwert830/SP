@@ -90,6 +90,7 @@ private:
 	void BuildPlayerData();
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 	void DrawInstancingRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
+	void DrawDeferredRenderItems(ID3D12GraphicsCommandList* cmdList);
 	void DrawSceneToShadowMap();
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
@@ -138,6 +139,7 @@ private:
 	std::vector<RenderItem*> mPlayerRitems;
 	std::vector<RenderItem*> mDebugRitems;
 	std::vector<RenderItem*> mTransparentRitems;
+	std::vector<RenderItem*> mDeferredRitems;
 
 	UINT mShadowMapHeapIndex = 0;
 
@@ -309,7 +311,28 @@ void Game::Draw(const GameTimer& gt)
 		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
 	//BeforeDraw(gt);
-	//DeferredDraw(gt);
+	DeferredDraw(gt);
+
+	//mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+	//	D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+	// UI 그리기
+
+	//mCommandList->SetPipelineState(mPSOs["UI"].Get());
+
+	//DrawInstancingRenderItems(mCommandList.Get(), mUIRitems);
+
+	// UI 그리기 끝
+
+	// 디버그
+
+	mCommandList->SetPipelineState(mPSOs["sDebug"].Get());
+	DrawInstancingRenderItems(mCommandList.Get(), mDebugRitems);
+
+	// 디버그 끝
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
 	ThrowIfFailed(mCommandList->Close());
 
 	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
@@ -348,22 +371,6 @@ void Game::BeforeDraw(const GameTimer & gt)
 	DrawInstancingRenderItems(mCommandList.Get(), mPlayerRitems);
 
 	// 인스턴싱 그리기 끝
-	// UI 그리기
-
-	mCommandList->SetPipelineState(mPSOs["UI"].Get());
-
-	DrawInstancingRenderItems(mCommandList.Get(), mUIRitems);
-
-	// UI 그리기 끝
-
-	// 디버그
-
-	mCommandList->SetPipelineState(mPSOs["sDebug"].Get());
-	//DrawInstancingRenderItems(mCommandList.Get(), mDebugRitems);
-
-	// 디버그 끝
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 }
 
 void Game::DeferredDraw(const GameTimer & gt)
@@ -402,16 +409,16 @@ void Game::DeferredDraw(const GameTimer & gt)
 			D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_GENERIC_READ));
 	}
 	//리소스를 이용해서 최종 혼합색상 출력
+	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), XMVECTORF32{ { { 0.700000000f, 0.700000000f, 0.700000000f, 1.000000000f } } }, 0, nullptr);
+	
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	
+	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, nullptr);
 
 	mCommandList->SetPipelineState(mPSOs["DeferredDraw"].Get());
 
-
-
-
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+	DrawDeferredRenderItems(mCommandList.Get());
 }
 
 void Game::OnMouseDown(WPARAM btnState, int x, int y)
@@ -754,21 +761,25 @@ void Game::BuildInstancingRootSignature()
 	CD3DX12_DESCRIPTOR_RANGE shadowTable;
 	shadowTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 5, 0);
 
-	CD3DX12_DESCRIPTOR_RANGE deferredTable;
-	deferredTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 6, 0);
+	CD3DX12_DESCRIPTOR_RANGE deferredDepthTable;
+	deferredDepthTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6, 0);
 
-	CD3DX12_ROOT_PARAMETER slotRootParameter[6];
+	CD3DX12_DESCRIPTOR_RANGE deferredTable;
+	deferredTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 7, 0);
+
+	CD3DX12_ROOT_PARAMETER slotRootParameter[7];
 
 	slotRootParameter[0].InitAsShaderResourceView(0, 1); // instancing
 	slotRootParameter[1].InitAsShaderResourceView(1, 1); // instancing
 	slotRootParameter[2].InitAsConstantBufferView(0); // cbpass
 	slotRootParameter[3].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
 	slotRootParameter[4].InitAsDescriptorTable(1, &shadowTable, D3D12_SHADER_VISIBILITY_PIXEL);
-	slotRootParameter[5].InitAsDescriptorTable(1, &deferredTable, D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[5].InitAsDescriptorTable(1, &deferredDepthTable, D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[6].InitAsDescriptorTable(1, &deferredTable, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto staticSamplers = GetStaticSamplers();
 
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(6, slotRootParameter,
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(7, slotRootParameter,
 		(UINT)staticSamplers.size(), staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
@@ -793,7 +804,7 @@ void Game::BuildInstancingRootSignature()
 void Game::BuildDescriptorHeaps()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 10;
+	srvHeapDesc.NumDescriptors = 6;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -845,22 +856,6 @@ void Game::BuildDescriptorHeaps()
 		CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, mShadowMapHeapIndex, mCbvSrvUavDescriptorSize),
 		CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, mShadowMapHeapIndex, mCbvSrvUavDescriptorSize),
 		CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 1, mDsvDescriptorSize));
-
-	std::vector<DXGI_FORMAT> format
-	{
-		DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_FORMAT_R11G11B10_FLOAT,
-		DXGI_FORMAT_R8G8B8A8_UNORM
-	};
-
-	for (int i = 0; i < 4; ++i)
-	{
-		nullSrv = CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, mDeferredMapHeapIndex+i, mCbvSrvUavDescriptorSize);
-		mDeferredNullSrv[i] = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, mDeferredMapHeapIndex+i, mCbvSrvUavDescriptorSize); 
-		srvDesc.Format = format[i];
-		md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
-	}
 }
 
 void Game::BuildShadersAndInputLayout()
@@ -1187,17 +1182,18 @@ void Game::BuildPSOs()
 	};
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&deferredPsoDesc, IID_PPV_ARGS(&mPSOs["DeferredResource"])));
 
-	deferredPsoDesc.VS =
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC deferredRenderPsoDesc = instancingPsoDesc;
+	deferredRenderPsoDesc.VS =
 	{
 		reinterpret_cast<BYTE*>(mShaders["dVS"]->GetBufferPointer()),
 		mShaders["dVS"]->GetBufferSize()
 	};
-	deferredPsoDesc.PS =
+	deferredRenderPsoDesc.PS =
 	{
 		reinterpret_cast<BYTE*>(mShaders["dPS"]->GetBufferPointer()),
 		mShaders["dPS"]->GetBufferSize()
 	};
-	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&deferredPsoDesc, IID_PPV_ARGS(&mPSOs["DeferredDraw"])));
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&deferredRenderPsoDesc, IID_PPV_ARGS(&mPSOs["DeferredDraw"])));
 }
 
 void Game::BuildFrameResources()
@@ -1447,6 +1443,26 @@ void Game::BuildRenderItems()
 
 	mDebugRitems.push_back(quadRitem.get());
 	mAllRitems.push_back(std::move(quadRitem));
+
+	auto deferredRitem = std::make_unique <RenderItem>();
+	deferredRitem->World = MathHelper::Identity4x4();
+	deferredRitem->TexTransform = MathHelper::Identity4x4();
+	deferredRitem->ObjCBIndex = 6;
+	deferredRitem->Mat = mMaterials["seafloor0"].get();
+	deferredRitem->Geo = mGeometries["shapeGeo"].get();
+	deferredRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	deferredRitem->IndexCount = deferredRitem->Geo->DrawArgs["quad"].IndexCount;
+	deferredRitem->StartIndexLocation = deferredRitem->Geo->DrawArgs["quad"].StartIndexLocation;
+	deferredRitem->BaseVertexLocation = deferredRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
+
+	deferredRitem->Instances.resize(1);
+	deferredRitem->Instances[0].World = MathHelper::Identity4x4();
+	deferredRitem->Instances[0].TexTransform = MathHelper::Identity4x4();
+	deferredRitem->Instances[0].MaterialIndex = 0;
+	mInstanceCount.push_back(deferredRitem->Instances.size());
+
+	mDeferredRitems.push_back(deferredRitem.get());
+	mAllRitems.push_back(std::move(deferredRitem));
 }
 
 void Game::BuildPlayerData()
@@ -1507,6 +1523,25 @@ void Game::DrawInstancingRenderItems(ID3D12GraphicsCommandList * cmdList, const 
 
 		cmdList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
 	}
+}
+
+void Game::DrawDeferredRenderItems(ID3D12GraphicsCommandList * cmdList)
+{
+	cmdList->IASetVertexBuffers(0, 1, &mDeferredRitems[0]->Geo->VertexBufferView());
+	cmdList->IASetIndexBuffer(&mDeferredRitems[0]->Geo->IndexBufferView());
+	cmdList->IASetPrimitiveTopology(mDeferredRitems[0]->PrimitiveType);
+
+	auto instanceBuffer = mCurrFrameResource->InstanceBufferVector[mDeferredRitems[0]->ObjCBIndex]->Resource();
+	mCommandList->SetGraphicsRootShaderResourceView(0, instanceBuffer->GetGPUVirtualAddress());
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE DepthResource(mDsvHeap->GetGPUDescriptorHandleForHeapStart());
+	mCommandList->SetGraphicsRootDescriptorTable(5, DepthResource);
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE renderTargetResource (mRtvHeap->GetGPUDescriptorHandleForHeapStart());
+	renderTargetResource.Offset(2, mRtvDescriptorSize);
+	mCommandList->SetGraphicsRootDescriptorTable(6, renderTargetResource);
+
+	cmdList->DrawIndexedInstanced(mDeferredRitems[0]->IndexCount, mDeferredRitems[0]->InstanceCount, mDeferredRitems[0]->StartIndexLocation, mDeferredRitems[0]->BaseVertexLocation, 0);
 }
 
 void Game::DrawSceneToShadowMap()
