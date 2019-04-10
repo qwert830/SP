@@ -125,7 +125,7 @@ struct SURFACE_DATA
 {
     float LinearDepth;
     float3 Color;
-    float3 Normal;
+    float4 Normal;
     float SpecInt;
     float SpecPow;
 };
@@ -143,7 +143,7 @@ PS_GBUFFER_OUT PackGBuffer(float3 BaseColor, float3 Normal, float SpecIntensity,
     float SpecPowerNorm = (SpecPower - g_SpecPowerRange.x) / g_SpecPowerRange.y;
 
     Out.ColorSpecInt = float4(BaseColor.rgb, SpecIntensity);
-    Out.Normal = float4(Normal.xyz * 0.5 + 0.5, 0.0);
+    Out.Normal = float4(Normal.xyz * 0.5 + 0.5, SpecPower);
     Out.specPow = float4(SpecPowerNorm, 0.0, 0.0, 0.0);
 
     return Out;
@@ -151,23 +151,23 @@ PS_GBUFFER_OUT PackGBuffer(float3 BaseColor, float3 Normal, float SpecIntensity,
 
 SURFACE_DATA UnpackGBuffer(int2 location)
 {
-    SURFACE_DATA Out;
+    SURFACE_DATA Out = (SURFACE_DATA) 0.0f;
 
-    int3 location3 = int3(location, 0);
+    float depth = gDepthResource.Sample(gsamLinearWrap, location).x;
+    //Out.LinearDepth = ConvertDepthToLinear(depth);
+    Out.LinearDepth = depth;
 
-    float depth = gDepthResource.Load(location3).x;
-    Out.LinearDepth = ConvertDepthToLinear(depth);
+    float4 baseColorSpecInt = gBufferResource[0].Sample(gsamLinearWrap, location);
+    Out.Color = baseColorSpecInt.rgb;
+    Out.SpecInt = baseColorSpecInt.a;
 
-    float4 baseColorSpecInt = gBufferResource[0].Load(location3);
-    Out.Color = baseColorSpecInt.xyz;
-    Out.SpecInt = baseColorSpecInt.w;
+    Out.Normal = gBufferResource[1].Sample(gsamLinearWrap, location);
+    float3 normal = normalize(Out.Normal.xyz * 2.0 - 1.0);
+    Out.Normal.xyz = normal;
 
-    Out.Normal = gBufferResource[1].Load(location3);
-    Out.Normal = normalize(Out.Normal * 2.0 - 1.0);
-
-    float SpecPowerNorm = gBufferResource[2].Load(location3).x;
-    Out.SpecPow = SpecPowerNorm.x + SpecPowerNorm * g_SpecPowerRange.y;
-
+    //float SpecPowerNorm = gBufferResource[2].Load(location3).x;
+    //Out.SpecPow = SpecPowerNorm.x + SpecPowerNorm * g_SpecPowerRange.y;
+   
     return Out;
 }
 
@@ -202,13 +202,12 @@ float CalcShadowFactor(float4 shadowPosH)
 
 float3 CalcWorldPos(float2 csPos, float linearDepth)
 {
-    float4 position;
+    float3 position;
 
-    position.xy = csPos.xy * float2(1/gProj[0][0], 1/gProj[1][1]) * linearDepth;
-    position.z = linearDepth;
-    position.w = 1.0f;
+    //position.xy = csPos.xy * float2(1/gProj[0][0], 1/gProj[1][1]) * linearDepth;
+    position= mul(float4(csPos.xy, linearDepth, 1.0f), gInvViewProj).xyz;
 
-    return mul(position, gInvView).xyz;
+    return position;
 }
 
 VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
@@ -270,37 +269,24 @@ float4 PS(VertexOut pin) : SV_Target
     return litColor;
 };
 
-DeferredVSOut DVS(VertexIn vin, uint vertexID : SV_VertexID)
+DeferredVSOut DVS(ShadowVertexIn vin, uint vertexID : SV_VertexID)
 {
     DeferredVSOut vout = (DeferredVSOut) 0.0f;
-    vout.Pos = float4(arrBasePos[vertexID].xy, 0.0f, 1.0f);
-    vout.UV = vout.Pos.xy;
+    vout.Pos = float4(vin.PosL, 1.0f);
+
+    vout.UV = vin.TexC;
+
     return vout;
 };
 
 float4 DPS(DeferredVSOut pin) : SV_Target
 {
-    SURFACE_DATA data = UnpackGBuffer(pin.UV);
-
-    float3 normal = data.Normal;
-    float3 position = CalcWorldPos(pin.UV, data.LinearDepth);
-
-    float4 ambient = gAmbientLight * float4(data.Color, 1.0f);
-    float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
-    
-    const float shininess = data.SpecPow;
-    float3 fresnelR0 = data.SpecInt;
-    
-    float3 toEyeW = normalize(gEyePosW - position);
-
-    Material mat = { float4(data.Color,1.0f), fresnelR0, shininess};
-    
-    float4 directLight = ComputeLighting(gLights, mat, position,
-       normal, toEyeW, shadowFactor);
-
-    float4 color = ambient + directLight;
-
-    return color;
+    float4 temp = gBufferResource[0].Sample(gsamLinearWrap, pin.UV); // »ö»ó
+    float3 color = temp.rgb;
+    float3 fresnelR0 = temp.a;
+    float3 normal = gBufferResource[1].Sample(gsamLinearWrap, pin.UV).rgb;
+  
+    return float4(color, 1);
 }
 
 PS_GBUFFER_OUT DrawPS(VertexOut pin)
@@ -429,6 +415,7 @@ ShadowVertexOut SDEBUG_VS(ShadowVertexIn vin)
 float4 SDEBUG_PS(ShadowVertexOut pin) : SV_Target
 {
     //    return float4(gShadowMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
-    return float4(gDepthResource.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
+
+    return float4(gBufferResource[1].Sample(gsamLinearWrap, pin.TexC).rgb, 1.0f);
 }
 

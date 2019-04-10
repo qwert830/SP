@@ -166,20 +166,6 @@ void D3DApp::OnResize()
 		md3dDevice->CreateRenderTargetView(mSwapChainBuffer[i].Get(), nullptr, rtvHeapHandle);
 		rtvHeapHandle.Offset(1, mRtvDescriptorSize);
 	}
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-
-	std::vector<DXGI_FORMAT> format
-	{
-		//DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_FORMAT_R8G8B8A8_UNORM
-	};
 	
 	D3D12_RESOURCE_DESC rtDesc;
 	rtDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -203,9 +189,9 @@ void D3DApp::OnResize()
 	rtvClear.DepthStencil.Depth = 1.0f;
 	rtvClear.DepthStencil.Stencil = 0;
 
-	for (int i = 0; i < format.size(); i++)
+	for (int i = 0; i < 3; i++)
 	{
-		rtvClear.Format = format[i];
+		rtvClear.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		ThrowIfFailed(md3dDevice->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE,
@@ -223,7 +209,7 @@ void D3DApp::OnResize()
     depthStencilDesc.Height = mClientHeight;
     depthStencilDesc.DepthOrArraySize = 1;
     depthStencilDesc.MipLevels = 1;
-    depthStencilDesc.Format = mDepthStencilFormat;
+    depthStencilDesc.Format = mDepthStencilFormat;;
     depthStencilDesc.SampleDesc.Count = m4xMsaaState ? 4 : 1;
     depthStencilDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
     depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;

@@ -295,11 +295,11 @@ void Game::Draw(const GameTimer& gt)
 	auto matBuffer = mCurrFrameResource->MaterialCB->Resource();
 	mCommandList->SetGraphicsRootShaderResourceView(1, matBuffer->GetGPUVirtualAddress());
 
-	mCommandList->SetGraphicsRootDescriptorTable(3, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	mCommandList->SetGraphicsRootDescriptorTable(3, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()); // 텍스쳐
 
 	// 그림자
 
-	mCommandList->SetGraphicsRootDescriptorTable(4, mNullSrv);
+	mCommandList->SetGraphicsRootDescriptorTable(4, mNullSrv); // 그림자
 
 	DrawSceneToShadowMap();
 
@@ -310,6 +310,11 @@ void Game::Draw(const GameTimer& gt)
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
 		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
+	// 그림자 리소스 연결
+	CD3DX12_GPU_DESCRIPTOR_HANDLE shadowTexDescriptor(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	shadowTexDescriptor.Offset(mShadowMapHeapIndex, mCbvSrvUavDescriptorSize);
+	mCommandList->SetGraphicsRootDescriptorTable(4, shadowTexDescriptor);
+
 	//BeforeDraw(gt);
 	DeferredDraw(gt);
 
@@ -318,18 +323,21 @@ void Game::Draw(const GameTimer& gt)
 
 	// UI 그리기
 
-	//mCommandList->SetPipelineState(mPSOs["UI"].Get());
+	mCommandList->SetPipelineState(mPSOs["UI"].Get());
 
-	//DrawInstancingRenderItems(mCommandList.Get(), mUIRitems);
+	DrawInstancingRenderItems(mCommandList.Get(), mUIRitems);
 
 	// UI 그리기 끝
 
 	// 디버그
 
-	mCommandList->SetPipelineState(mPSOs["sDebug"].Get());
-	DrawInstancingRenderItems(mCommandList.Get(), mDebugRitems);
+	//mCommandList->SetPipelineState(mPSOs["sDebug"].Get());
+	//DrawInstancingRenderItems(mCommandList.Get(), mDebugRitems);
 
 	// 디버그 끝
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
@@ -361,10 +369,6 @@ void Game::BeforeDraw(const GameTimer & gt)
 
 	// 인스턴싱 그리기 
 
-	CD3DX12_GPU_DESCRIPTOR_HANDLE shadowTexDescriptor(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-	shadowTexDescriptor.Offset(mShadowMapHeapIndex, mCbvSrvUavDescriptorSize);
-	mCommandList->SetGraphicsRootDescriptorTable(4, shadowTexDescriptor);
-
 	mCommandList->SetPipelineState(mPSOs["instancingOpaque"].Get());
 
 	DrawInstancingRenderItems(mCommandList.Get(), mOpaqueRitems);
@@ -391,16 +395,14 @@ void Game::DeferredDraw(const GameTimer & gt)
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
-
 	//인스턴싱으로 리소스 생성 : ui / 반투명은 따로 그리기
-	CD3DX12_GPU_DESCRIPTOR_HANDLE shadowTexDescriptor(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-	shadowTexDescriptor.Offset(mShadowMapHeapIndex, mCbvSrvUavDescriptorSize);
-	mCommandList->SetGraphicsRootDescriptorTable(4, shadowTexDescriptor); //그림자 정보 설정
-
 	mCommandList->SetPipelineState(mPSOs["DeferredResource"].Get()); // 파이프라인 설정
 
 	DrawInstancingRenderItems(mCommandList.Get(), mOpaqueRitems);
 	DrawInstancingRenderItems(mCommandList.Get(), mPlayerRitems);
+
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
 
 	//인스턴싱으로 리소스 생성 끝
 	for (UINT i = 0; i < 3; i++)
@@ -417,6 +419,10 @@ void Game::DeferredDraw(const GameTimer & gt)
 	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, nullptr);
 
 	mCommandList->SetPipelineState(mPSOs["DeferredDraw"].Get());
+
+	mCommandList->SetGraphicsRootDescriptorTable(5, mDeferredNullSrv[0]);
+
+	mCommandList->SetGraphicsRootDescriptorTable(6, mDeferredNullSrv[1]);
 
 	DrawDeferredRenderItems(mCommandList.Get());
 }
@@ -803,8 +809,10 @@ void Game::BuildInstancingRootSignature()
 
 void Game::BuildDescriptorHeaps()
 {
+	//디스크립터 힙에 쉐이더 리소스 뷰를 하나씩 탑재
+
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 6;
+	srvHeapDesc.NumDescriptors = 10;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -856,6 +864,20 @@ void Game::BuildDescriptorHeaps()
 		CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, mShadowMapHeapIndex, mCbvSrvUavDescriptorSize),
 		CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, mShadowMapHeapIndex, mCbvSrvUavDescriptorSize),
 		CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 1, mDsvDescriptorSize));
+
+	srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+	nullSrv = CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, mDeferredMapHeapIndex, mCbvSrvUavDescriptorSize);
+	mDeferredNullSrv[0] = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, mDeferredMapHeapIndex, mCbvSrvUavDescriptorSize);
+	md3dDevice->CreateShaderResourceView(mDepthStencilBuffer.Get(), &srvDesc, nullSrv); // 깊이버퍼에 리소스뷰 생성
+
+	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	for (UINT i = 0; i < 3; ++i)
+	{
+		nullSrv = CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, mDeferredMapHeapIndex+1+i, mCbvSrvUavDescriptorSize);
+		mDeferredNullSrv[1+i] = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, mDeferredMapHeapIndex+1+i, mCbvSrvUavDescriptorSize);
+		md3dDevice->CreateShaderResourceView(mDeferredBuffer[i].Get(), &srvDesc, nullSrv);
+	}
+
 }
 
 void Game::BuildShadersAndInputLayout()
@@ -907,7 +929,7 @@ void Game::BuildShapeGeometry()
 	GeometryGenerator::MeshData box = geoGen.CreateBox(10.0f, 10.0f, 10.0f, 3);
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 20.0f, 20, 40);
 	GeometryGenerator::MeshData uiGrid = geoGen.CreateGrid(10.0f, 10.0f, 2, 2);
-	GeometryGenerator::MeshData quad = geoGen.CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
+	GeometryGenerator::MeshData quad = geoGen.CreateQuad(-1.0f, 1.0f, 2.0f, 2.0f, 0.0f);
 	// 모델 로딩
 	fin.open("Resource/model.txt");
 	if (fin.fail())
@@ -1183,6 +1205,7 @@ void Game::BuildPSOs()
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&deferredPsoDesc, IID_PPV_ARGS(&mPSOs["DeferredResource"])));
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC deferredRenderPsoDesc = instancingPsoDesc;
+	deferredRenderPsoDesc.DepthStencilState.DepthEnable = false;
 	deferredRenderPsoDesc.VS =
 	{
 		reinterpret_cast<BYTE*>(mShaders["dVS"]->GetBufferPointer()),
@@ -1533,13 +1556,6 @@ void Game::DrawDeferredRenderItems(ID3D12GraphicsCommandList * cmdList)
 
 	auto instanceBuffer = mCurrFrameResource->InstanceBufferVector[mDeferredRitems[0]->ObjCBIndex]->Resource();
 	mCommandList->SetGraphicsRootShaderResourceView(0, instanceBuffer->GetGPUVirtualAddress());
-
-	CD3DX12_GPU_DESCRIPTOR_HANDLE DepthResource(mDsvHeap->GetGPUDescriptorHandleForHeapStart());
-	mCommandList->SetGraphicsRootDescriptorTable(5, DepthResource);
-
-	CD3DX12_GPU_DESCRIPTOR_HANDLE renderTargetResource (mRtvHeap->GetGPUDescriptorHandleForHeapStart());
-	renderTargetResource.Offset(2, mRtvDescriptorSize);
-	mCommandList->SetGraphicsRootDescriptorTable(6, renderTargetResource);
 
 	cmdList->DrawIndexedInstanced(mDeferredRitems[0]->IndexCount, mDeferredRitems[0]->InstanceCount, mDeferredRitems[0]->StartIndexLocation, mDeferredRitems[0]->BaseVertexLocation, 0);
 }
