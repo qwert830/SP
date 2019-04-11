@@ -132,8 +132,7 @@ struct SURFACE_DATA
 
 float ConvertDepthToLinear(float depth)
 {
-    float linearDepth = gProj[3][2] / (depth - gProj[2][2]);
-    return linearDepth;
+    return float(gProj[3][2] / (depth - gProj[2][2]));
 }
 
 PS_GBUFFER_OUT PackGBuffer(float3 BaseColor, float3 Normal, float SpecIntensity, float SpecPower)
@@ -202,12 +201,13 @@ float CalcShadowFactor(float4 shadowPosH)
 
 float3 CalcWorldPos(float2 csPos, float linearDepth)
 {
-    float3 position;
+    float4 position;
 
-    //position.xy = csPos.xy * float2(1/gProj[0][0], 1/gProj[1][1]) * linearDepth;
-    position= mul(float4(csPos.xy, linearDepth, 1.0f), gInvViewProj).xyz;
+    position.xy = csPos.xy * float2(1 / gProj[0][0], 1 / gProj[1][1]) * linearDepth;
+    position.z = linearDepth;
+    position.w = 1.0f;
 
-    return position;
+    return mul(position, gInvView).xyz;
 }
 
 VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
@@ -280,13 +280,33 @@ DeferredVSOut DVS(ShadowVertexIn vin, uint vertexID : SV_VertexID)
 };
 
 float4 DPS(DeferredVSOut pin) : SV_Target
-{
-    float4 temp = gBufferResource[0].Sample(gsamLinearWrap, pin.UV); // 색상
+{  
+    float4 temp = gBufferResource[0].Load(pin.Pos.xyz); // 색상
     float3 color = temp.rgb;
     float3 fresnelR0 = temp.a;
-    float3 normal = gBufferResource[1].Sample(gsamLinearWrap, pin.UV).rgb;
-  
-    return float4(color, 1);
+    
+    temp = gBufferResource[1].Load(pin.Pos.xyz);
+    float3 normal = temp.rgb;
+    float shininess = temp.a;
+
+    float depth = gDepthResource.Load(pin.Pos.xyz).x;
+    depth = ConvertDepthToLinear(depth);
+    float3 position = CalcWorldPos(pin.Pos.xy, depth);
+    
+    float4 ambient = gAmbientLight * float4(color, 1.0f);
+    float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
+    shadowFactor[0] = CalcShadowFactor(mul(float4(position, 1.0f), gShadowTransform));
+    
+    float3 toEyeW = normalize(gEyePosW - position);
+
+    Material mat = { float4(color, 1.0f), fresnelR0, shininess };
+    
+    float4 directLight = ComputeLighting(gLights, mat, position,
+       normal, toEyeW, shadowFactor);
+
+    float4 litcolor = ambient + directLight;
+
+    return litcolor;
 }
 
 PS_GBUFFER_OUT DrawPS(VertexOut pin)
