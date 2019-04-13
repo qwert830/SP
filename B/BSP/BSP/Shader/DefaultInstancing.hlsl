@@ -112,13 +112,14 @@ struct DeferredVSOut
 {
     float4 Pos : SV_POSITION;
     float2 UV : TEXCOORD;
+    float4 ViewRay : POSITION0;
 };
 
 struct PS_GBUFFER_OUT
 {
     float4 ColorSpecInt : SV_TARGET0;
     float4 Normal : SV_TARGET1;
-    float4 specPow : SV_TARGET2;
+    float4 Position : SV_TARGET2;
 };
 
 struct SURFACE_DATA
@@ -132,10 +133,23 @@ struct SURFACE_DATA
 
 float ConvertDepthToLinear(float depth)
 {
-    return float(gProj[3][2] / (depth - gProj[2][2]));
+    return ((-gNearZ) / (gFarZ - gNearZ)) / (depth - (gFarZ / (gFarZ - gNearZ)));
+
+    //return float(gProj[3][2] / (depth - gProj[2][2]));
 }
 
-PS_GBUFFER_OUT PackGBuffer(float3 BaseColor, float3 Normal, float SpecIntensity, float SpecPower)
+float3 CalcWorldPos(float2 csPos, float linearDepth)
+{
+    float4 position;
+
+    position.xy = csPos.xy * float2((1 / gProj[0][0]), (1 / gProj[1][1])) * linearDepth;
+    position.z = linearDepth;
+    position.w = 1.0f;
+
+    return mul(position, gInvView).xyz;
+}
+
+PS_GBUFFER_OUT PackGBuffer(float3 BaseColor, float3 Normal, float SpecIntensity, float SpecPower, float4 Position)
 {
     PS_GBUFFER_OUT Out;
 
@@ -143,30 +157,11 @@ PS_GBUFFER_OUT PackGBuffer(float3 BaseColor, float3 Normal, float SpecIntensity,
 
     Out.ColorSpecInt = float4(BaseColor.rgb, SpecIntensity);
     Out.Normal = float4(Normal.xyz * 0.5 + 0.5, SpecPower);
-    Out.specPow = float4(SpecPowerNorm, 0.0, 0.0, 0.0);
 
-    return Out;
-}
+    float4 pos = Position;
 
-SURFACE_DATA UnpackGBuffer(int2 location)
-{
-    SURFACE_DATA Out = (SURFACE_DATA) 0.0f;
+    Out.Position = pos;
 
-    float depth = gDepthResource.Sample(gsamLinearWrap, location).x;
-    //Out.LinearDepth = ConvertDepthToLinear(depth);
-    Out.LinearDepth = depth;
-
-    float4 baseColorSpecInt = gBufferResource[0].Sample(gsamLinearWrap, location);
-    Out.Color = baseColorSpecInt.rgb;
-    Out.SpecInt = baseColorSpecInt.a;
-
-    Out.Normal = gBufferResource[1].Sample(gsamLinearWrap, location);
-    float3 normal = normalize(Out.Normal.xyz * 2.0 - 1.0);
-    Out.Normal.xyz = normal;
-
-    //float SpecPowerNorm = gBufferResource[2].Load(location3).x;
-    //Out.SpecPow = SpecPowerNorm.x + SpecPowerNorm * g_SpecPowerRange.y;
-   
     return Out;
 }
 
@@ -199,17 +194,6 @@ float CalcShadowFactor(float4 shadowPosH)
     return percentLit / 9.0f;
 }
 
-float3 CalcWorldPos(float2 csPos, float linearDepth)
-{
-    float4 position;
-
-    position.xy = csPos.xy * float2(1 / gProj[0][0], 1 / gProj[1][1]) * linearDepth;
-    position.z = linearDepth;
-    position.w = 1.0f;
-
-    return mul(position, gInvView).xyz;
-}
-
 VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
 {
     VertexOut vout = (VertexOut) 0.0f;
@@ -222,13 +206,13 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
 	
     vout.MatIndex = matIndex;
 
-    float4 posW = mul(float4(vin.PosL.xyz, 1.0f), world);
+    float4 posW = mul(float4(vin.PosL.xyz, 1.0f), world); // 모델좌표 -> 월드좌표
 
     vout.PosW = posW.xyz;
 
     vout.NormalW = mul(vin.NormalL, (float3x3) world);
 
-    vout.PosH = mul(posW, gViewProj);
+    vout.PosH = mul(posW, gViewProj); // xyz,1
 	
     float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), texTransform);
     vout.TexC = mul(texC, matData.MatTransform).xy;
@@ -276,24 +260,34 @@ DeferredVSOut DVS(ShadowVertexIn vin, uint vertexID : SV_VertexID)
 
     vout.UV = vin.TexC;
 
+    vout.ViewRay = mul(float4(vin.PosL.xy, 1.0f, 1.0f) * gFarZ, gInvView);
+
+    vout.ViewRay.xyz -= gEyePosW.xyz;
+
     return vout;
 };
 
 float4 DPS(DeferredVSOut pin) : SV_Target
 {  
-    float4 temp = gBufferResource[0].Load(pin.Pos.xyz); // 색상
-    float3 color = temp.rgb;
-    float3 fresnelR0 = temp.a;
+    float depth = gDepthResource.Load(float3(pin.Pos.xy, 0)).x;
+    if (depth >= 1.0f)
+        discard;
+    float lineardepth = ConvertDepthToLinear(depth);
     
-    temp = gBufferResource[1].Load(pin.Pos.xyz);
-    float3 normal = temp.rgb;
+    float4 temp = gBufferResource[0].Load(float3(pin.Pos.xy, 0)); // 색상
+    float3 color = temp.xyz;
+    float3 fresnelR0 = temp.www;
+    
+    temp = gBufferResource[1].Load(float3(pin.Pos.xy, 0)); // 노말, 매끄러움정도
+    float3 normal = normalize(temp.xyz * 2.0f - 1.0f);
     float shininess = temp.a;
 
-    float depth = gDepthResource.Load(pin.Pos.xyz).x;
-    depth = ConvertDepthToLinear(depth);
-    float3 position = CalcWorldPos(pin.Pos.xy, depth);
-    
     float4 ambient = gAmbientLight * float4(color, 1.0f);
+    float3 position = CalcWorldPos(pin.Pos.xy, lineardepth); // 문제있음;
+
+    position = gEyePosW.xyz + pin.ViewRay.xyz * lineardepth;
+
+
     float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
     shadowFactor[0] = CalcShadowFactor(mul(float4(position, 1.0f), gShadowTransform));
     
@@ -320,7 +314,9 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
     pin.NormalW = normalize(pin.NormalW);
     const float shininess = 1.0f - roughness;
 
-    return PackGBuffer(diffuseAlbedo.xyz, pin.NormalW, fresnelR0.x, shininess);
+    float4 pos = float4(pin.PosW, 0.0f);
+    
+    return PackGBuffer(diffuseAlbedo.xyz, pin.NormalW, fresnelR0.x, shininess, pos);
 };
 
 VertexOut UI_VS(VertexIn vin, uint instanceID : SV_InstanceID, uint vertexID : SV_VertexID)
@@ -434,8 +430,6 @@ ShadowVertexOut SDEBUG_VS(ShadowVertexIn vin)
 
 float4 SDEBUG_PS(ShadowVertexOut pin) : SV_Target
 {
-    //    return float4(gShadowMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
-
-    return float4(gBufferResource[1].Sample(gsamLinearWrap, pin.TexC).rgb, 1.0f);
+    return float4(gShadowMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
 }
 

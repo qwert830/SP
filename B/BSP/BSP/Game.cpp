@@ -1385,7 +1385,7 @@ void Game::BuildRenderItems()
 					0.1f, 0.0f, 0.0f, 0.0f,
 					0.0f, 0.1f, 0.0f, 0.0f,
 					0.0f, 0.0f, 0.1f, 0.0f,
-					x + j * dx, 10, z + k * dz, 1.0f);
+					x + j * dx, 10, z + (k-1) * dz, 1.0f);
 
 				XMStoreFloat4x4(&PlayerRitem->Instances[index].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 				PlayerRitem->Instances[index].MaterialIndex = 3;
