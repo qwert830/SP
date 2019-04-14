@@ -1,5 +1,24 @@
 #pragma once
-#include "d3dUtil.h"
+#include "../../Common/d3dx12.h"
+#include <DirectXMath.h>
+#include "include/fbxsdk.h"
+#include <vector>
+
+using namespace DirectX;
+
+struct VERTEX
+{
+	XMFLOAT3 pos;
+	XMFLOAT2 tex;
+	XMFLOAT4 boneids;
+	XMFLOAT4 weights;
+
+	VERTEX()
+	{
+		boneids = { 0, 0, 0, 0 };
+		weights = { 0, 0, 0, 0 };
+	}
+};
 
 struct ModelData 
 {
