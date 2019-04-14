@@ -1,10 +1,8 @@
 #define WIN32_LEAN_AND_MEAN  
 #define INITGUID
-
-#include <WinSock2.h>
-
+#define UNICODE
 #pragma comment (lib, "ws2_32.lib")
-
+#include <WinSock2.h>
 #include <thread>
 #include <vector>
 #include <array>
@@ -14,8 +12,6 @@
 #include <chrono>
 #include <mutex>
 #include <string>
-
-#define UNICODE
 #include <sqlext.h>  
 #include <locale.h>
 
@@ -27,9 +23,6 @@ using namespace std;
 
 
 enum kind_of_work { RECV = 1, GAMEACTION, PERIODICACTION };
-
-
-HANDLE ghiocp;
 
 struct EXOVER {
 	WSAOVERLAPPED m_over;
@@ -71,10 +64,6 @@ public:
 	}
 };
 
-
-
-array <Client, MAX_USER> g_clients;
-
 class Room {
 public:
 	unordered_set<int> m_JoinIdList;
@@ -110,7 +99,7 @@ public:
 			m_RoomStatus = RS_JOINABLE;
 	}
 
-	bool gosign() {
+	bool gosign(array <Client, MAX_USER>& g_clients) {
 		if (m_CurrentNum % 2 != 0)
 			return false;
 		for (int d : m_JoinIdList) {
@@ -126,6 +115,8 @@ public:
 
 };
 
+HANDLE ghiocp;
+array <Client, MAX_USER> g_clients;
 array <Room, MAX_ROOMNUMBER> g_rooms;
 
 
@@ -581,7 +572,7 @@ inline void ProcessPacket(int id, char *packet)
 	}
 	case CS_READY:
 		g_clients[id].m_Condition = US_READY;
-		if (g_rooms[g_clients[id].m_RoomNumber].gosign()) {
+		if (g_rooms[g_clients[id].m_RoomNumber].gosign(g_clients)) {
 			g_clients[id].m_Condition = US_PLAY;
 			sc_usercondition_packet p;
 			p.size = sizeof(sc_usercondition_packet);
