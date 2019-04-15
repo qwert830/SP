@@ -133,9 +133,7 @@ struct SURFACE_DATA
 
 float ConvertDepthToLinear(float depth)
 {
-    return ((-gNearZ) / (gFarZ - gNearZ)) / (depth - (gFarZ / (gFarZ - gNearZ)));
-
-    //return float(gProj[3][2] / (depth - gProj[2][2]));
+    return float(gProj[3][2] / (depth - gProj[2][2]));
 }
 
 float3 CalcWorldPos(float2 csPos, float linearDepth)
@@ -258,7 +256,7 @@ DeferredVSOut DVS(ShadowVertexIn vin, uint vertexID : SV_VertexID)
     DeferredVSOut vout = (DeferredVSOut) 0.0f;
     vout.Pos = float4(vin.PosL, 1.0f);
 
-    vout.UV = vin.TexC;
+    vout.UV = vout.Pos.xy;
 
     vout.ViewRay = mul(float4(vin.PosL.xy, 1.0f, 1.0f) * gFarZ, gInvView);
 
@@ -283,10 +281,7 @@ float4 DPS(DeferredVSOut pin) : SV_Target
     float shininess = temp.a;
 
     float4 ambient = gAmbientLight * float4(color, 1.0f);
-    float3 position = CalcWorldPos(pin.Pos.xy, lineardepth); // 문제있음;
-
-    position = gEyePosW.xyz + pin.ViewRay.xyz * lineardepth;
-
+    float3 position = CalcWorldPos(pin.UV, lineardepth);
 
     float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
     shadowFactor[0] = CalcShadowFactor(mul(float4(position, 1.0f), gShadowTransform));
