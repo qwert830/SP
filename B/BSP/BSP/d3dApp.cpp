@@ -110,6 +110,8 @@ bool D3DApp::Initialize()
     // Do the initial resize code.
     OnResize();
 
+	mStart = true;
+
 	return true;
 }
  
@@ -149,7 +151,8 @@ void D3DApp::OnResize()
 	for (int i = 0; i < SwapChainBufferCount; ++i)
 		mSwapChainBuffer[i].Reset();
     mDepthStencilBuffer.Reset();
-	
+	mDeferredBuffer->Reset();
+
 	// Resize the swap chain.
     ThrowIfFailed(mSwapChain->ResizeBuffers(
 		SwapChainBufferCount, 
@@ -230,8 +233,6 @@ void D3DApp::OnResize()
     // Create descriptor to mip level 0 of entire resource using the format of the resource.
     md3dDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr, DepthStencilView());
 
-	D3D12_RENDER_TARGET_VIEW_DESC rtvdesc;
-	rtvdesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 	rtvdesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	for (UINT i = 0; i < 3; i++)
 	{

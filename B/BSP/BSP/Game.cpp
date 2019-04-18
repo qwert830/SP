@@ -248,6 +248,9 @@ void Game::OnResize()
 {
 	D3DApp::OnResize();
 
+	if (mStart)
+		BuildDescriptorHeaps();
+
 	mPlayer.SetMousePos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
 	mPlayer.mCamera.SetLens(0.25f*MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
 }
