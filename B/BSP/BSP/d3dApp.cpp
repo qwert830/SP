@@ -153,7 +153,6 @@ void D3DApp::OnResize()
     mDepthStencilBuffer.Reset();
 	mDeferredBuffer->Reset();
 
-	// Resize the swap chain.
     ThrowIfFailed(mSwapChain->ResizeBuffers(
 		SwapChainBufferCount, 
 		mClientWidth, mClientHeight, 
@@ -233,7 +232,6 @@ void D3DApp::OnResize()
     // Create descriptor to mip level 0 of entire resource using the format of the resource.
     md3dDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr, DepthStencilView());
 
-	rtvdesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	for (UINT i = 0; i < 3; i++)
 	{
 		md3dDevice->CreateRenderTargetView(mDeferredBuffer[i].Get(), nullptr, rtvHeapHandle);
@@ -449,14 +447,15 @@ bool D3DApp::InitMainWindow()
 	int height = R.bottom - R.top;
 
 	mhMainWnd = CreateWindow(L"MainWnd", mMainWndCaption.c_str(), 
-		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, 0, 0, mhAppInst, 0); 
+		/*WS_OVERLAPPEDWINDOW*/ WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_POPUP | WS_EX_APPWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, 0, 0, mhAppInst, 0);
 	if( !mhMainWnd )
 	{
 		MessageBox(0, L"CreateWindow Failed.", 0, 0);
 		return false;
 	}
 
-	ShowWindow(mhMainWnd, SW_SHOW);
+	//ShowWindow(mhMainWnd, SW_SHOW);
+	ShowWindow(mhMainWnd, SW_SHOWMAXIMIZED);
 	UpdateWindow(mhMainWnd);
 
 	return true;

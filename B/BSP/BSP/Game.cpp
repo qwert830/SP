@@ -1421,7 +1421,7 @@ void Game::BuildRenderItems()
 
 	for (int i = 0; i < 4; ++i)
 	{
-		UIRitem->Instances[i+1].UIPos = XMFLOAT4(-0.2f + i*0.1f, 1.0f, -0.1f + i*0.1f, 0.8f);
+		UIRitem->Instances[i+1].UIPos = XMFLOAT4(-0.1f + i*0.05f, 0.95f, -0.05f + i*0.05f, 0.85f); // (x,y) (z,w)
 		uv = mFontManager.GetUV(id[i]);
 		UIRitem->Instances[i+1].UIUVPos = XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 		XMStoreFloat4x4(&UIRitem->Instances[i+1].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
@@ -1430,14 +1430,14 @@ void Game::BuildRenderItems()
 
 	for (int i = 0; i < 5; ++i)
 	{
-		UIRitem->Instances[i + 5].UIPos = XMFLOAT4(-0.25f + i * 0.1f, 0.8f, -0.15f + i * 0.1f, 0.6f);
+		UIRitem->Instances[i + 5].UIPos = XMFLOAT4(-0.125f + i * 0.05f, 0.9f, -0.075f + i * 0.05f, 0.75f);
 		uv = mFontManager.GetUV(id[i+4]);
 		UIRitem->Instances[i + 5].UIUVPos = XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 		XMStoreFloat4x4(&UIRitem->Instances[i + 5].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 		UIRitem->Instances[i + 5].MaterialIndex = 4;
 	}
 
-	UIRitem->Instances[7].UIPos = XMFLOAT4(-0.025f , 0.8f, 0.025f , 0.625f);
+	UIRitem->Instances[7].UIPos = XMFLOAT4(-0.0125f , 0.9f, 0.0125f , 0.775f);
 
 	mInstanceCount.push_back(UIRitem->Instances.size());
 

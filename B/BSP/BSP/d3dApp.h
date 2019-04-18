@@ -74,14 +74,14 @@ protected:
 
     static D3DApp* mApp;
 
-    HINSTANCE mhAppInst = nullptr; // application instance handle
-    HWND      mhMainWnd = nullptr; // main window handle
-	bool      mAppPaused = false;  // is the application paused?
-	bool      mMinimized = false;  // is the application minimized?
-	bool      mMaximized = false;  // is the application maximized?
-	bool      mResizing = false;   // are the resize bars being dragged?
-    bool      mFullscreenState = false;// fullscreen enabled
-	bool	  mStart = false;
+    HINSTANCE mhAppInst				= nullptr;	// application instance handle
+    HWND      mhMainWnd				= nullptr;	// main window handle
+	bool      mAppPaused			= false;	// is the application paused?
+	bool      mMinimized			= false;	// is the application minimized?
+	bool      mMaximized			= false;	// is the application maximized?
+	bool      mResizing				= false;	// are the resize bars being dragged?
+    bool      mFullscreenState		= false;	// fullscreen enabled
+	bool	  mStart				= false;	// 첫 실행이후 트루값
 
 	// Set true to use 4X MSAA (?.1.8).  The default is false.
     bool      m4xMsaaState = false;    // 4X MSAA enabled
@@ -121,7 +121,7 @@ protected:
 	D3D_DRIVER_TYPE md3dDriverType = D3D_DRIVER_TYPE_HARDWARE;
     DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     DXGI_FORMAT mDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	int mClientWidth = 800;
-	int mClientHeight = 600;
+	int mClientWidth = 1400;
+	int mClientHeight = 800;
 };
 
