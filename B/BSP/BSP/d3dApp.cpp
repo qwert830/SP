@@ -175,30 +175,27 @@ void D3DApp::OnResize()
 	rtDesc.Width = mClientWidth;
 	rtDesc.Height = mClientHeight;
 	rtDesc.DepthOrArraySize = 1;
-	rtDesc.MipLevels = 1;
+	rtDesc.MipLevels = 0;
 	rtDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	rtDesc.SampleDesc.Count = m4xMsaaState ? 4 : 1;
 	rtDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
 	rtDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 	rtDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-	FLOAT color[4] = { 0.700000000f, 0.700000000f, 0.700000000f, 1.000000000f };
 	D3D12_CLEAR_VALUE rtvClear;
-	rtvClear.Color[0] = color[0];
-	rtvClear.Color[1] = color[1];
-	rtvClear.Color[2] = color[2];
-	rtvClear.Color[3] = color[3];
-	rtvClear.DepthStencil.Depth = 1.0f;
-	rtvClear.DepthStencil.Stencil = 0;
+	rtvClear.Color[0] = Colors::Black.f[0];
+	rtvClear.Color[1] = Colors::Black.f[1];
+	rtvClear.Color[2] = Colors::Black.f[2];
+	rtvClear.Color[3] = Colors::Black.f[3];
+	rtvClear.Format = mBackBufferFormat;
 
 	for (int i = 0; i < 3; i++)
 	{
-		rtvClear.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		ThrowIfFailed(md3dDevice->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE,
 			&rtDesc,
-			D3D12_RESOURCE_STATE_COMMON,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
 			&rtvClear,
 			IID_PPV_ARGS(mDeferredBuffer[i].GetAddressOf())));
 	}
@@ -229,12 +226,20 @@ void D3DApp::OnResize()
         &optClear,
         IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())));
 
-    // Create descriptor to mip level 0 of entire resource using the format of the resource.
     md3dDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr, DepthStencilView());
+
+	D3D12_TEX2D_RTV trtv;
+	trtv.MipSlice = 0;
+	trtv.PlaneSlice = 0;
+
+	D3D12_RENDER_TARGET_VIEW_DESC rtvdesc;
+	rtvdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	rtvdesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	rtvdesc.Texture2D = trtv;
 
 	for (UINT i = 0; i < 3; i++)
 	{
-		md3dDevice->CreateRenderTargetView(mDeferredBuffer[i].Get(), nullptr, rtvHeapHandle);
+		md3dDevice->CreateRenderTargetView(mDeferredBuffer[i].Get(), &rtvdesc, rtvHeapHandle);
 		rtvHeapHandle.Offset(1, mRtvDescriptorSize);
 	}
 
@@ -242,11 +247,6 @@ void D3DApp::OnResize()
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
 		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 	
-	for (UINT i = 0; i < 3; i++)
-	{
-		mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDeferredBuffer[i].Get(),
-			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_GENERIC_READ));
-	}
     // Execute the resize commands.
     ThrowIfFailed(mCommandList->Close());
     ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };

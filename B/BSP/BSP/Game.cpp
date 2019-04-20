@@ -9,6 +9,14 @@
 #include "FontManager.h"
 #include <fstream>
 
+#include <crtdbg.h>
+
+#ifdef _DEBUG
+#define new new( _CLIENT_BLOCK, __FILE__, __LINE__ )
+#endif
+
+
+
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
@@ -57,7 +65,6 @@ private:
     virtual void Update(const GameTimer& gt)override;
     virtual void Draw(const GameTimer& gt)override;
 
-	void BeforeDraw(const GameTimer& gt);
 	void DeferredDraw(const GameTimer& gt);
 
     virtual void OnMouseDown(WPARAM btnState, int x, int y)override;
@@ -176,7 +183,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 #if defined(DEBUG) | defined(_DEBUG)
 	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
 #endif
-
     try
     {
         Game theApp(hInstance);
@@ -307,15 +313,11 @@ void Game::Draw(const GameTimer& gt)
 	mCommandList->RSSetViewports(1, &mScreenViewport);
 	mCommandList->RSSetScissorRects(1, &mScissorRect);
 
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
-		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
-
 	// 그림자 리소스 연결
 	CD3DX12_GPU_DESCRIPTOR_HANDLE shadowTexDescriptor(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 	shadowTexDescriptor.Offset(mShadowMapHeapIndex, mCbvSrvUavDescriptorSize);
 	mCommandList->SetGraphicsRootDescriptorTable(5, shadowTexDescriptor);
 
-	//BeforeDraw(gt);
 	DeferredDraw(gt);
 
 	//mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -354,29 +356,6 @@ void Game::Draw(const GameTimer& gt)
 	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
 }
 
-void Game::BeforeDraw(const GameTimer & gt)
-{
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), XMVECTORF32{ { { 0.700000000f, 0.700000000f, 0.700000000f, 1.000000000f } } }, 0, nullptr);
-	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-
-	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
-
-	auto passCB = mCurrFrameResource->PassCB->Resource();
-	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
-
-	// 인스턴싱 그리기 
-
-	mCommandList->SetPipelineState(mPSOs["instancingOpaque"].Get());
-
-	DrawInstancingRenderItems(mCommandList.Get(), mOpaqueRitems);
-	DrawInstancingRenderItems(mCommandList.Get(), mPlayerRitems);
-
-	// 인스턴싱 그리기 끝
-}
-
 void Game::DeferredDraw(const GameTimer & gt)
 {
 	auto startDeferredBufferView = CD3DX12_CPU_DESCRIPTOR_HANDLE(mRtvHeap->GetCPUDescriptorHandleForHeapStart(), 2, mRtvDescriptorSize);
@@ -385,7 +364,7 @@ void Game::DeferredDraw(const GameTimer & gt)
 	{
 		mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDeferredBuffer[i].Get(),
 			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
-		mCommandList->ClearRenderTargetView(deferredBufferView, XMVECTORF32{ { { 0.700000000f, 0.700000000f, 0.700000000f, 1.000000000f } } }, 0, nullptr);
+		mCommandList->ClearRenderTargetView(deferredBufferView, Colors::Black, 0, nullptr);
 		deferredBufferView.Offset(1, mRtvDescriptorSize);
 	}
 	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
@@ -408,13 +387,13 @@ void Game::DeferredDraw(const GameTimer & gt)
 	for (UINT i = 0; i < 3; i++)
 	{
 		mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDeferredBuffer[i].Get(),
-			D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_GENERIC_READ));
+			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
 	}
 	//리소스를 이용해서 최종 혼합색상 출력
-	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), XMVECTORF32{ { { 0.700000000f, 0.700000000f, 0.700000000f, 1.000000000f } } }, 0, nullptr);
-	
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::Black, 0, nullptr);
 	
 	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, nullptr);
 
@@ -1189,6 +1168,8 @@ void Game::BuildPSOs()
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&sDebugPsoDesc, IID_PPV_ARGS(&mPSOs["sDebug"])));
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC deferredPsoDesc = instancingPsoDesc;
+	deferredPsoDesc.RTVFormats[1] = mBackBufferFormat;
+	deferredPsoDesc.RTVFormats[2] = mBackBufferFormat;
 	deferredPsoDesc.NumRenderTargets = 3;
 	deferredPsoDesc.VS =
 	{
