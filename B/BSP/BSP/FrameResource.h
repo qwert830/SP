@@ -28,6 +28,8 @@ struct Vertex
 	XMFLOAT4 Pos;
 	XMFLOAT3 Normal;
 	XMFLOAT2 Tex;
+	XMFLOAT3 BoneWeights = XMFLOAT3(0,0,0);
+	BYTE BoneIndices[4] = {0,0,0,0};
 };
 
 struct PassConstants

@@ -17,27 +17,26 @@ static const float2 arrBasePos[4] = { float2(-1.0, 1.0), float2(1.0, 1.0), float
 
 struct InstanceData
 {
-    float4x4 World; 
-    float4x4 TexTransform;
-    uint MaterialIndex;
-    uint InstPad0;
-    uint InstPad1;
-    float4 UIPos;
-    float4 UIUVPos;
+    float4x4    World; 
+    float4x4    TexTransform;
+    uint        MaterialIndex;
+    uint        InstPad0;
+    uint        InstPad1;
+    float4      UIPos;
+    float4      UIUVPos;
 };
 
 struct MaterialConstants
 {
-    float4 DiffuseAlbedo;
-    float3 FresnelR0;
-    float Roughness;
-    float4x4 MatTransform;
-    uint DiffuseMapIndex;
-    uint MatPad0;
-    uint MatPad1;
-    uint MatPad2;
+    float4      DiffuseAlbedo;
+    float3      FresnelR0;
+    float       Roughness;
+    float4x4    MatTransform;
+    uint        DiffuseMapIndex;
+    uint        MatPad0;
+    uint        MatPad1;
+    uint        MatPad2;
 };
-
 
 StructuredBuffer<InstanceData> gInstanceData : register(t0, space1);
 StructuredBuffer<MaterialConstants> gMaterialData : register(t1, space1);
@@ -63,6 +62,12 @@ cbuffer cbPass : register(b0)
 
     Light gLights[MaxLights];
 };
+
+cbuffer cbSkinned : register(b1)
+{
+    float4x4 gBoneTransforms[96];
+};
+
 Texture2D gDiffuseMap[5] : register(t0);
 Texture2D gShadowMap : register(t5);
 Texture2D gDepthResource : register(t6);
@@ -81,6 +86,8 @@ struct VertexIn
     float4 PosL : POSITION;
     float3 NormalL : NORMAL;
     float2 TexC : TEXCOORD;
+    float3 BoneWeights : WEIGHTS;
+    uint4 BoneIndices : BONEINDICES;
 };
 
 struct VertexOut
@@ -251,6 +258,22 @@ float4 PS(VertexOut pin) : SV_Target
     return litColor;
 };
 
+PS_GBUFFER_OUT DrawPS(VertexOut pin)
+{
+    MaterialConstants matData = gMaterialData[0];
+    float4 diffuseAlbedo = matData.DiffuseAlbedo;
+    float3 fresnelR0 = matData.FresnelR0;
+    float roughness = matData.Roughness;
+    uint diffuseTexIndex = matData.DiffuseMapIndex;
+    diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamAnisotropicWrap, pin.TexC);
+    pin.NormalW = normalize(pin.NormalW);
+    const float shininess = 1.0f - roughness;
+
+    float4 pos = float4(pin.PosW, 0.0f);
+    
+    return PackGBuffer(diffuseAlbedo.xyz, pin.NormalW, fresnelR0.x, shininess, pos);
+};
+
 DeferredVSOut DVS(ShadowVertexIn vin, uint vertexID : SV_VertexID)
 {
     DeferredVSOut vout = (DeferredVSOut) 0.0f;
@@ -297,22 +320,6 @@ float4 DPS(DeferredVSOut pin) : SV_Target
 
     return litcolor;
 }
-
-PS_GBUFFER_OUT DrawPS(VertexOut pin)
-{
-    MaterialConstants matData = gMaterialData[0];
-    float4 diffuseAlbedo = matData.DiffuseAlbedo;
-    float3 fresnelR0 = matData.FresnelR0;
-    float roughness = matData.Roughness;
-    uint diffuseTexIndex = matData.DiffuseMapIndex;
-    diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamAnisotropicWrap, pin.TexC);
-    pin.NormalW = normalize(pin.NormalW);
-    const float shininess = 1.0f - roughness;
-
-    float4 pos = float4(pin.PosW, 0.0f);
-    
-    return PackGBuffer(diffuseAlbedo.xyz, pin.NormalW, fresnelR0.x, shininess, pos);
-};
 
 VertexOut UI_VS(VertexIn vin, uint instanceID : SV_InstanceID, uint vertexID : SV_VertexID)
 {

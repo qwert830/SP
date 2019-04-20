@@ -64,8 +64,6 @@ private:
     virtual void OnMouseUp(WPARAM btnState, int x, int y)override;
     virtual void OnMouseMove(WPARAM btnState, int x, int y)override;
 	
-
-	void AnimateMaterials(const GameTimer& gt);
 	void UpdateObjectCBs(const GameTimer& gt);
 	void UpdatePlayerData();
 	void UpdateInstanceData(const GameTimer& gt);
@@ -271,7 +269,6 @@ void Game::Update(const GameTimer& gt)
 	}
 
 	UpdateTime(gt);
-	AnimateMaterials(gt);
 	UpdateObjectCBs(gt);
 	UpdatePlayerData();
 	UpdateInstanceData(gt);
@@ -298,11 +295,11 @@ void Game::Draw(const GameTimer& gt)
 	auto matBuffer = mCurrFrameResource->MaterialCB->Resource();
 	mCommandList->SetGraphicsRootShaderResourceView(1, matBuffer->GetGPUVirtualAddress());
 
-	mCommandList->SetGraphicsRootDescriptorTable(3, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()); // 텍스쳐
+	mCommandList->SetGraphicsRootDescriptorTable(4, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()); // 텍스쳐
 
 	// 그림자
 
-	mCommandList->SetGraphicsRootDescriptorTable(4, mNullSrv); // 그림자
+	mCommandList->SetGraphicsRootDescriptorTable(5, mNullSrv); // 그림자
 
 	DrawSceneToShadowMap();
 
@@ -316,7 +313,7 @@ void Game::Draw(const GameTimer& gt)
 	// 그림자 리소스 연결
 	CD3DX12_GPU_DESCRIPTOR_HANDLE shadowTexDescriptor(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 	shadowTexDescriptor.Offset(mShadowMapHeapIndex, mCbvSrvUavDescriptorSize);
-	mCommandList->SetGraphicsRootDescriptorTable(4, shadowTexDescriptor);
+	mCommandList->SetGraphicsRootDescriptorTable(5, shadowTexDescriptor);
 
 	//BeforeDraw(gt);
 	DeferredDraw(gt);
@@ -423,9 +420,9 @@ void Game::DeferredDraw(const GameTimer & gt)
 
 	mCommandList->SetPipelineState(mPSOs["DeferredDraw"].Get());
 
-	mCommandList->SetGraphicsRootDescriptorTable(5, mDeferredNullSrv[0]);
+	mCommandList->SetGraphicsRootDescriptorTable(6, mDeferredNullSrv[0]);
 
-	mCommandList->SetGraphicsRootDescriptorTable(6, mDeferredNullSrv[1]);
+	mCommandList->SetGraphicsRootDescriptorTable(7, mDeferredNullSrv[1]);
 
 	DrawDeferredRenderItems(mCommandList.Get());
 }
@@ -456,11 +453,6 @@ void Game::OnMouseMove(WPARAM btnState, int x, int y)
 void Game::OnKeyboardInput(const GameTimer& gt)
 {
 	mPlayer.PlayerKeyBoardInput(gt);
-}
-
-void Game::AnimateMaterials(const GameTimer& gt)
-{
-
 }
 
 void Game::UpdateObjectCBs(const GameTimer& gt)
@@ -776,19 +768,20 @@ void Game::BuildInstancingRootSignature()
 	CD3DX12_DESCRIPTOR_RANGE deferredTable;
 	deferredTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 7, 0);
 
-	CD3DX12_ROOT_PARAMETER slotRootParameter[7];
+	CD3DX12_ROOT_PARAMETER slotRootParameter[8];
 
 	slotRootParameter[0].InitAsShaderResourceView(0, 1); // instancing
 	slotRootParameter[1].InitAsShaderResourceView(1, 1); // instancing
 	slotRootParameter[2].InitAsConstantBufferView(0); // cbpass
-	slotRootParameter[3].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
-	slotRootParameter[4].InitAsDescriptorTable(1, &shadowTable, D3D12_SHADER_VISIBILITY_PIXEL);
-	slotRootParameter[5].InitAsDescriptorTable(1, &deferredDepthTable, D3D12_SHADER_VISIBILITY_PIXEL);
-	slotRootParameter[6].InitAsDescriptorTable(1, &deferredTable, D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[3].InitAsConstantBufferView(1); // cbpass
+	slotRootParameter[4].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[5].InitAsDescriptorTable(1, &shadowTable, D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[6].InitAsDescriptorTable(1, &deferredDepthTable, D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[7].InitAsDescriptorTable(1, &deferredTable, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto staticSamplers = GetStaticSamplers();
 
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(7, slotRootParameter,
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(8, slotRootParameter,
 		(UINT)staticSamplers.size(), staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
@@ -915,7 +908,9 @@ void Game::BuildShadersAndInputLayout()
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 16, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "WEIGHTS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "BONEINDICES", 0, DXGI_FORMAT_R8G8B8A8_UINT, 0, 48, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
 }
 

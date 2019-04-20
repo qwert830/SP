@@ -440,14 +440,17 @@ bool D3DApp::InitMainWindow()
 		return false;
 	}
 
-	// Compute window rectangle dimensions based on requested client area dimensions.
 	RECT R = { 0, 0, mClientWidth, mClientHeight };
-    AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
+    AdjustWindowRect(&R, 
+		//WS_OVERLAPPEDWINDOW |
+		WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_POPUP | WS_EX_APPWINDOW
+		, false);
 	int width  = R.right - R.left;
 	int height = R.bottom - R.top;
 
 	mhMainWnd = CreateWindow(L"MainWnd", mMainWndCaption.c_str(), 
-		/*WS_OVERLAPPEDWINDOW*/ WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_POPUP | WS_EX_APPWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, 0, 0, mhAppInst, 0);
+		//WS_OVERLAPPEDWINDOW |
+		WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_POPUP | WS_EX_APPWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, 0, 0, mhAppInst, 0);
 	if( !mhMainWnd )
 	{
 		MessageBox(0, L"CreateWindow Failed.", 0, 0);
