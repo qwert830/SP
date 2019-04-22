@@ -105,7 +105,7 @@ protected:
 	int mCurrBackBuffer = 0;
     Microsoft::WRL::ComPtr<ID3D12Resource> mSwapChainBuffer[SwapChainBufferCount];
 	Microsoft::WRL::ComPtr<ID3D12Resource> mDeferredBuffer[3];
-    Microsoft::WRL::ComPtr<ID3D12Resource> mDepthStencilBuffer;
+    Microsoft::WRL::ComPtr<ID3D12Resource> mDepthStencilBuffer[2];
 
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mRtvHeap;
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mDsvHeap;

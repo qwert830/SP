@@ -19,6 +19,8 @@ class Player
 {
 private:
 
+	float k = 20;
+
 	char PlayerID = 0;
 	float sensitivity = 0.25f;
 
@@ -38,7 +40,9 @@ public:
 	~Player();
 
 	Camera mCamera;
-	WorldVecter mVector[9];
+	WorldVecter mVector[10];
+
+	DirectX::XMFLOAT3 offset;
 
 	void SelectPlayer(const char i);
 	void PlayerKeyBoardInput(const GameTimer& gt);

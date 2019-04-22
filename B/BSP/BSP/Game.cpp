@@ -145,7 +145,7 @@ private:
 	std::vector<RenderItem*> mDebugRitems;
 	std::vector<RenderItem*> mTransparentRitems;
 	std::vector<RenderItem*> mDeferredRitems;
-	std::vector<RenderItem*> mLightUiRitems;
+	std::vector<RenderItem*> mLightUIRitems;
 
 	UINT mShadowMapHeapIndex = 0;
 
@@ -321,8 +321,13 @@ void Game::Draw(const GameTimer& gt)
 
 	DeferredDraw(gt);
 
-	//mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-	//	D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	// gun draw start
+
+	//mCommandList->SetPipelineState(mPSOs["GunUI"].Get());
+
+	//DrawInstancingRenderItems(mCommandList.Get(), mLightUIRitems);
+
+	// gun draw end
 
 	// UI 그리기
 
@@ -338,7 +343,7 @@ void Game::Draw(const GameTimer& gt)
 	//DrawInstancingRenderItems(mCommandList.Get(), mDebugRitems);
 
 	// 디버그 끝
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer[0].Get(),
 		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
@@ -368,7 +373,13 @@ void Game::DeferredDraw(const GameTimer & gt)
 		mCommandList->ClearRenderTargetView(deferredBufferView, Colors::Black, 0, nullptr);
 		deferredBufferView.Offset(1, mRtvDescriptorSize);
 	}
-	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE h(mDsvHeap->GetCPUDescriptorHandleForHeapStart());
+	
+	for (int i = 0; i < 2; i++)
+	{
+		mCommandList->ClearDepthStencilView(h, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+		h.Offset(1, mDsvDescriptorSize);
+	}
 
 	mCommandList->OMSetRenderTargets(3, &startDeferredBufferView, true, &DepthStencilView());
 
@@ -380,8 +391,9 @@ void Game::DeferredDraw(const GameTimer & gt)
 
 	DrawInstancingRenderItems(mCommandList.Get(), mOpaqueRitems);
 	DrawInstancingRenderItems(mCommandList.Get(), mPlayerRitems);
+	DrawInstancingRenderItems(mCommandList.Get(), mLightUIRitems);
 
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer[0].Get(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
 
 	//인스턴싱으로 리소스 생성 끝
@@ -396,7 +408,7 @@ void Game::DeferredDraw(const GameTimer & gt)
 
 	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::Black, 0, nullptr);
 	
-	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, nullptr);
+	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &h);
 
 	mCommandList->SetPipelineState(mPSOs["DeferredDraw"].Get());
 
@@ -405,6 +417,7 @@ void Game::DeferredDraw(const GameTimer & gt)
 	mCommandList->SetGraphicsRootDescriptorTable(7, mDeferredNullSrv[1]);
 
 	DrawDeferredRenderItems(mCommandList.Get());
+
 }
 
 void Game::OnMouseDown(WPARAM btnState, int x, int y)
@@ -456,7 +469,7 @@ void Game::UpdateObjectCBs(const GameTimer& gt)
 	}
 }
 
-void Game::UpdatePlayerData()
+void Game::UpdatePlayerData() // 렌더러아이템에 월드행렬을 플레이어에 벡터들을 이용해서 수정함.
 {
 	int id = mPlayer.GetPlayerID();
 	if (id < 0)
@@ -468,6 +481,24 @@ void Game::UpdatePlayerData()
 		mPlayer.mVector[id].mLook.x,		mPlayer.mVector[id].mLook.y,		mPlayer.mVector[id].mLook.z,		0.0f,
 		mPlayer.mVector[id].mPosition.x,	mPlayer.mVector[id].mPosition.y,	mPlayer.mVector[id].mPosition.z,	1.0f
 	};
+
+	XMFLOAT4X4 gunMatrix =
+	{
+		mPlayer.mCamera.GetRight3f().x,		mPlayer.mCamera.GetRight3f().y,		mPlayer.mCamera.GetRight3f().z,		0.0f,
+		mPlayer.mCamera.GetUp3f().x,		mPlayer.mCamera.GetUp3f().y,		mPlayer.mCamera.GetUp3f().z,		0.0f,
+		mPlayer.mCamera.GetLook3f().x,		mPlayer.mCamera.GetLook3f().y,		mPlayer.mCamera.GetLook3f().z,		0.0f,
+		0.0f,								0.0f,								0.0f,								1.0f
+	};
+	XMFLOAT4 Offset = XMFLOAT4(mPlayer.offset.x, mPlayer.offset.y, mPlayer.offset.z, 1.0f);
+
+	XMStoreFloat4x4
+	(
+		&mLightUIRitems[0]->Instances[0].World,
+		XMMatrixScaling(0.05f, 0.05f, 0.05f)*
+		XMMatrixTranslation(Offset.x, 0, Offset.z)*
+		XMLoadFloat4x4(&gunMatrix)*
+		XMMatrixTranslation(mPlayer.mVector[id].mPosition.x, mPlayer.mVector[id].mPosition.y + Offset.y, mPlayer.mVector[id].mPosition.z)
+	);
 }
 
 void Game::UpdateInstanceData(const GameTimer & gt)
@@ -860,7 +891,7 @@ void Game::BuildDescriptorHeaps()
 	srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
 	nullSrv = CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, mDeferredMapHeapIndex, mCbvSrvUavDescriptorSize);
 	mDeferredNullSrv[0] = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, mDeferredMapHeapIndex, mCbvSrvUavDescriptorSize);
-	md3dDevice->CreateShaderResourceView(mDepthStencilBuffer.Get(), &srvDesc, nullSrv); // 깊이버퍼에 리소스뷰 생성
+	md3dDevice->CreateShaderResourceView(mDepthStencilBuffer[0].Get(), &srvDesc, nullSrv); // 깊이버퍼에 리소스뷰 생성
 
 	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	for (UINT i = 0; i < 3; ++i)
@@ -1147,8 +1178,8 @@ void Game::BuildPSOs()
 	
 	// 인스턴싱용 PSO 작성
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC instancingPsoDesc = opaquePsoDesc;
-
 	instancingPsoDesc.pRootSignature = mInstancingRootSignature.Get();
+
 	instancingPsoDesc.VS =
 	{
 		reinterpret_cast<BYTE*>(mShaders["instancingVS"]->GetBufferPointer()),
@@ -1522,26 +1553,26 @@ void Game::BuildRenderItems()
 	playerGunRitem->BaseVertexLocation = playerGunRitem->Geo->DrawArgs["playerGun"].BaseVertexLocation;
 
 	playerGunRitem->Instances.resize(1);
-	playerGunRitem->Instances[0].World = MathHelper::Identity4x4();
-	playerGunRitem->Instances[0].TexTransform = MathHelper::Identity4x4();
 	playerGunRitem->Instances[0].MaterialIndex = 6;
+	XMStoreFloat4x4(&playerGunRitem->Instances[0].World, XMMatrixScaling(0.1f, 0.1f, 0.1f));
+	XMStoreFloat4x4(&playerGunRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+
 	mInstanceCount.push_back((unsigned int)playerGunRitem->Instances.size());
 
-	mLightUiRitems.push_back(playerGunRitem.get());
+	mLightUIRitems.push_back(playerGunRitem.get());
 	mAllRitems.push_back(std::move(playerGunRitem));
 }
 
-void Game::BuildPlayerData()
+void Game::BuildPlayerData() // 생성된 렌더러 아이템에 좌표로 플레이어에 월드벡터에 정보를 갱신함.
 {
 	auto data = mPlayerRitems[0]->Instances;
 	for (int i = 0; i < data.size(); ++i)
 	{
-		mPlayer.mVector[i].mRight = { data[i].World._11,data[i].World._12,data[i].World._13 };
-		mPlayer.mVector[i].mUp = { data[i].World._21, data[i].World._22,data[i].World._23 };
-		mPlayer.mVector[i].mLook = { data[i].World._31,data[i].World._32,data[i].World._33 };
-		mPlayer.mVector[i].mPosition = { data[i].World._41,data[i].World._42,data[i].World._43 };
+		mPlayer.mVector[i].mRight		= { data[i].World._11, data[i].World._12, data[i].World._13 };
+		mPlayer.mVector[i].mUp			= { data[i].World._21, data[i].World._22, data[i].World._23 };
+		mPlayer.mVector[i].mLook		= { data[i].World._31, data[i].World._32, data[i].World._33 };
+		mPlayer.mVector[i].mPosition	= { data[i].World._41, data[i].World._42, data[i].World._43 };
 	}
-
 }
 
 void Game::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)

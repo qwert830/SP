@@ -291,8 +291,7 @@ DeferredVSOut DVS(ShadowVertexIn vin, uint vertexID : SV_VertexID)
 float4 DPS(DeferredVSOut pin) : SV_Target
 {  
     float depth = gDepthResource.Load(float3(pin.Pos.xy, 0)).x;
-    if (depth >= 1.0f)
-        discard;
+
     float lineardepth = ConvertDepthToLinear(depth);
     
     float4 temp = gBufferResource[0].Load(float3(pin.Pos.xy, 0)); // »ö»ó
@@ -310,13 +309,22 @@ float4 DPS(DeferredVSOut pin) : SV_Target
     shadowFactor[0] = CalcShadowFactor(mul(float4(position, 1.0f), gShadowTransform));
     
     float3 toEyeW = normalize(gEyePosW - position);
+    
+    float distToEye = length(gEyePosW - position);
 
     Material mat = { float4(color, 1.0f), fresnelR0, shininess };
     
     float4 directLight = ComputeLighting(gLights, mat, position,
        normal, toEyeW, shadowFactor);
 
-    float4 litcolor = ambient + directLight;
+    float fog = clamp((depth - 0.9f) * 2, 0, 1);
+    
+    float4 fogColor = float4(0.7f, 0.7f, 0.7f, 1.0f);
+
+
+    float4 litcolor = ambient + directLight - fog;
+
+    litcolor = lerp(litcolor, fogColor, saturate((distToEye - 5.0f) / 350.0f));
 
     return litcolor;
 }
@@ -380,9 +388,9 @@ float4 UI_PS(VertexOut pin) : SV_Target
 
     if (pin.MatIndex == 5)
     {
-        float varX = cos(gTotalTime);
+        float varX = cos(gTotalTime*2);
         
-        float varY = sin(gTotalTime);
+        float varY = sin(gTotalTime*2);
 
         float color = 0.0f;
         color = 1 - abs(varX - pin.TexC.x + varY - pin.TexC.y);

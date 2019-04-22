@@ -126,9 +126,9 @@ void D3DApp::CreateRtvAndDsvDescriptorHeaps()
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(
 		&rtvHeapDesc, IID_PPV_ARGS(mRtvHeap.GetAddressOf())));
 
-	// 그림자용 깊이버퍼 하나 추가됨.
+	// 그림자용 깊이버퍼 하나 추가됨. 디퍼드이후 그리기를위해 하나더 생성
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
-	dsvHeapDesc.NumDescriptors = 2;
+	dsvHeapDesc.NumDescriptors = 3;
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	dsvHeapDesc.NodeMask = 0;
@@ -150,7 +150,7 @@ void D3DApp::OnResize()
 	// Release the previous resources we will be recreating.
 	for (int i = 0; i < SwapChainBufferCount; ++i)
 		mSwapChainBuffer[i].Reset();
-    mDepthStencilBuffer.Reset();
+    mDepthStencilBuffer->Reset();
 	mDeferredBuffer->Reset();
 
     ThrowIfFailed(mSwapChain->ResizeBuffers(
@@ -218,15 +218,24 @@ void D3DApp::OnResize()
     optClear.Format = mDepthStencilFormat;
     optClear.DepthStencil.Depth = 1.0f;
     optClear.DepthStencil.Stencil = 0;
-    ThrowIfFailed(md3dDevice->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE,
-        &depthStencilDesc,
-		D3D12_RESOURCE_STATE_COMMON,
-        &optClear,
-        IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())));
+	CD3DX12_CPU_DESCRIPTOR_HANDLE h( mDsvHeap->GetCPUDescriptorHandleForHeapStart());
+	for (int i = 0; i < 2; i++)
+	{
+		ThrowIfFailed(md3dDevice->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&depthStencilDesc,
+			D3D12_RESOURCE_STATE_COMMON,
+			&optClear,
+			IID_PPV_ARGS(mDepthStencilBuffer[i].GetAddressOf())));
 
-    md3dDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr, DepthStencilView());
+		md3dDevice->CreateDepthStencilView(mDepthStencilBuffer[i].Get(), nullptr, h);
+		
+		mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer[i].Get(),
+			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+
+		h.Offset(1, mDsvDescriptorSize);
+	}
 
 	D3D12_TEX2D_RTV trtv;
 	trtv.MipSlice = 0;
@@ -243,10 +252,6 @@ void D3DApp::OnResize()
 		rtvHeapHandle.Offset(1, mRtvDescriptorSize);
 	}
 
-    // Transition the resource from its initial state to be used as a depth buffer.
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
-		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
-	
     // Execute the resize commands.
     ThrowIfFailed(mCommandList->Close());
     ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
