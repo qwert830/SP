@@ -68,10 +68,10 @@ cbuffer cbSkinned : register(b1)
     float4x4 gBoneTransforms[96];
 };
 
-Texture2D gDiffuseMap[5] : register(t0);
-Texture2D gShadowMap : register(t5);
-Texture2D gDepthResource : register(t6);
-Texture2D gBufferResource[3] : register(t7);
+Texture2D gDiffuseMap[7] : register(t0);
+Texture2D gShadowMap : register(t7);
+Texture2D gDepthResource : register(t8);
+Texture2D gBufferResource[3] : register(t9);
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
@@ -369,14 +369,25 @@ float4 UI_PS(VertexOut pin) : SV_Target
     float3 fresnelR0 = matData.FresnelR0;
     float roughness = matData.Roughness;
     uint diffuseTexIndex = matData.DiffuseMapIndex;
-	
-    diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamLinearWrap, pin.TexC);
+
+    diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamLinearWrap, pin.TexC) ;
 
     if (diffuseAlbedo.a < 0.00001)
         discard;
     if (pin.MatIndex == 2)
     if (superheat / 100.0f > pin.TexC.x)
         return float4(1.0f, 0.0f, 0.0f, 0.0f);
+
+    if (pin.MatIndex == 5)
+    {
+        float varX = cos(gTotalTime);
+        
+        float varY = sin(gTotalTime);
+
+        float color = 0.0f;
+        color = 1 - abs(varX - pin.TexC.x + varY - pin.TexC.y);
+        return float4(diffuseAlbedo.r * 0.8, color, color, 1.0f);
+    }
 
     return diffuseAlbedo;
 };
