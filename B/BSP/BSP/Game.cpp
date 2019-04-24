@@ -11,11 +11,15 @@
 
 #include <crtdbg.h>
 
-#ifdef _DEBUG
-#define new new( _CLIENT_BLOCK, __FILE__, __LINE__ )
-#endif
+enum SCENENAME
+{
+	GAME
+};
 
-
+enum RENDERITEM
+{
+	UI, OPAQUEITEM, PLAYER, DEBUG, TRANSPARENTITEM, DEFERRED, PLAYERGUN
+};
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -139,13 +143,8 @@ private:
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
 
 	// Render items divided by PSO.
-	std::vector<RenderItem*> mUIRitems;
-	std::vector<RenderItem*> mOpaqueRitems;
-	std::vector<RenderItem*> mPlayerRitems;
-	std::vector<RenderItem*> mDebugRitems;
-	std::vector<RenderItem*> mTransparentRitems;
-	std::vector<RenderItem*> mDeferredRitems;
-	std::vector<RenderItem*> mLightUIRitems;
+
+	std::unordered_map<int, std::vector<RenderItem*>> gameRenderItem;
 
 	UINT mShadowMapHeapIndex = 0;
 
@@ -325,7 +324,7 @@ void Game::Draw(const GameTimer& gt)
 
 	//mCommandList->SetPipelineState(mPSOs["GunUI"].Get());
 
-	//DrawInstancingRenderItems(mCommandList.Get(), mLightUIRitems);
+	//DrawInstancingRenderItems(mCommandList.Get(), PLAYERGUN);
 
 	// gun draw end
 
@@ -333,14 +332,14 @@ void Game::Draw(const GameTimer& gt)
 
 	mCommandList->SetPipelineState(mPSOs["UI"].Get());
 
-	DrawInstancingRenderItems(mCommandList.Get(), mUIRitems);
+	DrawInstancingRenderItems(mCommandList.Get(),  gameRenderItem[UI]);
 
 	// UI 그리기 끝
 
 	// 디버그
 
 	//mCommandList->SetPipelineState(mPSOs["sDebug"].Get());
-	//DrawInstancingRenderItems(mCommandList.Get(), mDebugRitems);
+	//DrawInstancingRenderItems(mCommandList.Get(), DEBUG);
 
 	// 디버그 끝
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer[0].Get(),
@@ -373,15 +372,11 @@ void Game::DeferredDraw(const GameTimer & gt)
 		mCommandList->ClearRenderTargetView(deferredBufferView, Colors::Black, 0, nullptr);
 		deferredBufferView.Offset(1, mRtvDescriptorSize);
 	}
-	CD3DX12_CPU_DESCRIPTOR_HANDLE h(mDsvHeap->GetCPUDescriptorHandleForHeapStart());
-	
-	for (int i = 0; i < 2; i++)
-	{
-		mCommandList->ClearDepthStencilView(h, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-		h.Offset(1, mDsvDescriptorSize);
-	}
+	CD3DX12_CPU_DESCRIPTOR_HANDLE h(DepthStencilView());
 
-	mCommandList->OMSetRenderTargets(3, &startDeferredBufferView, true, &DepthStencilView());
+	mCommandList->ClearDepthStencilView(h, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+	mCommandList->OMSetRenderTargets(3, &startDeferredBufferView, true, &h);
 
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
@@ -389,9 +384,9 @@ void Game::DeferredDraw(const GameTimer & gt)
 	//인스턴싱으로 리소스 생성 : ui / 반투명은 따로 그리기
 	mCommandList->SetPipelineState(mPSOs["DeferredResource"].Get()); // 파이프라인 설정
 
-	DrawInstancingRenderItems(mCommandList.Get(), mOpaqueRitems);
-	DrawInstancingRenderItems(mCommandList.Get(), mPlayerRitems);
-	DrawInstancingRenderItems(mCommandList.Get(), mLightUIRitems);
+	DrawInstancingRenderItems(mCommandList.Get(), gameRenderItem[OPAQUEITEM]);
+	DrawInstancingRenderItems(mCommandList.Get(), gameRenderItem[PLAYER]);
+	DrawInstancingRenderItems(mCommandList.Get(), gameRenderItem[PLAYERGUN]);
 
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer[0].Get(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
@@ -408,7 +403,7 @@ void Game::DeferredDraw(const GameTimer & gt)
 
 	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::Black, 0, nullptr);
 	
-	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &h);
+	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, nullptr);
 
 	mCommandList->SetPipelineState(mPSOs["DeferredDraw"].Get());
 
@@ -474,7 +469,7 @@ void Game::UpdatePlayerData() // 렌더러아이템에 월드행렬을 플레이어에 벡터들을 �
 	int id = mPlayer.GetPlayerID();
 	if (id < 0)
 		return;
-	mPlayerRitems[0]->Instances[id].World = XMFLOAT4X4
+	gameRenderItem[PLAYER][0]->Instances[id].World = XMFLOAT4X4
 	{
 		mPlayer.mVector[id].mRight.x,		mPlayer.mVector[id].mRight.y,		mPlayer.mVector[id].mRight.z,		0.0f,
 		mPlayer.mVector[id].mUp.x,			mPlayer.mVector[id].mUp.y,			mPlayer.mVector[id].mUp.z,			0.0f,
@@ -493,7 +488,7 @@ void Game::UpdatePlayerData() // 렌더러아이템에 월드행렬을 플레이어에 벡터들을 �
 
 	XMStoreFloat4x4
 	(
-		&mLightUIRitems[0]->Instances[0].World,
+		&gameRenderItem[PLAYERGUN][0]->Instances[0].World,
 		XMMatrixScaling(0.05f, 0.05f, 0.05f)*
 		XMMatrixTranslation(Offset.x, 0, Offset.z)*
 		XMLoadFloat4x4(&gunMatrix)*
@@ -676,19 +671,19 @@ void Game::UpdateTime(const GameTimer & gt)
 	UVPos uv;
 	_itoa_s(tempTime / 60 / 10, id, _countof(id), 10);
 	uv = (mFontManager.GetUV(id[0]));
-	mUIRitems[0]->Instances[5].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+	gameRenderItem[UI][0]->Instances[5].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 	
 	_itoa_s(tempTime / 60 % 10, id, _countof(id), 10);
 	uv = (mFontManager.GetUV(id[0]));
-	mUIRitems[0]->Instances[6].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+	gameRenderItem[UI][0]->Instances[6].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 	
 	_itoa_s(tempTime % 60 / 10, id, _countof(id), 10);
 	uv = (mFontManager.GetUV(id[0]));
-	mUIRitems[0]->Instances[8].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+	gameRenderItem[UI][0]->Instances[8].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 	
 	_itoa_s(tempTime % 60 % 10 , id, _countof(id), 10);
 	uv = (mFontManager.GetUV(id[0]));
-	mUIRitems[0]->Instances[9].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+	gameRenderItem[UI][0]->Instances[9].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 }
 
 void Game::LoadTextures()
@@ -1456,9 +1451,9 @@ void Game::BuildRenderItems()
 	UIRitem->BaseVertexLocation = UIRitem->Geo->DrawArgs["uiGrid"].BaseVertexLocation;
 
 	UIRitem->Instances.resize(11);
-	UIRitem->Instances[0].UIPos = XMFLOAT4(0.5f,-0.5f,1.0f,-1.0f);
+	UIRitem->Instances[0].UIPos = XMFLOAT4(0.48f,-0.75f,0.98f,-1.25f);
 	UIRitem->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
-	XMStoreFloat4x4(&UIRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 0.8f, 1.0f));
+	XMStoreFloat4x4(&UIRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	UIRitem->Instances[0].MaterialIndex = 2;
 
 	UVPos uv;
@@ -1493,13 +1488,13 @@ void Game::BuildRenderItems()
 	mInstanceCount.push_back((unsigned int)UIRitem->Instances.size());
 
 	for (auto& e : mAllRitems)
-		mOpaqueRitems.push_back(e.get());
+		gameRenderItem[OPAQUEITEM].push_back(e.get());
 
 	mAllRitems.push_back(std::move(PlayerRitem));
-	mPlayerRitems.push_back(mAllRitems[mAllRitems.size() - 1].get());
+	gameRenderItem[PLAYER].push_back(mAllRitems[mAllRitems.size() - 1].get());
 
 	mAllRitems.push_back(std::move(UIRitem));
-	mUIRitems.push_back(mAllRitems[mAllRitems.size() - 1].get());
+	gameRenderItem[UI].push_back(mAllRitems[mAllRitems.size() - 1].get());
 
 	auto quadRitem = std::make_unique<RenderItem>();
 	quadRitem->World = MathHelper::Identity4x4();
@@ -1518,7 +1513,7 @@ void Game::BuildRenderItems()
 	quadRitem->Instances[0].MaterialIndex = 0;
 	mInstanceCount.push_back((unsigned int)quadRitem->Instances.size());
 
-	mDebugRitems.push_back(quadRitem.get());
+	gameRenderItem[DEBUG].push_back(quadRitem.get());
 	mAllRitems.push_back(std::move(quadRitem));
 
 	auto deferredRitem = std::make_unique <RenderItem>();
@@ -1538,7 +1533,7 @@ void Game::BuildRenderItems()
 	deferredRitem->Instances[0].MaterialIndex = 0;
 	mInstanceCount.push_back((unsigned int)deferredRitem->Instances.size());
 
-	mDeferredRitems.push_back(deferredRitem.get());
+	gameRenderItem[DEFERRED].push_back(deferredRitem.get());
 	mAllRitems.push_back(std::move(deferredRitem));
 
 	auto playerGunRitem = std::make_unique <RenderItem>();
@@ -1559,13 +1554,13 @@ void Game::BuildRenderItems()
 
 	mInstanceCount.push_back((unsigned int)playerGunRitem->Instances.size());
 
-	mLightUIRitems.push_back(playerGunRitem.get());
+	gameRenderItem[PLAYERGUN].push_back(playerGunRitem.get());
 	mAllRitems.push_back(std::move(playerGunRitem));
 }
 
 void Game::BuildPlayerData() // 생성된 렌더러 아이템에 좌표로 플레이어에 월드벡터에 정보를 갱신함.
 {
-	auto data = mPlayerRitems[0]->Instances;
+	auto data = gameRenderItem[PLAYER][0]->Instances;
 	for (int i = 0; i < data.size(); ++i)
 	{
 		mPlayer.mVector[i].mRight		= { data[i].World._11, data[i].World._12, data[i].World._13 };
@@ -1624,14 +1619,14 @@ void Game::DrawInstancingRenderItems(ID3D12GraphicsCommandList * cmdList, const 
 
 void Game::DrawDeferredRenderItems(ID3D12GraphicsCommandList * cmdList)
 {
-	cmdList->IASetVertexBuffers(0, 1, &mDeferredRitems[0]->Geo->VertexBufferView());
-	cmdList->IASetIndexBuffer(&mDeferredRitems[0]->Geo->IndexBufferView());
-	cmdList->IASetPrimitiveTopology(mDeferredRitems[0]->PrimitiveType);
+	cmdList->IASetVertexBuffers(0, 1, &gameRenderItem[DEFERRED][0]->Geo->VertexBufferView());
+	cmdList->IASetIndexBuffer(&gameRenderItem[DEFERRED][0]->Geo->IndexBufferView());
+	cmdList->IASetPrimitiveTopology(gameRenderItem[DEFERRED][0]->PrimitiveType);
 
-	auto instanceBuffer = mCurrFrameResource->InstanceBufferVector[mDeferredRitems[0]->ObjCBIndex]->Resource();
+	auto instanceBuffer = mCurrFrameResource->InstanceBufferVector[gameRenderItem[DEFERRED][0]->ObjCBIndex]->Resource();
 	mCommandList->SetGraphicsRootShaderResourceView(0, instanceBuffer->GetGPUVirtualAddress());
 
-	cmdList->DrawIndexedInstanced(mDeferredRitems[0]->IndexCount, mDeferredRitems[0]->InstanceCount, mDeferredRitems[0]->StartIndexLocation, mDeferredRitems[0]->BaseVertexLocation, 0);
+	cmdList->DrawIndexedInstanced(gameRenderItem[DEFERRED][0]->IndexCount, gameRenderItem[DEFERRED][0]->InstanceCount, gameRenderItem[DEFERRED][0]->StartIndexLocation, gameRenderItem[DEFERRED][0]->BaseVertexLocation, 0);
 }
 
 void Game::DrawSceneToShadowMap()
@@ -1657,8 +1652,8 @@ void Game::DrawSceneToShadowMap()
 
 	mCommandList->SetPipelineState(mPSOs["shadow"].Get());
 
-	DrawInstancingRenderItems(mCommandList.Get(), mOpaqueRitems);
-	DrawInstancingRenderItems(mCommandList.Get(), mPlayerRitems);
+	DrawInstancingRenderItems(mCommandList.Get(), gameRenderItem[OPAQUEITEM]);
+	DrawInstancingRenderItems(mCommandList.Get(), gameRenderItem[PLAYER]);
 
 	// Change back to GENERIC_READ so we can read the texture in a shader.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),

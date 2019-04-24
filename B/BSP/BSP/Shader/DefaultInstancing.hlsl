@@ -271,6 +271,9 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
 
     float4 pos = float4(pin.PosW, 0.0f);
     
+    if(pin.MatIndex == 6)
+        diffuseAlbedo.x += superheat / 100.0f;
+
     return PackGBuffer(diffuseAlbedo.xyz, pin.NormalW, fresnelR0.x, shininess, pos);
 };
 
