@@ -1,4 +1,5 @@
 #pragma once
+#include "NetworkModule.h"
 
 #if defined(DEBUG) || defined(_DEBUG)
 #define _CRTDBG_MAP_ALLOC
@@ -11,6 +12,8 @@
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
+
+
 
 class D3DApp
 {

@@ -1,9 +1,11 @@
 #include "d3dApp.h"
-#include <WindowsX.h>
 
 using Microsoft::WRL::ComPtr;
 using namespace std;
 using namespace DirectX;
+
+
+NetworkModule gNetwork;
 
 LRESULT CALLBACK
 MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -301,6 +303,9 @@ LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	// WM_ACTIVATE is sent when the window is activated or deactivated.  
 	// We pause the game when the window is deactivated and unpause it 
 	// when it becomes active.  
+	case WM_CREATE:
+		gNetwork.init(hwnd);
+		return 0;
 	case WM_ACTIVATE:
 		if( LOWORD(wParam) == WA_INACTIVE )
 		{
@@ -407,15 +412,15 @@ LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_LBUTTONDOWN:
 	case WM_MBUTTONDOWN:
 	case WM_RBUTTONDOWN:
-		OnMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		OnMouseDown(wParam, (int)(short)LOWORD(lParam), (int)(short)HIWORD(lParam));
 		return 0;
 	case WM_LBUTTONUP:
 	case WM_MBUTTONUP:
 	case WM_RBUTTONUP:
-		OnMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		OnMouseUp(wParam, (int)(short)LOWORD(lParam), (int)(short)HIWORD(lParam));
 		return 0;
 	case WM_MOUSEMOVE:
-		OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		OnMouseMove(wParam, (int)(short)LOWORD(lParam), (int)(short)HIWORD(lParam));
 		return 0;
     case WM_KEYUP:
         if(wParam == VK_ESCAPE)
@@ -424,8 +429,21 @@ LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         else if((int)wParam == VK_F2)
             Set4xMsaaState(!m4xMsaaState);
-
         return 0;
+	case WM_SOCKET:
+		if (WSAGETSELECTERROR(lParam)) {
+			closesocket((SOCKET)wParam);
+			return 0;
+		}
+		switch (WSAGETSELECTEVENT(lParam)) {
+		case FD_READ:
+			gNetwork.ReadPacket((SOCKET)wParam);
+			return 0;
+		case FD_CLOSE:
+			closesocket((SOCKET)wParam);
+			return 0;
+		}
+		return 0;
 	}
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);

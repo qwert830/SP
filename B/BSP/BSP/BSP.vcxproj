@@ -105,7 +105,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>false</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
@@ -163,6 +163,7 @@
     <ClInclude Include="GeometryGenerator.h" />
     <ClInclude Include="MathHelper.h" />
     <ClInclude Include="ModelManager.h" />
+    <ClInclude Include="NetworkModule.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="ShadowMap.h" />
     <ClInclude Include="UploadBuffer.h" />
@@ -184,6 +185,7 @@
     <ClCompile Include="GeometryGenerator.cpp" />
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="ModelManager.cpp" />
+    <ClCompile Include="NetworkModule.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="ShadowMap.cpp" />
   </ItemGroup>
