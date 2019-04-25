@@ -1168,7 +1168,7 @@ void Game::BuildPSOs()
 	opaquePsoDesc.RTVFormats[0] = mBackBufferFormat;
 	opaquePsoDesc.SampleDesc.Count = m4xMsaaState ? 4 : 1;
 	opaquePsoDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
-	opaquePsoDesc.DSVFormat = mDepthStencilFormat;
+	opaquePsoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
 	
 	// 인스턴싱용 PSO 작성
