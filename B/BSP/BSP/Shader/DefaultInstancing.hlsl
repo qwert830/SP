@@ -83,20 +83,20 @@ SamplerComparisonState gsamShadow : register(s6);
 
 struct VertexIn
 {
-    float4 PosL : POSITION;
-    float3 NormalL : NORMAL;
-    float2 TexC : TEXCOORD;
-    float3 BoneWeights : WEIGHTS;
-    uint4 BoneIndices : BONEINDICES;
+    float4 PosL         : POSITION;
+    float3 NormalL      : NORMAL;
+    float2 TexC         : TEXCOORD;
+    float3 BoneWeights  : WEIGHTS;
+    uint4 BoneIndices   : BONEINDICES;
 };
 
 struct VertexOut
 {
-    float4 PosH : SV_POSITION;
-    float4 ShadowPosH : POSITION0;
-    float3 PosW : POSITION1;
-    float3 NormalW : NORMAL;
-    float2 TexC : TEXCOORD;
+    float4 PosH         : SV_POSITION;
+    float4 ShadowPosH   : POSITION0;
+    float3 PosW         : POSITION1;
+    float3 NormalW      : NORMAL;
+    float2 TexC         : TEXCOORD;
 
     nointerpolation uint MatIndex : MATINDEX;
 };
@@ -117,16 +117,16 @@ struct ShadowVertexOut
 
 struct DeferredVSOut
 {
-    float4 Pos : SV_POSITION;
-    float2 UV : TEXCOORD;
-    float4 ViewRay : POSITION0;
+    float4 Pos           : SV_POSITION;
+    float2 UV            : TEXCOORD;
+    float4 ViewRay       : POSITION0;
 };
 
 struct PS_GBUFFER_OUT
 {
-    float4 ColorSpecInt : SV_TARGET0;
-    float4 Normal : SV_TARGET1;
-    float4 Position : SV_TARGET2;
+    float4 ColorSpecInt  : SV_TARGET0;
+    float4 Normal        : SV_TARGET1;
+    float4 Position      : SV_TARGET2;
 };
 
 struct SURFACE_DATA
@@ -136,6 +136,27 @@ struct SURFACE_DATA
     float4 Normal;
     float SpecInt;
     float SpecPow;
+};
+
+struct billboardVertexIn
+{
+    float3 PosW     : POSITION;
+    float2 SizeW    : SIZE;
+};
+
+struct billboardVertexOut
+{
+    float3 CenterW  : POSITION;
+    float2 SizeW    : SIZE;
+};
+
+struct GeoOut
+{
+    float4 PosH     : SV_POSITION;
+    float3 PosW     : POSITION;
+    float3 NormalW  : NORMAL;
+    float2 TexC     : TEXCOORD;
+    uint PrimID     : SV_PrimitiveID;
 };
 
 float ConvertDepthToLinear(float depth)
@@ -381,19 +402,24 @@ float4 UI_PS(VertexOut pin) : SV_Target
     float roughness = matData.Roughness;
     uint diffuseTexIndex = matData.DiffuseMapIndex;
 
-    diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamLinearWrap, pin.TexC) ;
+    diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamLinearWrap, pin.TexC);
 
     if (diffuseAlbedo.a < 0.00001)
         discard;
     if (pin.MatIndex == 2)
-    if (superheat / 100.0f > pin.TexC.x)
-        return float4(1.0f, 0.0f, 0.0f, 0.0f);
-
+    {
+        float test = superheat / 100.0f - pin.TexC.x;
+        float color = clamp(1 - test*2, 0, 1);
+        if (test>0)
+            return float4(color, 0.0f, 0.0f, 1.0f);
+        else
+            return float4(0.0f, 0.0, pin.TexC.x, 1.0f);
+    }
     if (pin.MatIndex == 5)
     {
-        float varX = cos(gTotalTime*2);
+        float varX = cos(gTotalTime * 2);
         
-        float varY = sin(gTotalTime*2);
+        float varY = sin(gTotalTime * 2);
 
         float color = 0.0f;
         color = 1 - abs(varX - pin.TexC.x + varY - pin.TexC.y);

@@ -39,7 +39,7 @@ bool FontManager::InitFont()
 			if (arr == "=")
 			{
 				f.getline(temp, 100, ' ');
-				id[i] = atoi(temp);
+				id[i] = (char)atoi(temp);
 			}
 		}
 		else if (arr == "x")
@@ -48,7 +48,7 @@ bool FontManager::InitFont()
 			if (arr == "=")
 			{
 				f.getline(temp, 100, ' ');
-				x[i] = atoi(temp);
+				x[i] = (float)atoi(temp);
 			}
 		}
 		else if (arr == "y")
@@ -57,7 +57,7 @@ bool FontManager::InitFont()
 			if (arr == "=")
 			{
 				f.getline(temp, 100, ' ');
-				y[i] = atoi(temp);
+				y[i] = (float)atoi(temp);
 			}
 		}
 		else if (arr == "h")
@@ -66,7 +66,7 @@ bool FontManager::InitFont()
 			if (arr == "=")
 			{
 				f.getline(temp, 100, ' ');
-				width[i] = atoi(temp);
+				width[i] = (float)atoi(temp);
 			}
 			else if (arr == "t")
 			{
@@ -74,7 +74,7 @@ bool FontManager::InitFont()
 				if (arr == "=")
 				{
 					f.getline(temp, 100, ' ');
-					height[i] = atoi(temp);
+					height[i] = (float)atoi(temp);
 					uvInfo[id[i]] = UVPos{ x[i] / 512.0f,y[i] / 512.0f ,width[i] / 512.0f ,height[i] / 512.0f };
 					i++;
 				}

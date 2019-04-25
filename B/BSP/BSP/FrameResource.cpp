@@ -11,7 +11,7 @@ FrameResource::FrameResource(ID3D12Device* device, UINT passCount, UINT objectCo
 	MaterialCB = std::make_unique<UploadBuffer<MaterialConstants>>(device, materialCount, true);
 	ObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(device, objectCount, true);
 
-	for (int i = 0; i < objectCount; ++i)
+	for (UINT i = 0; i < objectCount; ++i)
 	{
 		InstanceBufferVector.push_back(std::make_unique<UploadBuffer<InstanceData>>(device, instanceCount[i], false));
 	}

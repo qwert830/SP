@@ -197,7 +197,7 @@ void D3DApp::OnResize()
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE,
 			&rtDesc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
+			D3D12_RESOURCE_STATE_COMMON,
 			&rtvClear,
 			IID_PPV_ARGS(mDeferredBuffer[i].GetAddressOf())));
 	}

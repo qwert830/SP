@@ -138,7 +138,7 @@ private:
 	std::vector<unsigned int> mInstanceCount;
 
     std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
-
+	std::vector<D3D12_INPUT_ELEMENT_DESC> mBillboardsInputLayout;
 	// List of all the render items.
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
 
@@ -368,7 +368,7 @@ void Game::DeferredDraw(const GameTimer & gt)
 	for (UINT i = 0; i < 3; i++)
 	{
 		mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDeferredBuffer[i].Get(),
-			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
+			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
 		mCommandList->ClearRenderTargetView(deferredBufferView, Colors::Black, 0, nullptr);
 		deferredBufferView.Offset(1, mRtvDescriptorSize);
 	}
@@ -412,6 +412,12 @@ void Game::DeferredDraw(const GameTimer & gt)
 	mCommandList->SetGraphicsRootDescriptorTable(7, mDeferredNullSrv[1]);
 
 	DrawDeferredRenderItems(mCommandList.Get());
+
+	for (UINT i = 0; i < 3; i++)
+	{
+		mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDeferredBuffer[i].Get(),
+			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COMMON));
+	}
 
 }
 
@@ -934,6 +940,12 @@ void Game::BuildShadersAndInputLayout()
 		{ "WEIGHTS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "BONEINDICES", 0, DXGI_FORMAT_R8G8B8A8_UINT, 0, 48, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
+
+	mBillboardsInputLayout =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "SIZE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
 }
 
 //메쉬 데이터 생성
