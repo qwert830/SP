@@ -18,7 +18,7 @@ enum SCENENAME
 
 enum RENDERITEM
 {
-	UI, OPAQUEITEM, PLAYER, DEBUG, TRANSPARENTITEM, DEFERRED, PLAYERGUN
+	UI, OPAQUEITEM, PLAYER, DEBUG, TRANSPARENTITEM, DEFERRED, PLAYERGUN, BILLBOARDITEM
 };
 
 using Microsoft::WRL::ComPtr;
@@ -388,6 +388,9 @@ void Game::DeferredDraw(const GameTimer & gt)
 	DrawInstancingRenderItems(mCommandList.Get(), gameRenderItem[PLAYER]);
 	DrawInstancingRenderItems(mCommandList.Get(), gameRenderItem[PLAYERGUN]);
 
+	mCommandList->SetPipelineState(mPSOs["DeferredTransparentResource"].Get());
+	DrawInstancingRenderItems(mCommandList.Get(), gameRenderItem[BILLBOARDITEM]);
+
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer[0].Get(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
 
@@ -500,6 +503,17 @@ void Game::UpdatePlayerData() // 렌더러아이템에 월드행렬을 플레이어에 벡터들을 �
 		XMLoadFloat4x4(&gunMatrix)*
 		XMMatrixTranslation(mPlayer.mVector[id].mPosition.x, mPlayer.mVector[id].mPosition.y + Offset.y, mPlayer.mVector[id].mPosition.z)
 	);
+
+	XMStoreFloat4x4
+	(
+		&gameRenderItem[BILLBOARDITEM][0]->Instances[id].World,
+		XMMatrixScaling(2.5f, 2.5f, 1.0f)*
+		XMMatrixTranslation(Offset.x, 0, Offset.z+5.5f)*
+		XMLoadFloat4x4(&gunMatrix)*
+		XMMatrixTranslation(mPlayer.mVector[id].mPosition.x, mPlayer.mVector[id].mPosition.y + Offset.y + 0.5f, mPlayer.mVector[id].mPosition.z)
+	);
+
+	gameRenderItem[BILLBOARDITEM][0]->Instances[id].IsDraw = mPlayer.IsAttack();
 }
 
 void Game::UpdateInstanceData(const GameTimer & gt)
@@ -525,6 +539,7 @@ void Game::UpdateInstanceData(const GameTimer & gt)
 				d.MaterialIndex = data[i].MaterialIndex;
 				d.UIPos = data[i].UIPos;
 				d.UIUVPos = data[i].UIUVPos;
+				d.IsDraw = data[i].IsDraw;
 
 				currInstanceBuffer->CopyData(drawCount++, d);
 			}
@@ -702,7 +717,8 @@ void Game::LoadTextures()
 		"playerCharTex",
 		"font",
 		"aimPoint",
-		"playerGunTex"
+		"playerGunTex",
+		"playerShotTex"
 	};
 
 	std::vector<std::wstring> fileNames =
@@ -713,7 +729,8 @@ void Game::LoadTextures()
 		L"Resource/PlayerChar.dds",
 		L"Resource/font.dds",
 		L"Resource/AimPoint.dds",
-		L"Resource/PlayerGun.dds"
+		L"Resource/PlayerGun.dds",
+		L"Resource/PlayerShot.dds"
 	};
 
 	for (int i = 0; i < texNames.size(); ++i)
@@ -773,7 +790,7 @@ void Game::BuildInstancingRootSignature()
 	// 디스크립터 바꿀댄 셰이더 코드를 꼭 바꾸자 젭라..
 	int num = 0;
 
-	int tex = 7;
+	int tex = 8;
 	CD3DX12_DESCRIPTOR_RANGE texTable;
 	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, tex, num, 0);
 	num += tex;
@@ -834,7 +851,7 @@ void Game::BuildDescriptorHeaps()
 	//디스크립터 힙에 쉐이더 리소스 뷰를 하나씩 탑재
 
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 12;
+	srvHeapDesc.NumDescriptors = 13;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -850,6 +867,7 @@ void Game::BuildDescriptorHeaps()
 		mTextures["font"]->Resource,
 		mTextures["aimPoint"]->Resource,
 		mTextures["playerGunTex"]->Resource,
+		mTextures["playerShotTex"]->Resource
 	};
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -1260,6 +1278,21 @@ void Game::BuildPSOs()
 	};
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&deferredPsoDesc, IID_PPV_ARGS(&mPSOs["DeferredResource"])));
 
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC deferredTransparentPsoDesc = deferredPsoDesc;
+	D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
+	transparencyBlendDesc.BlendEnable = true;
+	transparencyBlendDesc.LogicOpEnable = false;
+	transparencyBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	transparencyBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	transparencyBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+	transparencyBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+	transparencyBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
+	transparencyBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	deferredTransparentPsoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&deferredPsoDesc, IID_PPV_ARGS(&mPSOs["DeferredTransparentResource"])));
+
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC deferredRenderPsoDesc = instancingPsoDesc;
 	deferredRenderPsoDesc.DepthStencilState.DepthEnable = false;
 	deferredRenderPsoDesc.VS =
@@ -1568,6 +1601,30 @@ void Game::BuildRenderItems()
 
 	gameRenderItem[PLAYERGUN].push_back(playerGunRitem.get());
 	mAllRitems.push_back(std::move(playerGunRitem));
+
+	auto playerShotRitem = std::make_unique <RenderItem>();
+	playerShotRitem->World = MathHelper::Identity4x4();
+	playerShotRitem->TexTransform = MathHelper::Identity4x4();
+	playerShotRitem->ObjCBIndex = 8;
+	playerShotRitem->Mat = mMaterials["seafloor0"].get();
+	playerShotRitem->Geo = mGeometries["shapeGeo"].get();
+	playerShotRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	playerShotRitem->IndexCount = playerShotRitem->Geo->DrawArgs["quad"].IndexCount;
+	playerShotRitem->StartIndexLocation = playerShotRitem->Geo->DrawArgs["quad"].StartIndexLocation;
+	playerShotRitem->BaseVertexLocation = playerShotRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
+
+	playerShotRitem->Instances.resize(10);
+	for (int i = 0; i < 10; ++i)
+	{
+		playerShotRitem->Instances[i].MaterialIndex = 7;
+		XMStoreFloat4x4(&playerShotRitem->Instances[i].TexTransform, XMMatrixScaling(0.5f, 0.5f, 1.0f));
+		XMStoreFloat4x4(&playerShotRitem->Instances[i].World, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+		playerShotRitem->Instances[i].IsDraw = -1;
+	}
+
+	mInstanceCount.push_back((unsigned int)playerShotRitem->Instances.size());
+	gameRenderItem[BILLBOARDITEM].push_back(playerShotRitem.get());
+	mAllRitems.push_back(std::move(playerShotRitem));
 }
 
 void Game::BuildPlayerData() // 생성된 렌더러 아이템에 좌표로 플레이어에 월드벡터에 정보를 갱신함.
@@ -1624,7 +1681,7 @@ void Game::DrawInstancingRenderItems(ID3D12GraphicsCommandList * cmdList, const 
 
 		auto instanceBuffer = mCurrFrameResource->InstanceBufferVector[ri->ObjCBIndex]->Resource();
 		mCommandList->SetGraphicsRootShaderResourceView(0, instanceBuffer->GetGPUVirtualAddress());
-
+	
 		cmdList->DrawIndexedInstanced(ri->IndexCount, ri->InstanceCount, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
 	}
 }

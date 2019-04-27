@@ -22,6 +22,7 @@ struct InstanceData
     uint        MaterialIndex;
     uint        InstPad0;
     uint        InstPad1;
+    float       IsDraw;
     float4      UIPos;
     float4      UIUVPos;
 };
@@ -68,10 +69,11 @@ cbuffer cbSkinned : register(b1)
     float4x4 gBoneTransforms[96];
 };
 
-Texture2D gDiffuseMap[7] : register(t0);
-Texture2D gShadowMap : register(t7);
-Texture2D gDepthResource : register(t8);
-Texture2D gBufferResource[3] : register(t9);
+Texture2D gDiffuseMap[8] : register(t0);
+Texture2D gShadowMap : register(t8);
+Texture2D gDepthResource : register(t9);
+Texture2D gBufferResource[3] : register(t10);
+
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
@@ -87,7 +89,7 @@ struct VertexIn
     float3 NormalL      : NORMAL;
     float2 TexC         : TEXCOORD;
     float3 BoneWeights  : WEIGHTS;
-    uint4 BoneIndices   : BONEINDICES;
+    uint4  BoneIndices  : BONEINDICES;
 };
 
 struct VertexOut
@@ -99,6 +101,7 @@ struct VertexOut
     float2 TexC         : TEXCOORD;
 
     nointerpolation uint MatIndex : MATINDEX;
+    nointerpolation bool IsDraw : MATINDEX1;
 };
 
 struct ShadowVertexIn
@@ -229,7 +232,13 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
     float4x4 texTransform = instData.TexTransform;
     uint matIndex = instData.MaterialIndex;
     MaterialConstants matData = gMaterialData[0];
-	
+
+    if(instData.IsDraw < 0)
+    {
+        vout.PosW = float4(-10000000, -10000000, 0, 0);
+
+        return vout;
+    }
     vout.MatIndex = matIndex;
 
     float4 posW = mul(float4(vin.PosL.xyz, 1.0f), world); // 모델좌표 -> 월드좌표
@@ -241,9 +250,33 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
     vout.PosH = mul(posW, gViewProj); // xyz,1
 	
     float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), texTransform);
+  
+    if (matIndex == 7)
+    {
+        float t = instData.IsDraw * 40.0f; // 0~0.1사이 값 0일대 발사 시작 / 0.1일때 발사 끝 0 1 2 3 
+
+        if (1 <= t && t < 2)
+        {
+            texC.x += 0.5f;
+        }
+        
+        else if (2 <= t && t < 3)
+        {
+            texC.y += 0.5f;
+        }
+        else if (3 <= t && t < 4)
+        {
+            texC.x += 0.5f;
+            texC.y += 0.5f;
+        }
+    }
+
     vout.TexC = mul(texC, matData.MatTransform).xy;
 	
+
     vout.ShadowPosH = mul(posW, gShadowTransform);
+
+    vout.IsDraw = instData.IsDraw;
 
     return vout;
 };
@@ -292,6 +325,10 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
 
     float4 pos = float4(pin.PosW, 0.0f);
     
+
+    if(diffuseAlbedo.a < 0.1)
+        discard;
+
     if(pin.MatIndex == 6)
         diffuseAlbedo.x += superheat / 100.0f;
 

@@ -13,6 +13,7 @@ struct InstanceData
 	UINT MaterialIndex;
 	UINT InstancePad0;
 	UINT InstancePad1;
+	float IsDraw = 1;
 	DirectX::XMFLOAT4 UIPos;
 	DirectX::XMFLOAT4 UIUVPos;
 };

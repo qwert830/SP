@@ -311,3 +311,10 @@ float Player::GetSuperheat()
 {
 	return superheat;
 }
+
+float Player::IsAttack()
+{
+	if (attackCool < ATTACK_DELAY)
+		return attackCool*2;
+	return -1.0f;
+}
