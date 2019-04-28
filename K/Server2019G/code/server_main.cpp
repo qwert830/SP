@@ -43,24 +43,27 @@ public:
 	int m_RoomNumber;
 	char m_Condition;
 	unsigned char m_MoveDirection;
+
 	EXOVER m_rxover;
 	int m_packet_size;
 	int m_prev_packet_size;
 	char m_packet[MAX_PACKET_SIZE];
 	Client() {
 		m_ID = L"Temp";
+		m_Score = 0;
 		m_IsConnected = false;
+		x = 0;
+		y = 0;
+		z = 0;
 		m_RoomNumber = LOBBYNUMBER;
 		m_Condition = US_WAIT;
-		m_prev_packet_size = 0;
+		m_MoveDirection = STOP_DR;
+
 		ZeroMemory(&m_rxover.m_over, sizeof(WSAOVERLAPPED));
 		m_rxover.m_wsabuf.buf = m_rxover.m_iobuf;
 		m_rxover.m_wsabuf.len = sizeof(m_rxover.m_wsabuf.buf);
 		m_rxover.work = RECV;
-		x = 0;
-		y = 0;
-		z = 0;
-		m_MoveDirection = STOP_DR;
+		m_prev_packet_size = 0;
 	}
 };
 
@@ -825,7 +828,8 @@ void Accept_Threads()
 		wchar_t itr[10];
 		_itow(id, itr, 10);
 		g_clients[id].m_ID += itr;
-		StartRecv(id);		
+		StartRecv(id);	
+
 	}
 }
 
