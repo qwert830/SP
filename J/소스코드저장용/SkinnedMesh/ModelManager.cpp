@@ -106,7 +106,7 @@ void ModelManager::LoadUV(FbxMesh * pMesh, std::vector<ModelData>* data)
 		{
 			// build the max index array that we need to pass into MakePoly
 			const int lPolySize = pMesh->GetPolygonSize(lPolyIndex);
-			for (int lVertIndex = 0; lVertIndex < lPolySize; ++lVertIndex )
+			for (int lVertIndex = 0; lVertIndex < lPolySize; ++lVertIndex)
 			{
 				if (lPolyIndexCounter < lIndexCount)
 				{
@@ -236,7 +236,7 @@ HRESULT ModelManager::LoadFBX(const char* filename, std::vector<ModelData>* pOut
 
 				for (int k = 0; k < iNumVertices; k++) {
 					int iControlPointIndex = pMesh->GetPolygonVertex(j, k);
-					
+
 					ModelData data;
 					data.x = (float)pVertices[iControlPointIndex].mData[0];
 					data.y = (float)pVertices[iControlPointIndex].mData[1];
@@ -299,8 +299,8 @@ void ModelManager::ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxSce
 			FbxAMatrix transformLinkMatrix;
 			FbxAMatrix globalBindposeInverseMatrix;
 
-			currCluster->GetTransformMatrix(transformMatrix);	
-			currCluster->GetTransformLinkMatrix(transformLinkMatrix);	
+			currCluster->GetTransformMatrix(transformMatrix);
+			currCluster->GetTransformLinkMatrix(transformLinkMatrix);
 			globalBindposeInverseMatrix = transformLinkMatrix.Inverse() * transformMatrix * geometryTransform;
 
 			// Update the information in mSkeleton 
@@ -314,11 +314,11 @@ void ModelManager::ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxSce
 				BlendingIndexWeightPair currBlendingIndexWeightPair;
 				currBlendingIndexWeightPair.mBlendingIndex = currJointIndex;
 				currBlendingIndexWeightPair.mBlendingWeight = currCluster->GetControlPointWeights();
-				mControlPoints[currCluster->GetControlPointIndices()]->mBlendingInfo.push_back(currBlendingIndexWeightPair);
+//				mControlPoints[currCluster->GetControlPointIndices()[i]]->mBlendingInfo.push_back(currBlendingIndexWeightPair);
 			}
 
 			// Get animation information
-			FbxAnimStack* currAnimStack = mFBXScene->GetSrcObject(0);
+			FbxAnimStack* currAnimStack = (FbxAnimStack*)mFBXScene->GetSrcObject(0);
 			FbxString animStackName = currAnimStack->GetName();
 			mAnimationName = animStackName.Buffer();
 			FbxTakeInfo* takeInfo = mFBXScene->GetTakeInfo(animStackName);
@@ -326,39 +326,38 @@ void ModelManager::ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxSce
 			FbxTime end = takeInfo->mLocalTimeSpan.GetStop();
 			mAnimationLength = end.GetFrameCount(FbxTime::eFrames24) - start.GetFrameCount(FbxTime::eFrames24) + 1;
 			Keyframe** currAnim = &mSkeleton.mJoints[currJointIndex].mAnimation;
-			mSkeleton.
 
-			for (FbxLongLong i = start.GetFrameCount(FbxTime::eFrames24); i <= end.GetFrameCount(FbxTime::eFrames24); ++i)
-			{
-				FbxTime currTime;
-				currTime.SetFrame(i, FbxTime::eFrames24);
-				*currAnim = new Keyframe();
-				(*currAnim)->mFrameNum = i;
-				FbxAMatrix currentTransformOffset = inNode->EvaluateGlobalTransform(currTime) * geometryTransform;
-				(*currAnim)->mGlobalTransform = currentTransformOffset.Inverse() * currCluster->GetLink()->EvaluateGlobalTransform(currTime);
-				currAnim = &((*currAnim)->mNext);
-			}
+				for (FbxLongLong i = start.GetFrameCount(FbxTime::eFrames24); i <= end.GetFrameCount(FbxTime::eFrames24); ++i)
+				{
+					FbxTime currTime;
+					currTime.SetFrame(i, FbxTime::eFrames24);
+					*currAnim = new Keyframe();
+					(*currAnim)->mFrameNum = i;
+					FbxAMatrix currentTransformOffset = inNode->EvaluateGlobalTransform(currTime) * geometryTransform;
+					(*currAnim)->mGlobalTransform = currentTransformOffset.Inverse() * currCluster->GetLink()->EvaluateGlobalTransform(currTime);
+					currAnim = &((*currAnim)->mNext);
+				}
 		}
 	}
 
 	// I am adding more dummy joints if there isn't enough
 	BlendingIndexWeightPair currBlendingIndexWeightPair;
 	currBlendingIndexWeightPair.mBlendingIndex = 0;
-	currBlendingIndexWeightPair.mBlendingIndex = 0;
-	for (auto itr = mControlPoints.begin(); itr != mControlPoints.end(); ++itr)
-	{
-		for (unsigned int i = itr->second->mBlendingInfo.size(); i <= 4; ++i)
-		{
-			itr->second->mBlendingInfo.push_back(currBlendingIndexWeightPair);
-		}
-	}
+	currBlendingIndexWeightPair.mBlendingWeight = 0;
+	//for (auto itr = mControlPoints.begin(); itr != mControlPoints.end(); ++itr)
+	//{
+	//	for (unsigned int i = itr->second->mBlendingInfo.size(); i <= 4; ++i)
+	//	{
+	//		itr->second->mBlendingInfo.push_back(currBlendingIndexWeightPair);
+	//	}
+	//}
 }
 
 unsigned int ModelManager::FindJointIndexUsingName(std::string inNode)
 {
 	for (unsigned int i = 0; i < mSkeleton.mJoints.size(); ++i)
 	{
-		if (mSkeleton.mJoints[i].mName == jointname)
+		if (mSkeleton.mJoints[i].mName == inNode)
 		{
 			return i;
 		}
@@ -378,4 +377,62 @@ void ModelManager::ProcessSkeletonHierarchyRecursively(FbxNode* inNode, int inDe
 	{
 		ProcessSkeletonHierarchyRecursively(inNode->GetChild(i), inDepth + 1, mSkeleton.mJoints.size(), myIndex);
 	}
+}
+
+HRESULT ModelManager::LoadAnim(const char* filename)
+{
+	if (g_pFbxSdkManager == nullptr)
+	{
+		g_pFbxSdkManager = FbxManager::Create();
+
+		FbxIOSettings* pIOsettings = FbxIOSettings::Create(g_pFbxSdkManager, IOSROOT);
+		g_pFbxSdkManager->SetIOSettings(pIOsettings);
+	}
+
+	FbxImporter* pImporter = FbxImporter::Create(g_pFbxSdkManager, "");
+	FbxScene* pFbxScene = FbxScene::Create(g_pFbxSdkManager, "");
+
+	bool bSuccess = pImporter->Initialize(filename, -1, g_pFbxSdkManager->GetIOSettings());
+	if (!bSuccess) return E_FAIL;
+
+	bSuccess = pImporter->Import(pFbxScene);
+	if (!bSuccess) return E_FAIL;
+
+	FbxGeometryConverter con(g_pFbxSdkManager);
+	con.Triangulate(pFbxScene, true);
+
+	pImporter->Destroy();
+
+	FbxNode* pFbxRootNode = pFbxScene->GetRootNode();
+
+	if (pFbxRootNode)
+	{
+		for (int i = 0; i < pFbxRootNode->GetChildCount(); i++)
+		{
+			FbxNode* pFbxChildNode = pFbxRootNode->GetChild(i);
+
+			if (pFbxChildNode->GetNodeAttribute() == NULL)
+				continue;
+
+			FbxNodeAttribute::EType AttributeType = pFbxChildNode->GetNodeAttribute()->GetAttributeType();
+
+			if (AttributeType != FbxNodeAttribute::eMesh)
+				continue;
+
+			FbxMesh* pMesh = (FbxMesh*)pFbxChildNode->GetNodeAttribute();
+
+			FbxVector4* pVertices = pMesh->GetControlPoints();
+
+			for (int j = 0; j < pMesh->GetPolygonCount(); j++)
+			{
+				int iNumVertices = pMesh->GetPolygonSize(j);
+				assert(iNumVertices == 3);
+
+				for (int k = 0; k < iNumVertices; k++) {
+				}
+			}
+		}
+
+	}
+	return S_OK;
 }

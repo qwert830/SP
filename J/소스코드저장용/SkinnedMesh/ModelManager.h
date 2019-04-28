@@ -1,9 +1,8 @@
 #pragma once
-#include "../../Common/d3dx12.h"
-#include <DirectXMath.h>
-#include "include/fbxsdk.h"
-#include <vector>
-
+#include "d3dUtil.h"
+#include <fbxsdk.h>
+#include <map>
+#include <set>
 using namespace DirectX;
 
 struct VERTEX
@@ -20,7 +19,7 @@ struct VERTEX
 	}
 };
 
-struct ModelData 
+struct ModelData
 {
 	float x, y, z, w, tu, tv, nx, ny, nz;
 	int state, frameTime;
@@ -84,14 +83,17 @@ class ModelManager
 public:
 	FbxManager * g_pFbxSdkManager = nullptr;
 	FbxAnimStack * I_animStack = nullptr;
-	int Keyframe = 0;
+	std::string mAnimationName;
+	int mAnimationLength;
+	std::map<int, int> mControlPoints;
 	Skeleton mSkeleton;
 
 	ModelManager();
 	~ModelManager();
 
 	HRESULT LoadFBX(const char* filename, std::vector<ModelData>* pOutData);
-	
+	HRESULT LoadAnim(const char* filename);
+
 	void ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxScene* inFbxScene);
 	FbxAMatrix GetGeometryTransformation(FbxNode* inNode);
 	void ProcessSkeletonHierarchyRecursively(FbxNode* inNode, int inDepth, int myIndex, int inParentIndex);
