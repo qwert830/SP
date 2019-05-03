@@ -235,7 +235,7 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
 
     if(instData.IsDraw < 0)
     {
-        vout.PosW = float4(-10000000.0f, -10000000.0f, 0.0f, 0.0f);
+        vout.PosW = float3(-100000.0f, -100000.0f, 0.0f);
 
         return vout;
     }

@@ -271,7 +271,9 @@ void Game::OnResize()
 	if (mStart)
 		BuildDescriptorHeaps();
 
-	mPlayer.SetMousePos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
+	if (mScene == GAME)
+		mPlayer.SetMousePos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
+
 	mPlayer.mCamera.SetLens(0.25f*MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
 }
 
@@ -390,7 +392,6 @@ void Game::RoomStateDraw(const GameTimer & gt)
 	ID3D12DescriptorHeap* descriptorHeaps[] = { mSrvDescriptorHeap.Get() };
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
-
 	auto matBuffer = mCurrFrameResource->MaterialCB->Resource();
 	mCommandList->SetGraphicsRootShaderResourceView(1, matBuffer->GetGPUVirtualAddress());
 
@@ -403,7 +404,7 @@ void Game::RoomStateDraw(const GameTimer & gt)
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::Black, 0, nullptr);
+	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::Aquamarine, 0, nullptr);
 	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
@@ -496,7 +497,8 @@ void Game::GameStateDraw(const GameTimer & gt)
 
 void Game::OnMouseDown(WPARAM btnState, int x, int y)
 {
-	mPlayer.PlayerMouseDown(btnState, x, y);
+	if (mScene == GAME)
+		mPlayer.PlayerMouseDown(btnState, x, y);
 
     SetCapture(mhMainWnd);
 }
@@ -514,18 +516,20 @@ void Game::OnMouseMove(WPARAM btnState, int x, int y)
 	pos.x = x;
 	pos.y = y;
 	ClientToScreen(mhMainWnd, &pos);
-	mPlayer.PlayerMouseMove(btnState, pos.x, pos.y);
+	if (mScene == GAME)
+		mPlayer.PlayerMouseMove(btnState, pos.x, pos.y);
 }
 
 void Game::OnKeyboardInput(const GameTimer& gt)
 {
-	mPlayer.PlayerKeyBoardInput(gt);
+	if (mScene == GAME)
+		mPlayer.PlayerKeyBoardInput(gt);
 }
 
 void Game::UpdateObjectCBs(const GameTimer& gt)
 {
 	auto currObjectCB = mCurrFrameResource->ObjectCB.get();
-	for (auto& e : mRenderItems[GAME].allItems)
+	for (auto& e : mRenderItems[mScene].allItems)
 	{
 		if (e->NumFramesDirty > 0)
 		{
@@ -590,7 +594,7 @@ void Game::UpdateInstanceData(const GameTimer & gt)
 {
 	//인스턴싱 객체가 항상 변한다면 항상 그려줘야한다. 
 	//인스턴싱에 사용할 객체 = 플레이어 캐릭터 끝? 
-	for(auto& e : mRenderItems[GAME].allItems)
+	for(auto& e : mRenderItems[mScene].allItems)
 	{
 		auto currInstanceBuffer = mCurrFrameResource->InstanceBufferVector[e->ObjCBIndex].get();
 		int drawCount = 0;
@@ -1575,6 +1579,7 @@ void Game::BuildRenderItemsGame()
 	UIRitem->BaseVertexLocation = UIRitem->Geo->DrawArgs["uiGrid"].BaseVertexLocation;
 
 	UIRitem->Instances.resize(11);
+	// ui총
 	UIRitem->Instances[0].UIPos = XMFLOAT4(0.48f,-0.75f,0.98f,-1.25f);
 	UIRitem->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
 	XMStoreFloat4x4(&UIRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
@@ -1719,7 +1724,7 @@ void Game::BuildRenderItemsRoom()
 
 	RoomRitem->Instances.resize(1);
 	RoomRitem->Instances[0].UIPos = XMFLOAT4(-1.0f, 1.0f, 1.0f, -1.0f);
-	RoomRitem->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 0.5f, 0.5f);
+	RoomRitem->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
 	XMStoreFloat4x4(&RoomRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	RoomRitem->Instances[0].MaterialIndex = 8;
 
