@@ -69,10 +69,10 @@ cbuffer cbSkinned : register(b1)
     float4x4 gBoneTransforms[96];
 };
 
-Texture2D gDiffuseMap[8] : register(t0);
-Texture2D gShadowMap : register(t8);
-Texture2D gDepthResource : register(t9);
-Texture2D gBufferResource[3] : register(t10);
+Texture2D gDiffuseMap[11] : register(t0);
+Texture2D gShadowMap : register(t11);
+Texture2D gDepthResource : register(t12);
+Texture2D gBufferResource[3] : register(t13);
 
 
 SamplerState gsamPointWrap : register(s0);
@@ -235,7 +235,7 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
 
     if(instData.IsDraw < 0)
     {
-        vout.PosW = float4(-10000000, -10000000, 0, 0);
+        vout.PosW = float4(-10000000.0f, -10000000.0f, 0.0f, 0.0f);
 
         return vout;
     }

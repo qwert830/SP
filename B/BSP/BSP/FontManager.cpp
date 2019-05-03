@@ -1,5 +1,4 @@
 #include <fstream>
-#include <iostream>
 #include <string>
 #include "FontManager.h"
 
@@ -32,7 +31,6 @@ bool FontManager::InitFont()
 	while (1)
 	{
 		arr = f.get();
-		cout << arr;
 		if (arr == "d")
 		{
 			arr = f.get();

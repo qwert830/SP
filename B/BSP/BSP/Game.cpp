@@ -13,7 +13,7 @@
 
 enum SCENENAME
 {
-	GAME
+	GAME,ROOM
 };
 
 enum RENDERITEM
@@ -53,6 +53,12 @@ struct RenderItem
 	int BaseVertexLocation = 0;
 };
 
+struct RenderItmeSet
+{
+	std::vector<std::unique_ptr<RenderItem>> allItems;
+	std::unordered_map<int, std::vector<RenderItem*>> renderItems;
+};
+
 
 class Game : public D3DApp
 {
@@ -70,6 +76,9 @@ private:
     virtual void Draw(const GameTimer& gt)override;
 
 	void DeferredDraw(const GameTimer& gt);
+
+	void RoomStateDraw(const GameTimer& gt);
+	void GameStateDraw(const GameTimer& gt);
 
     virtual void OnMouseDown(WPARAM btnState, int x, int y)override;
     virtual void OnMouseUp(WPARAM btnState, int x, int y)override;
@@ -95,7 +104,8 @@ private:
     void BuildPSOs(); // 파이프라인 스테이트 생성
 	void BuildFrameResources();
 	void BuildMaterials();
-	void BuildRenderItems();
+	void BuildRenderItemsGame();
+	void BuildRenderItemsRoom();
 	void BuildPlayerData();
 	void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 	void DrawInstancingRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
@@ -104,6 +114,8 @@ private:
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 private:
+
+	SCENENAME mScene = ROOM;
 
 	Player mPlayer;
 	ModelManager mModelManager;
@@ -140,15 +152,18 @@ private:
     std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mBillboardsInputLayout;
 	// List of all the render items.
-	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
+	
+	//std::vector<std::unique_ptr<RenderItem>> mAllRitems;
 
-	// Render items divided by PSO.
+	//std::unordered_map<int, std::vector<RenderItem*>> gameRenderItem;
 
-	std::unordered_map<int, std::vector<RenderItem*>> gameRenderItem;
+	std::unordered_map<int, RenderItmeSet> mRenderItems;
 
 	UINT mShadowMapHeapIndex = 0;
 
 	UINT mDeferredMapHeapIndex = 0;
+
+	UINT mObjectCount = 0;
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mNullSrv;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mDeferredNullSrv[4];
@@ -232,7 +247,8 @@ bool Game::Initialize()
     BuildShadersAndInputLayout();
     BuildShapeGeometry();
 	BuildMaterials();
-	BuildRenderItems();
+	BuildRenderItemsGame();
+	BuildRenderItemsRoom();
 	BuildFrameResources();
 	BuildPlayerData();
     BuildPSOs();
@@ -288,77 +304,15 @@ void Game::Update(const GameTimer& gt)
 
 void Game::Draw(const GameTimer& gt)
 {
-	auto cmdListAlloc = mCurrFrameResource->CmdListAlloc;
-
-	ThrowIfFailed(cmdListAlloc->Reset());
-	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["instancingOpaque"].Get()));
-
-	ID3D12DescriptorHeap* descriptorHeaps[] = { mSrvDescriptorHeap.Get() };
-	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-
-	mCommandList->SetGraphicsRootSignature(mInstancingRootSignature.Get());
-
-	auto matBuffer = mCurrFrameResource->MaterialCB->Resource();
-	mCommandList->SetGraphicsRootShaderResourceView(1, matBuffer->GetGPUVirtualAddress());
-
-	mCommandList->SetGraphicsRootDescriptorTable(4, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()); // 텍스쳐
-
-	// 그림자
-
-	mCommandList->SetGraphicsRootDescriptorTable(5, mNullSrv); // 그림자
-
-	DrawSceneToShadowMap();
-
-	// 그림자 그리기 끝
-	mCommandList->RSSetViewports(1, &mScreenViewport);
-	mCommandList->RSSetScissorRects(1, &mScissorRect);
-
-	// 그림자 리소스 연결
-	CD3DX12_GPU_DESCRIPTOR_HANDLE shadowTexDescriptor(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-	shadowTexDescriptor.Offset(mShadowMapHeapIndex, mCbvSrvUavDescriptorSize);
-	mCommandList->SetGraphicsRootDescriptorTable(5, shadowTexDescriptor);
-
-	DeferredDraw(gt);
-
-	// gun draw start
-
-	//mCommandList->SetPipelineState(mPSOs["GunUI"].Get());
-
-	//DrawInstancingRenderItems(mCommandList.Get(), PLAYERGUN);
-
-	// gun draw end
-
-	// UI 그리기
-
-	mCommandList->SetPipelineState(mPSOs["UI"].Get());
-
-	DrawInstancingRenderItems(mCommandList.Get(),  gameRenderItem[UI]);
-
-	// UI 그리기 끝
-
-	// 디버그
-
-	//mCommandList->SetPipelineState(mPSOs["sDebug"].Get());
-	//DrawInstancingRenderItems(mCommandList.Get(), DEBUG);
-
-	// 디버그 끝
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer[0].Get(),
-		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
-
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-
-	ThrowIfFailed(mCommandList->Close());
-
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-
-	ThrowIfFailed(mSwapChain->Present(0, 0));
-	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
-
-	mCurrFrameResource->Fence = ++mCurrentFence;
-
-	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
+	switch (mScene)
+	{
+	case GAME:
+		GameStateDraw(gt);
+		break;
+	case ROOM:
+		RoomStateDraw(gt);
+		break;
+	}
 }
 
 void Game::DeferredDraw(const GameTimer & gt)
@@ -384,12 +338,12 @@ void Game::DeferredDraw(const GameTimer & gt)
 	//인스턴싱으로 리소스 생성 : ui / 반투명은 따로 그리기
 	mCommandList->SetPipelineState(mPSOs["DeferredResource"].Get()); // 파이프라인 설정
 
-	DrawInstancingRenderItems(mCommandList.Get(), gameRenderItem[OPAQUEITEM]);
-	DrawInstancingRenderItems(mCommandList.Get(), gameRenderItem[PLAYER]);
-	DrawInstancingRenderItems(mCommandList.Get(), gameRenderItem[PLAYERGUN]);
+	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[OPAQUEITEM]);
+	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYER]);
+	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYERGUN]);
 
 	mCommandList->SetPipelineState(mPSOs["DeferredTransparentResource"].Get());
-	DrawInstancingRenderItems(mCommandList.Get(), gameRenderItem[BILLBOARDITEM]);
+	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[BILLBOARDITEM]);
 
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer[0].Get(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
@@ -424,6 +378,122 @@ void Game::DeferredDraw(const GameTimer & gt)
 
 }
 
+void Game::RoomStateDraw(const GameTimer & gt)
+{
+	auto cmdListAlloc = mCurrFrameResource->CmdListAlloc;
+
+	ThrowIfFailed(cmdListAlloc->Reset());
+	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["UI"].Get()));
+
+	mCommandList->SetGraphicsRootSignature(mInstancingRootSignature.Get());
+	
+	ID3D12DescriptorHeap* descriptorHeaps[] = { mSrvDescriptorHeap.Get() };
+	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+
+	auto matBuffer = mCurrFrameResource->MaterialCB->Resource();
+	mCommandList->SetGraphicsRootShaderResourceView(1, matBuffer->GetGPUVirtualAddress());
+
+	mCommandList->RSSetViewports(1, &mScreenViewport);
+	mCommandList->RSSetScissorRects(1, &mScissorRect);
+
+	auto passCB = mCurrFrameResource->PassCB->Resource();
+	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::Black, 0, nullptr);
+	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
+
+	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[ROOM].renderItems[UI]);
+
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
+	ThrowIfFailed(mCommandList->Close());
+
+	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+
+	ThrowIfFailed(mSwapChain->Present(0, 0));
+	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
+
+	mCurrFrameResource->Fence = ++mCurrentFence;
+
+	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
+
+}
+
+void Game::GameStateDraw(const GameTimer & gt)
+{
+	auto cmdListAlloc = mCurrFrameResource->CmdListAlloc;
+
+	ThrowIfFailed(cmdListAlloc->Reset());
+	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["instancingOpaque"].Get()));
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { mSrvDescriptorHeap.Get() };
+	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+	mCommandList->SetGraphicsRootSignature(mInstancingRootSignature.Get());
+
+	auto matBuffer = mCurrFrameResource->MaterialCB->Resource();
+	mCommandList->SetGraphicsRootShaderResourceView(1, matBuffer->GetGPUVirtualAddress());
+
+	mCommandList->SetGraphicsRootDescriptorTable(4, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()); // 텍스쳐
+
+	// 그림자
+
+	mCommandList->SetGraphicsRootDescriptorTable(5, mNullSrv); // 그림자
+
+	DrawSceneToShadowMap();
+
+	// 그림자 그리기 끝
+	mCommandList->RSSetViewports(1, &mScreenViewport);
+	mCommandList->RSSetScissorRects(1, &mScissorRect);
+
+	// 그림자 리소스 연결
+	CD3DX12_GPU_DESCRIPTOR_HANDLE shadowTexDescriptor(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	shadowTexDescriptor.Offset(mShadowMapHeapIndex, mCbvSrvUavDescriptorSize);
+	mCommandList->SetGraphicsRootDescriptorTable(5, shadowTexDescriptor);
+
+	DeferredDraw(gt);
+
+	// UI 그리기
+
+	mCommandList->SetPipelineState(mPSOs["UI"].Get());
+
+	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[UI]);
+
+	// UI 그리기 끝
+
+	// 디버그
+
+	//mCommandList->SetPipelineState(mPSOs["sDebug"].Get());
+	//DrawInstancingRenderItems(mCommandList.Get(), DEBUG);
+
+	// 디버그 끝
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer[0].Get(),
+		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
+	ThrowIfFailed(mCommandList->Close());
+
+	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+
+	ThrowIfFailed(mSwapChain->Present(0, 0));
+	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
+
+	mCurrFrameResource->Fence = ++mCurrentFence;
+
+	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
+}
+
 void Game::OnMouseDown(WPARAM btnState, int x, int y)
 {
 	mPlayer.PlayerMouseDown(btnState, x, y);
@@ -455,7 +525,7 @@ void Game::OnKeyboardInput(const GameTimer& gt)
 void Game::UpdateObjectCBs(const GameTimer& gt)
 {
 	auto currObjectCB = mCurrFrameResource->ObjectCB.get();
-	for (auto& e : mAllRitems)
+	for (auto& e : mRenderItems[GAME].allItems)
 	{
 		if (e->NumFramesDirty > 0)
 		{
@@ -478,7 +548,7 @@ void Game::UpdatePlayerData() // 렌더러아이템에 월드행렬을 플레이어에 벡터들을 �
 	int id = mPlayer.GetPlayerID();
 	if (id < 0)
 		return;
-	gameRenderItem[PLAYER][0]->Instances[id].World = XMFLOAT4X4
+	mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].World = XMFLOAT4X4
 	{
 		mPlayer.mVector[id].mRight.x,		mPlayer.mVector[id].mRight.y,		mPlayer.mVector[id].mRight.z,		0.0f,
 		mPlayer.mVector[id].mUp.x,			mPlayer.mVector[id].mUp.y,			mPlayer.mVector[id].mUp.z,			0.0f,
@@ -497,7 +567,7 @@ void Game::UpdatePlayerData() // 렌더러아이템에 월드행렬을 플레이어에 벡터들을 �
 
 	XMStoreFloat4x4
 	(
-		&gameRenderItem[PLAYERGUN][0]->Instances[0].World,
+		&mRenderItems[GAME].renderItems[PLAYERGUN][0]->Instances[0].World,
 		XMMatrixScaling(0.05f, 0.05f, 0.05f)*
 		XMMatrixTranslation(Offset.x, 0, Offset.z)*
 		XMLoadFloat4x4(&gunMatrix)*
@@ -506,21 +576,21 @@ void Game::UpdatePlayerData() // 렌더러아이템에 월드행렬을 플레이어에 벡터들을 �
 
 	XMStoreFloat4x4
 	(
-		&gameRenderItem[BILLBOARDITEM][0]->Instances[id].World,
+		&mRenderItems[GAME].renderItems[BILLBOARDITEM][0]->Instances[id].World,
 		XMMatrixScaling(2.5f, 2.5f, 1.0f)*
 		XMMatrixTranslation(Offset.x, 0, Offset.z+5.5f)*
 		XMLoadFloat4x4(&gunMatrix)*
 		XMMatrixTranslation(mPlayer.mVector[id].mPosition.x, mPlayer.mVector[id].mPosition.y + Offset.y + 0.5f, mPlayer.mVector[id].mPosition.z)
 	);
 
-	gameRenderItem[BILLBOARDITEM][0]->Instances[id].IsDraw = mPlayer.IsAttack();
+	mRenderItems[GAME].renderItems[BILLBOARDITEM][0]->Instances[id].IsDraw = mPlayer.IsAttack();
 }
 
 void Game::UpdateInstanceData(const GameTimer & gt)
 {
 	//인스턴싱 객체가 항상 변한다면 항상 그려줘야한다. 
 	//인스턴싱에 사용할 객체 = 플레이어 캐릭터 끝? 
-	for(auto& e : mAllRitems)
+	for(auto& e : mRenderItems[GAME].allItems)
 	{
 		auto currInstanceBuffer = mCurrFrameResource->InstanceBufferVector[e->ObjCBIndex].get();
 		int drawCount = 0;
@@ -692,19 +762,19 @@ void Game::UpdateTime(const GameTimer & gt)
 	UVPos uv;
 	_itoa_s(tempTime / 60 / 10, id, _countof(id), 10);
 	uv = (mFontManager.GetUV(id[0]));
-	gameRenderItem[UI][0]->Instances[5].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+	mRenderItems[GAME].renderItems[UI][0]->Instances[5].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 	
 	_itoa_s(tempTime / 60 % 10, id, _countof(id), 10);
 	uv = (mFontManager.GetUV(id[0]));
-	gameRenderItem[UI][0]->Instances[6].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+	mRenderItems[GAME].renderItems[UI][0]->Instances[6].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 	
 	_itoa_s(tempTime % 60 / 10, id, _countof(id), 10);
 	uv = (mFontManager.GetUV(id[0]));
-	gameRenderItem[UI][0]->Instances[8].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+	mRenderItems[GAME].renderItems[UI][0]->Instances[8].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 	
 	_itoa_s(tempTime % 60 % 10 , id, _countof(id), 10);
 	uv = (mFontManager.GetUV(id[0]));
-	gameRenderItem[UI][0]->Instances[9].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+	mRenderItems[GAME].renderItems[UI][0]->Instances[9].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 }
 
 void Game::LoadTextures()
@@ -718,7 +788,10 @@ void Game::LoadTextures()
 		"font",
 		"aimPoint",
 		"playerGunTex",
-		"playerShotTex"
+		"playerShotTex",
+		"ReadyRoomTex",
+		"ReadyButtonTex",
+		"QuitButtonTex"
 	};
 
 	std::vector<std::wstring> fileNames =
@@ -730,7 +803,10 @@ void Game::LoadTextures()
 		L"Resource/font.dds",
 		L"Resource/AimPoint.dds",
 		L"Resource/PlayerGun.dds",
-		L"Resource/PlayerShot.dds"
+		L"Resource/PlayerShot.dds",
+		L"Resource/ReadyRoom.dds",
+		L"Resource/ReadyButton.dds",
+		L"Resource/QuitButton.dds"
 	};
 
 	for (int i = 0; i < texNames.size(); ++i)
@@ -790,7 +866,7 @@ void Game::BuildInstancingRootSignature()
 	// 디스크립터 바꿀댄 셰이더 코드를 꼭 바꾸자 젭라..
 	int num = 0;
 
-	int tex = 8;
+	int tex = 11;
 	CD3DX12_DESCRIPTOR_RANGE texTable;
 	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, tex, num, 0);
 	num += tex;
@@ -851,7 +927,7 @@ void Game::BuildDescriptorHeaps()
 	//디스크립터 힙에 쉐이더 리소스 뷰를 하나씩 탑재
 
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 13;
+	srvHeapDesc.NumDescriptors = 16;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -867,7 +943,10 @@ void Game::BuildDescriptorHeaps()
 		mTextures["font"]->Resource,
 		mTextures["aimPoint"]->Resource,
 		mTextures["playerGunTex"]->Resource,
-		mTextures["playerShotTex"]->Resource
+		mTextures["playerShotTex"]->Resource,
+		mTextures["ReadyRoomTex"]->Resource,
+		mTextures["ReadyButtonTex"]->Resource,
+		mTextures["QuitButtonTex"]->Resource
 	};
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -1313,7 +1392,7 @@ void Game::BuildFrameResources()
 	for (int i = 0; i < gNumFrameResources; ++i)
 	{
 		mFrameResources.push_back(std::make_unique<FrameResource>(md3dDevice.Get(),
-			2, (UINT)mAllRitems.size(), (UINT)mMaterials.size(), &mInstanceCount[0]));
+			2, (UINT)mRenderItems[GAME].allItems.size() + (UINT)mRenderItems[ROOM].allItems.size(), (UINT)mMaterials.size(), &mInstanceCount[0]));
 	}
 }
 
@@ -1359,10 +1438,10 @@ void Game::BuildMaterials()
 
 }
 
-void Game::BuildRenderItems()
+void Game::BuildRenderItemsGame()
 {
 	auto boxRitem = std::make_unique<RenderItem>();
-	boxRitem->ObjCBIndex = 0;
+	boxRitem->ObjCBIndex = mObjectCount++;
 	boxRitem->Mat = mMaterials["seafloor0"].get();
 	boxRitem->Geo = mGeometries["shapeGeo"].get();
 	boxRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1377,11 +1456,11 @@ void Game::BuildRenderItems()
 
 	mInstanceCount.push_back((unsigned int)(boxRitem->Instances.size()));
 
-	mAllRitems.push_back(std::move(boxRitem));
+	mRenderItems[GAME].allItems.push_back(std::move(boxRitem));
 
 	auto gridRitem = std::make_unique<RenderItem>();
 
-	gridRitem->ObjCBIndex = 1;
+	gridRitem->ObjCBIndex = mObjectCount++;
 	gridRitem->Mat = mMaterials["tile0"].get();
 	gridRitem->Geo = mGeometries["shapeGeo"].get();
 	gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1396,12 +1475,12 @@ void Game::BuildRenderItems()
 
 	mInstanceCount.push_back((unsigned int)gridRitem->Instances.size());
 
-	mAllRitems.push_back(std::move(gridRitem));
+	mRenderItems[GAME].allItems.push_back(std::move(gridRitem));
 
 	auto testRitem = std::make_unique<RenderItem>();
 	testRitem->World = MathHelper::Identity4x4();
 	testRitem->TexTransform = MathHelper::Identity4x4();
-	testRitem->ObjCBIndex = 2;
+	testRitem->ObjCBIndex = mObjectCount++;
 	testRitem->Mat = mMaterials["seafloor0"].get();
 	testRitem->Geo = mGeometries["shapeGeo"].get();
 	testRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1443,12 +1522,12 @@ void Game::BuildRenderItems()
 	}
 	mInstanceCount.push_back((unsigned int)testRitem->Instances.size());
 
-	mAllRitems.push_back(std::move(testRitem));
+	mRenderItems[GAME].allItems.push_back(std::move(testRitem));
 
 	auto PlayerRitem = std::make_unique<RenderItem>();
 	PlayerRitem->World = MathHelper::Identity4x4();
 	PlayerRitem->TexTransform = MathHelper::Identity4x4();
-	PlayerRitem->ObjCBIndex = 3;
+	PlayerRitem->ObjCBIndex = mObjectCount++;
 	PlayerRitem->Mat = mMaterials["seafloor0"].get();
 	PlayerRitem->Geo = mGeometries["shapeGeo"].get();
 	PlayerRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1486,7 +1565,7 @@ void Game::BuildRenderItems()
 	auto UIRitem = std::make_unique<RenderItem>();
 	UIRitem->World = MathHelper::Identity4x4();
 	UIRitem->TexTransform = MathHelper::Identity4x4();
-	UIRitem->ObjCBIndex = 4;
+	UIRitem->ObjCBIndex = mObjectCount++;
 	UIRitem->Mat = mMaterials["seafloor0"].get();
 	UIRitem->Geo = mGeometries["shapeGeo"].get();
 	UIRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1532,19 +1611,19 @@ void Game::BuildRenderItems()
 	
 	mInstanceCount.push_back((unsigned int)UIRitem->Instances.size());
 
-	for (auto& e : mAllRitems)
-		gameRenderItem[OPAQUEITEM].push_back(e.get());
+	for (auto& e : mRenderItems[GAME].allItems)
+		mRenderItems[GAME].renderItems[OPAQUEITEM].push_back(e.get());
 
-	mAllRitems.push_back(std::move(PlayerRitem));
-	gameRenderItem[PLAYER].push_back(mAllRitems[mAllRitems.size() - 1].get());
+	mRenderItems[GAME].allItems.push_back(std::move(PlayerRitem));
+	mRenderItems[GAME].renderItems[PLAYER].push_back(mRenderItems[GAME].allItems[mRenderItems[GAME].allItems.size() - 1].get());
 
-	mAllRitems.push_back(std::move(UIRitem));
-	gameRenderItem[UI].push_back(mAllRitems[mAllRitems.size() - 1].get());
+	mRenderItems[GAME].allItems.push_back(std::move(UIRitem));
+	mRenderItems[GAME].renderItems[UI].push_back(mRenderItems[GAME].allItems[mRenderItems[GAME].allItems.size() - 1].get());
 
 	auto quadRitem = std::make_unique<RenderItem>();
 	quadRitem->World = MathHelper::Identity4x4();
 	quadRitem->TexTransform = MathHelper::Identity4x4();
-	quadRitem->ObjCBIndex = 5;
+	quadRitem->ObjCBIndex = mObjectCount++;
 	quadRitem->Mat = mMaterials["seafloor0"].get();
 	quadRitem->Geo = mGeometries["shapeGeo"].get();
 	quadRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1558,13 +1637,13 @@ void Game::BuildRenderItems()
 	quadRitem->Instances[0].MaterialIndex = 0;
 	mInstanceCount.push_back((unsigned int)quadRitem->Instances.size());
 
-	gameRenderItem[DEBUG].push_back(quadRitem.get());
-	mAllRitems.push_back(std::move(quadRitem));
+	mRenderItems[GAME].renderItems[DEBUG].push_back(quadRitem.get());
+	mRenderItems[GAME].allItems.push_back(std::move(quadRitem));
 
 	auto deferredRitem = std::make_unique <RenderItem>();
 	deferredRitem->World = MathHelper::Identity4x4();
 	deferredRitem->TexTransform = MathHelper::Identity4x4();
-	deferredRitem->ObjCBIndex = 6;
+	deferredRitem->ObjCBIndex = mObjectCount++;
 	deferredRitem->Mat = mMaterials["seafloor0"].get();
 	deferredRitem->Geo = mGeometries["shapeGeo"].get();
 	deferredRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1578,13 +1657,13 @@ void Game::BuildRenderItems()
 	deferredRitem->Instances[0].MaterialIndex = 0;
 	mInstanceCount.push_back((unsigned int)deferredRitem->Instances.size());
 
-	gameRenderItem[DEFERRED].push_back(deferredRitem.get());
-	mAllRitems.push_back(std::move(deferredRitem));
+	mRenderItems[GAME].renderItems[DEFERRED].push_back(deferredRitem.get());
+	mRenderItems[GAME].allItems.push_back(std::move(deferredRitem));
 
 	auto playerGunRitem = std::make_unique <RenderItem>();
 	playerGunRitem->World = MathHelper::Identity4x4();
 	playerGunRitem->TexTransform = MathHelper::Identity4x4();
-	playerGunRitem->ObjCBIndex = 7;
+	playerGunRitem->ObjCBIndex = mObjectCount++;
 	playerGunRitem->Mat = mMaterials["seafloor0"].get();
 	playerGunRitem->Geo = mGeometries["shapeGeo"].get();
 	playerGunRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1599,13 +1678,13 @@ void Game::BuildRenderItems()
 
 	mInstanceCount.push_back((unsigned int)playerGunRitem->Instances.size());
 
-	gameRenderItem[PLAYERGUN].push_back(playerGunRitem.get());
-	mAllRitems.push_back(std::move(playerGunRitem));
+	mRenderItems[GAME].renderItems[PLAYERGUN].push_back(playerGunRitem.get());
+	mRenderItems[GAME].allItems.push_back(std::move(playerGunRitem));
 
 	auto playerShotRitem = std::make_unique <RenderItem>();
 	playerShotRitem->World = MathHelper::Identity4x4();
 	playerShotRitem->TexTransform = MathHelper::Identity4x4();
-	playerShotRitem->ObjCBIndex = 8;
+	playerShotRitem->ObjCBIndex = mObjectCount++;
 	playerShotRitem->Mat = mMaterials["seafloor0"].get();
 	playerShotRitem->Geo = mGeometries["shapeGeo"].get();
 	playerShotRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1623,13 +1702,36 @@ void Game::BuildRenderItems()
 	}
 
 	mInstanceCount.push_back((unsigned int)playerShotRitem->Instances.size());
-	gameRenderItem[BILLBOARDITEM].push_back(playerShotRitem.get());
-	mAllRitems.push_back(std::move(playerShotRitem));
+	mRenderItems[GAME].renderItems[BILLBOARDITEM].push_back(playerShotRitem.get());
+	mRenderItems[GAME].allItems.push_back(std::move(playerShotRitem));
+}
+
+void Game::BuildRenderItemsRoom()
+{
+	auto RoomRitem = std::make_unique<RenderItem>();
+	RoomRitem->ObjCBIndex = mObjectCount++;
+	RoomRitem->Mat = mMaterials["seafloor0"].get();
+	RoomRitem->Geo = mGeometries["shapeGeo"].get();
+	RoomRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	RoomRitem->IndexCount = RoomRitem->Geo->DrawArgs["uiGrid"].IndexCount;
+	RoomRitem->StartIndexLocation = RoomRitem->Geo->DrawArgs["uiGrid"].StartIndexLocation;
+	RoomRitem->BaseVertexLocation = RoomRitem->Geo->DrawArgs["uiGrid"].BaseVertexLocation;
+
+	RoomRitem->Instances.resize(1);
+	RoomRitem->Instances[0].UIPos = XMFLOAT4(-1.0f, 1.0f, 1.0f, -1.0f);
+	RoomRitem->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 0.5f, 0.5f);
+	XMStoreFloat4x4(&RoomRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+	RoomRitem->Instances[0].MaterialIndex = 8;
+
+	mInstanceCount.push_back((unsigned int)(RoomRitem->Instances.size()));
+
+	mRenderItems[ROOM].renderItems[UI].push_back(RoomRitem.get());
+	mRenderItems[ROOM].allItems.push_back(std::move(RoomRitem));
 }
 
 void Game::BuildPlayerData() // 생성된 렌더러 아이템에 좌표로 플레이어에 월드벡터에 정보를 갱신함.
 {
-	auto data = gameRenderItem[PLAYER][0]->Instances;
+	auto data = mRenderItems[GAME].renderItems[PLAYER][0]->Instances;
 	for (int i = 0; i < data.size(); ++i)
 	{
 		mPlayer.mVector[i].mRight		= { data[i].World._11, data[i].World._12, data[i].World._13 };
@@ -1688,14 +1790,14 @@ void Game::DrawInstancingRenderItems(ID3D12GraphicsCommandList * cmdList, const 
 
 void Game::DrawDeferredRenderItems(ID3D12GraphicsCommandList * cmdList)
 {
-	cmdList->IASetVertexBuffers(0, 1, &gameRenderItem[DEFERRED][0]->Geo->VertexBufferView());
-	cmdList->IASetIndexBuffer(&gameRenderItem[DEFERRED][0]->Geo->IndexBufferView());
-	cmdList->IASetPrimitiveTopology(gameRenderItem[DEFERRED][0]->PrimitiveType);
+	cmdList->IASetVertexBuffers(0, 1, &mRenderItems[GAME].renderItems[DEFERRED][0]->Geo->VertexBufferView());
+	cmdList->IASetIndexBuffer(&mRenderItems[GAME].renderItems[DEFERRED][0]->Geo->IndexBufferView());
+	cmdList->IASetPrimitiveTopology(mRenderItems[GAME].renderItems[DEFERRED][0]->PrimitiveType);
 
-	auto instanceBuffer = mCurrFrameResource->InstanceBufferVector[gameRenderItem[DEFERRED][0]->ObjCBIndex]->Resource();
+	auto instanceBuffer = mCurrFrameResource->InstanceBufferVector[mRenderItems[GAME].renderItems[DEFERRED][0]->ObjCBIndex]->Resource();
 	mCommandList->SetGraphicsRootShaderResourceView(0, instanceBuffer->GetGPUVirtualAddress());
 
-	cmdList->DrawIndexedInstanced(gameRenderItem[DEFERRED][0]->IndexCount, gameRenderItem[DEFERRED][0]->InstanceCount, gameRenderItem[DEFERRED][0]->StartIndexLocation, gameRenderItem[DEFERRED][0]->BaseVertexLocation, 0);
+	cmdList->DrawIndexedInstanced(mRenderItems[GAME].renderItems[DEFERRED][0]->IndexCount, mRenderItems[GAME].renderItems[DEFERRED][0]->InstanceCount, mRenderItems[GAME].renderItems[DEFERRED][0]->StartIndexLocation, mRenderItems[GAME].renderItems[DEFERRED][0]->BaseVertexLocation, 0);
 }
 
 void Game::DrawSceneToShadowMap()
@@ -1721,8 +1823,8 @@ void Game::DrawSceneToShadowMap()
 
 	mCommandList->SetPipelineState(mPSOs["shadow"].Get());
 
-	DrawInstancingRenderItems(mCommandList.Get(), gameRenderItem[OPAQUEITEM]);
-	DrawInstancingRenderItems(mCommandList.Get(), gameRenderItem[PLAYER]);
+	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[OPAQUEITEM]);
+	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYER]);
 
 	// Change back to GENERIC_READ so we can read the texture in a shader.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),

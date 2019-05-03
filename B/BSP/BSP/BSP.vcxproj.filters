@@ -112,8 +112,10 @@
     <FxCompile Include="Shader\LightingUtil.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="Shader\DefaultInstancing.hlsl">
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shader\DefaultInstancing.hlsl">
       <Filter>Shader</Filter>
-    </FxCompile>
+    </None>
   </ItemGroup>
 </Project>

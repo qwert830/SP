@@ -22,6 +22,7 @@ struct InstanceData
     uint        MaterialIndex;
     uint        InstPad0;
     uint        InstPad1;
+    float       IsDraw;
     float4      UIPos;
     float4      UIUVPos;
 };
@@ -68,10 +69,11 @@ cbuffer cbSkinned : register(b1)
     float4x4 gBoneTransforms[96];
 };
 
-Texture2D gDiffuseMap[7] : register(t0);
-Texture2D gShadowMap : register(t7);
-Texture2D gDepthResource : register(t8);
-Texture2D gBufferResource[3] : register(t9);
+Texture2D gDiffuseMap[8] : register(t0);
+Texture2D gShadowMap : register(t8);
+Texture2D gDepthResource : register(t9);
+Texture2D gBufferResource[3] : register(t10);
+
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
@@ -83,22 +85,23 @@ SamplerComparisonState gsamShadow : register(s6);
 
 struct VertexIn
 {
-    float4 PosL : POSITION;
-    float3 NormalL : NORMAL;
-    float2 TexC : TEXCOORD;
-    float3 BoneWeights : WEIGHTS;
-    uint4 BoneIndices : BONEINDICES;
+    float4 PosL         : POSITION;
+    float3 NormalL      : NORMAL;
+    float2 TexC         : TEXCOORD;
+    float3 BoneWeights  : WEIGHTS;
+    uint4  BoneIndices  : BONEINDICES;
 };
 
 struct VertexOut
 {
-    float4 PosH : SV_POSITION;
-    float4 ShadowPosH : POSITION0;
-    float3 PosW : POSITION1;
-    float3 NormalW : NORMAL;
-    float2 TexC : TEXCOORD;
+    float4 PosH         : SV_POSITION;
+    float4 ShadowPosH   : POSITION0;
+    float3 PosW         : POSITION1;
+    float3 NormalW      : NORMAL;
+    float2 TexC         : TEXCOORD;
 
     nointerpolation uint MatIndex : MATINDEX;
+    nointerpolation bool IsDraw : MATINDEX1;
 };
 
 struct ShadowVertexIn
@@ -117,16 +120,16 @@ struct ShadowVertexOut
 
 struct DeferredVSOut
 {
-    float4 Pos : SV_POSITION;
-    float2 UV : TEXCOORD;
-    float4 ViewRay : POSITION0;
+    float4 Pos           : SV_POSITION;
+    float2 UV            : TEXCOORD;
+    float4 ViewRay       : POSITION0;
 };
 
 struct PS_GBUFFER_OUT
 {
-    float4 ColorSpecInt : SV_TARGET0;
-    float4 Normal : SV_TARGET1;
-    float4 Position : SV_TARGET2;
+    float4 ColorSpecInt  : SV_TARGET0;
+    float4 Normal        : SV_TARGET1;
+    float4 Position      : SV_TARGET2;
 };
 
 struct SURFACE_DATA
@@ -136,6 +139,27 @@ struct SURFACE_DATA
     float4 Normal;
     float SpecInt;
     float SpecPow;
+};
+
+struct billboardVertexIn
+{
+    float3 PosW     : POSITION;
+    float2 SizeW    : SIZE;
+};
+
+struct billboardVertexOut
+{
+    float3 CenterW  : POSITION;
+    float2 SizeW    : SIZE;
+};
+
+struct GeoOut
+{
+    float4 PosH     : SV_POSITION;
+    float3 PosW     : POSITION;
+    float3 NormalW  : NORMAL;
+    float2 TexC     : TEXCOORD;
+    uint PrimID     : SV_PrimitiveID;
 };
 
 float ConvertDepthToLinear(float depth)
@@ -208,7 +232,13 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
     float4x4 texTransform = instData.TexTransform;
     uint matIndex = instData.MaterialIndex;
     MaterialConstants matData = gMaterialData[0];
-	
+
+    if(instData.IsDraw < 0)
+    {
+        vout.PosW = float4(-10000000, -10000000, 0, 0);
+
+        return vout;
+    }
     vout.MatIndex = matIndex;
 
     float4 posW = mul(float4(vin.PosL.xyz, 1.0f), world); // 모델좌표 -> 월드좌표
@@ -220,9 +250,33 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
     vout.PosH = mul(posW, gViewProj); // xyz,1
 	
     float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), texTransform);
+  
+    if (matIndex == 7)
+    {
+        float t = instData.IsDraw * 40.0f; // 0~0.1사이 값 0일대 발사 시작 / 0.1일때 발사 끝 0 1 2 3 
+
+        if (1 <= t && t < 2)
+        {
+            texC.x += 0.5f;
+        }
+        
+        else if (2 <= t && t < 3)
+        {
+            texC.y += 0.5f;
+        }
+        else if (3 <= t && t < 4)
+        {
+            texC.x += 0.5f;
+            texC.y += 0.5f;
+        }
+    }
+
     vout.TexC = mul(texC, matData.MatTransform).xy;
 	
+
     vout.ShadowPosH = mul(posW, gShadowTransform);
+
+    vout.IsDraw = instData.IsDraw;
 
     return vout;
 };
@@ -271,6 +325,10 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
 
     float4 pos = float4(pin.PosW, 0.0f);
     
+
+    if(diffuseAlbedo.a < 0.1)
+        discard;
+
     if(pin.MatIndex == 6)
         diffuseAlbedo.x += superheat / 100.0f;
 
@@ -381,19 +439,24 @@ float4 UI_PS(VertexOut pin) : SV_Target
     float roughness = matData.Roughness;
     uint diffuseTexIndex = matData.DiffuseMapIndex;
 
-    diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamLinearWrap, pin.TexC) ;
+    diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamLinearWrap, pin.TexC);
 
     if (diffuseAlbedo.a < 0.00001)
         discard;
     if (pin.MatIndex == 2)
-    if (superheat / 100.0f > pin.TexC.x)
-        return float4(1.0f, 0.0f, 0.0f, 0.0f);
-
+    {
+        float test = superheat / 100.0f - pin.TexC.x;
+        float color = clamp(1 - test*2, 0, 1);
+        if (test>0)
+            return float4(color, 0.0f, 0.0f, 1.0f);
+        else
+            return float4(0.0f, 0.0, pin.TexC.x, 1.0f);
+    }
     if (pin.MatIndex == 5)
     {
-        float varX = cos(gTotalTime*2);
+        float varX = cos(gTotalTime * 2);
         
-        float varY = sin(gTotalTime*2);
+        float varY = sin(gTotalTime * 2);
 
         float color = 0.0f;
         color = 1 - abs(varX - pin.TexC.x + varY - pin.TexC.y);
