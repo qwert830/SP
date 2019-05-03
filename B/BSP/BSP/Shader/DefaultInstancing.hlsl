@@ -66,7 +66,7 @@ cbuffer cbPass : register(b0)
 
 cbuffer cbSkinned : register(b1)
 {
-    float4x4 gBoneTransforms[96];
+    float4x4 gBoneTransforms[10][96];
 };
 
 Texture2D gDiffuseMap[11] : register(t0);
@@ -101,7 +101,7 @@ struct VertexOut
     float2 TexC         : TEXCOORD;
 
     nointerpolation uint MatIndex : MATINDEX;
-    nointerpolation bool IsDraw : MATINDEX1;
+    nointerpolation float IsDraw : MATINDEX1;
 };
 
 struct ShadowVertexIn
@@ -403,6 +403,7 @@ VertexOut UI_VS(VertexIn vin, uint instanceID : SV_InstanceID, uint vertexID : S
     MaterialConstants matData = gMaterialData[0];
 	
     vout.MatIndex = matIndex;
+    vout.IsDraw = instData.IsDraw;
 
     if (vertexID == 0)
     {
@@ -462,7 +463,19 @@ float4 UI_PS(VertexOut pin) : SV_Target
         color = 1 - abs(varX - pin.TexC.x + varY - pin.TexC.y);
         return float4(diffuseAlbedo.r * 0.8, color, color, 1.0f);
     }
+    if (pin.MatIndex == 9)
+    {
+        if (pin.IsDraw >= 10)
+            return float4(1.0f, 0.1f, 0.1f, 1.0f);
+        if (pin.IsDraw > 1)
+            return float4(1.0f, 1.0f, 1.0f, 1.0f);
+    }
 
+    if (pin.MatIndex == 10)
+    {
+        if (pin.IsDraw > 1)
+            return float4(1.0f, 1.0f, 1.0f, 1.0f);
+    }
     return diffuseAlbedo;
 };
 

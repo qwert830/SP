@@ -59,6 +59,15 @@ struct RenderItmeSet
 	std::unordered_map<int, std::vector<RenderItem*>> renderItems;
 };
 
+struct Button
+{
+	float readyButton = 0;
+	float quitButton  = 0;
+	bool mouseOnReadyButton	= false;
+	bool mouseOnQuitButton	= false;
+
+	float readyUI[10] = { -1, };
+};
 
 class Game : public D3DApp
 {
@@ -92,6 +101,8 @@ private:
 	void UpdateShadowPassCB(const GameTimer& gt);
 	void UpdateShadowTransform(const GameTimer& gt);
 	void UpdateTime(const GameTimer& gt);
+	void UpdateButton();
+
 
 	void OnKeyboardInput(const GameTimer& gt);
 
@@ -112,6 +123,8 @@ private:
 	void DrawDeferredRenderItems(ID3D12GraphicsCommandList* cmdList);
 	void DrawSceneToShadowMap();
 
+	void RoomCheckButton(float x, float y);
+	void ButtonClick();
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 private:
 
@@ -120,6 +133,9 @@ private:
 	Player mPlayer;
 	ModelManager mModelManager;
 	FontManager mFontManager;
+
+	Button mButton;
+
 	std::unique_ptr<ShadowMap> mShadowMap;
 	
 	Microsoft::WRL::ComPtr<ID3D12Resource> mDeferredResource[4] = { nullptr, };
@@ -295,6 +311,7 @@ void Game::Update(const GameTimer& gt)
 	UpdateTime(gt);
 	UpdateObjectCBs(gt);
 	UpdatePlayerData();
+	UpdateButton();
 	UpdateInstanceData(gt);
 	UpdateMaterialCBs(gt);
 	UpdateShadowTransform(gt);
@@ -401,6 +418,8 @@ void Game::RoomStateDraw(const GameTimer & gt)
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
+	mCommandList->SetGraphicsRootDescriptorTable(4, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
@@ -500,6 +519,11 @@ void Game::OnMouseDown(WPARAM btnState, int x, int y)
 	if (mScene == GAME)
 		mPlayer.PlayerMouseDown(btnState, x, y);
 
+	if (mScene == ROOM)
+	{
+		ButtonClick();
+	}
+
     SetCapture(mhMainWnd);
 }
 
@@ -513,16 +537,22 @@ void Game::OnMouseUp(WPARAM btnState, int x, int y)
 void Game::OnMouseMove(WPARAM btnState, int x, int y)
 {
 	POINT pos;
-	pos.x = x;
-	pos.y = y;
 	ClientToScreen(mhMainWnd, &pos);
 	if (mScene == GAME)
 		mPlayer.PlayerMouseMove(btnState, pos.x, pos.y);
+	if (mScene == ROOM)
+	{
+		float xpos = (float)(x * 2) / (float)mClientWidth - 1.0f; 
+		float ypos = (float)(mClientHeight - (y * 2)) / (float)mClientHeight;
+		
+		RoomCheckButton(xpos, ypos);
+	}
+
 }
 
 void Game::OnKeyboardInput(const GameTimer& gt)
 {
-	if (mScene == GAME)
+	//if (mScene == GAME)
 		mPlayer.PlayerKeyBoardInput(gt);
 }
 
@@ -621,7 +651,6 @@ void Game::UpdateInstanceData(const GameTimer & gt)
 		e->InstanceCount = drawCount;
 	}
 }
-
 
 void Game::UpdateMaterialCBs(const GameTimer& gt)
 {
@@ -779,6 +808,16 @@ void Game::UpdateTime(const GameTimer & gt)
 	_itoa_s(tempTime % 60 % 10 , id, _countof(id), 10);
 	uv = (mFontManager.GetUV(id[0]));
 	mRenderItems[GAME].renderItems[UI][0]->Instances[9].UIUVPos = DirectX::XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+}
+
+void Game::UpdateButton()
+{
+	mRenderItems[ROOM].renderItems[UI][0]->Instances[1].IsDraw = mButton.readyButton;
+	mRenderItems[ROOM].renderItems[UI][0]->Instances[2].IsDraw = mButton.quitButton;
+	for (int i = 3; i < 13; ++i)
+	{
+		mRenderItems[ROOM].renderItems[UI][0]->Instances[i].IsDraw = mButton.readyUI[i-3];
+	}
 }
 
 void Game::LoadTextures()
@@ -1722,11 +1761,27 @@ void Game::BuildRenderItemsRoom()
 	RoomRitem->StartIndexLocation = RoomRitem->Geo->DrawArgs["uiGrid"].StartIndexLocation;
 	RoomRitem->BaseVertexLocation = RoomRitem->Geo->DrawArgs["uiGrid"].BaseVertexLocation;
 
-	RoomRitem->Instances.resize(1);
+	RoomRitem->Instances.resize(13);
 	RoomRitem->Instances[0].UIPos = XMFLOAT4(-1.0f, 1.0f, 1.0f, -1.0f);
 	RoomRitem->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
-	XMStoreFloat4x4(&RoomRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	RoomRitem->Instances[0].MaterialIndex = 8;
+
+	RoomRitem->Instances[1].UIPos = XMFLOAT4(-0.7f, -0.5f, -0.3f, -1.0f);
+	RoomRitem->Instances[1].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+	RoomRitem->Instances[1].MaterialIndex = 9;
+
+	RoomRitem->Instances[2].UIPos = XMFLOAT4(0.3f, -0.5f, 0.7f, -1.0f);
+	RoomRitem->Instances[2].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+	RoomRitem->Instances[2].MaterialIndex = 10;
+
+	for (int i = 3; i < 13; ++i)
+	{
+		RoomRitem->Instances[i].UIPos = XMFLOAT4(0.4f, 0.825f-((i-3)*0.125f), 0.6f, 0.65f-((i-3)*0.125f));
+		RoomRitem->Instances[i].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+		RoomRitem->Instances[i].MaterialIndex = 9;
+		RoomRitem->Instances[i].IsDraw = -1;
+	}
+
 
 	mInstanceCount.push_back((unsigned int)(RoomRitem->Instances.size()));
 
@@ -1834,6 +1889,60 @@ void Game::DrawSceneToShadowMap()
 	// Change back to GENERIC_READ so we can read the texture in a shader.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
+}
+
+void Game::RoomCheckButton(float x, float y)
+{
+	if (y <= -0.70f && y >= -0.80f)
+	{
+		if (x >= -0.68f && x <= -0.35f)
+		{
+			if (mButton.readyButton < 10)
+				mButton.readyButton = 2;
+			
+			mButton.mouseOnReadyButton = true;
+
+			return;
+		}
+		else if (x >= 0.375f && x <= 0.625f)
+		{
+			mButton.quitButton = 2;
+
+			mButton.mouseOnQuitButton = true;
+
+			return;
+		}
+	}
+
+	mButton.mouseOnReadyButton = false;
+	mButton.mouseOnQuitButton  = false;
+
+	mButton.quitButton  = 0;
+	if (mButton.readyButton >= 10)
+		mButton.readyButton = 10;
+	else
+		mButton.readyButton = 0;
+}
+
+void Game::ButtonClick()
+{
+	if (mButton.mouseOnQuitButton)
+	{
+		SendMessage(mhMainWnd, WM_CLOSE, 0, 0);
+	}
+	else if (mButton.mouseOnReadyButton) // 레디상태 송신 필요
+	{
+		if (mButton.readyButton >= 10)
+		{
+			mButton.readyButton = 2;
+			mButton.readyUI[mPlayer.GetPlayerID()] = -1;
+		}
+		else
+		{
+			mButton.readyButton = 10;
+			mButton.readyUI[mPlayer.GetPlayerID()] = 10;
+		}
+	}
 }
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> Game::GetStaticSamplers()
