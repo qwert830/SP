@@ -2,6 +2,9 @@
 #pragma comment(linker, "/entry:WinMainCRTStartup /subsystem:console" )
 #pragma comment(lib, "ws2_32")
 #include <winsock2.h>
+
+#include "../../../K/Server2019G/header/protocol.h"
+
 #include <iostream>
 using namespace std;
 
@@ -23,8 +26,9 @@ public:
 	NetworkModule();
 	~NetworkModule();
 
+	virtual void ProcessPacket(char *ptr) = 0;
+
 	void init_Network(HWND& hWnd);
-	void ProcessPacket(char *ptr);
 	void ReadPacket(SOCKET sock);
 
 };

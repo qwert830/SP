@@ -89,6 +89,7 @@ private:
     virtual void Update(const GameTimer& gt)override;
     virtual void Draw(const GameTimer& gt)override;
 	virtual LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)override;
+	virtual void ProcessPacket(char * ptr);
 
 	void DeferredDraw(const GameTimer& gt);
 
@@ -2197,4 +2198,13 @@ LRESULT Game::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	}
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
+void Game::ProcessPacket(char * ptr)
+{
+	switch (ptr[1]) {
+	case SC_LOGINSUCCESS:
+		cout << "로그인 성공" << endl;
+		break;
+	}
 }

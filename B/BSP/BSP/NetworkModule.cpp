@@ -57,15 +57,6 @@ void NetworkModule::init_Network(HWND & hWnd)
 	WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
 }
 
-void NetworkModule::ProcessPacket(char * ptr)
-{
-	switch (ptr[1]) {
-	case SC_LOGINSUCCESS:
-		cout << "로그인 성공" << endl;
-		break;
-	}
-}
-
 void NetworkModule::ReadPacket(SOCKET sock)
 {
 	DWORD iobyte, ioflag = 0;
