@@ -1963,16 +1963,23 @@ void Game::ButtonClick()
 	}
 	else if (mButton.mouseOnReadyButton) // 레디상태 송신 필요
 	{
+		DWORD iobyte;
+		cs_ready_packet* rdp = reinterpret_cast<cs_ready_packet*>(send_buffer);
+		send_wsabuf.len = sizeof(cs_ready_packet);
+		rdp->size = sizeof(cs_ready_packet);
 		if (mButton.readyButton >= 10)
 		{
+			rdp->type = CS_READY;
 			mButton.readyButton = 2;
 			mButton.readyUI[mPlayer.GetPlayerID()] = -1;
 		}
 		else
 		{
+			rdp->type = CS_UNREADY;
 			mButton.readyButton = 10;
 			mButton.readyUI[mPlayer.GetPlayerID()] = 10;
 		}
+		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
 	}
 }
 
@@ -2204,7 +2211,22 @@ void Game::ProcessPacket(char * ptr)
 {
 	switch (ptr[1]) {
 	case SC_LOGINSUCCESS:
-		cout << "로그인 성공" << endl;
+	{
+		DWORD iobyte;
+		cs_autojoin_packet* atp = reinterpret_cast<cs_autojoin_packet*>(send_buffer);
+		send_wsabuf.len = sizeof(cs_autojoin_packet);
+		atp->size = sizeof(cs_autojoin_packet);
+		atp->type = CS_AUTOJOIN;
+		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
+	}
+		break;
+	case SC_JOIN_PLAYER:
+	{
+		sc_player_join_packet* pjp = reinterpret_cast<sc_player_join_packet*>(ptr);
+		char idbuff[10];
+		wcstombs(idbuff, pjp->id, wcslen(pjp->id) + 1);
+		cout << idbuff << endl;
+	}
 		break;
 	}
 }

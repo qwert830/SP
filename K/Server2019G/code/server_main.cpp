@@ -527,6 +527,7 @@ inline void ProcessPacket(int id, char *packet)
 				g_rooms[i].m_mJoinIdList.lock();
 				if (g_rooms[i].m_RoomStatus == RS_EMPTY || g_rooms[i].m_RoomStatus == RS_JOINABLE) {
 					if (g_rooms[i].join(id)) {
+						cout << "조인성공" << endl;
 						g_rooms[i].m_mJoinIdList.unlock();
 						g_clients[id].m_RoomNumber = i;
 						sc_player_join_packet p;

@@ -14,6 +14,7 @@ using namespace std;
 
 class NetworkModule
 {
+protected:
 	SOCKET	m_mysocket;
 	WSABUF	send_wsabuf;
 	char 	send_buffer[BUF_SIZE];
