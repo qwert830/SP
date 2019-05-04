@@ -1,3 +1,7 @@
+/*
+mRenderItems[ROOM].renderItems[UI][1].instance[0~9] => 방에 첫 접속한 플레이어
+이후 인스턴스 10~19 / 20~29 순으로 접속 => uv좌표 변경으로 플레이어 이름 변경가능
+*/
 #include "NetworkModule.h"
 #include "d3dApp.h"
 #include "MathHelper.h"
@@ -1778,17 +1782,41 @@ void Game::BuildRenderItemsRoom()
 
 	for (int i = 3; i < 13; ++i)
 	{
-		RoomRitem->Instances[i].UIPos = XMFLOAT4(0.4f, 0.825f-((i-3)*0.125f), 0.6f, 0.65f-((i-3)*0.125f));
+		RoomRitem->Instances[i].UIPos = XMFLOAT4(0.3f, 0.825f-((i-3)*0.125f), 0.6f, 0.6f-((i-3)*0.125f));
 		RoomRitem->Instances[i].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
 		RoomRitem->Instances[i].MaterialIndex = 9;
 		RoomRitem->Instances[i].IsDraw = -1;
 	}
 
-
 	mInstanceCount.push_back((unsigned int)(RoomRitem->Instances.size()));
 
 	mRenderItems[ROOM].renderItems[UI].push_back(RoomRitem.get());
 	mRenderItems[ROOM].allItems.push_back(std::move(RoomRitem));
+
+	auto PlayerName = std::make_unique<RenderItem>();
+	PlayerName->ObjCBIndex = mObjectCount++;
+	PlayerName->Mat = mMaterials["seafloor0"].get();
+	PlayerName->Geo = mGeometries["shapeGeo"].get();
+	PlayerName->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	PlayerName->IndexCount = PlayerName->Geo->DrawArgs["uiGrid"].IndexCount;
+	PlayerName->StartIndexLocation = PlayerName->Geo->DrawArgs["uiGrid"].StartIndexLocation;
+	PlayerName->BaseVertexLocation = PlayerName->Geo->DrawArgs["uiGrid"].BaseVertexLocation;
+
+	PlayerName->Instances.resize(100);
+
+	for (int i = 0; i < 100; i++)
+	{
+		UVPos uv;
+		uv = mFontManager.GetUV(' ');
+		PlayerName->Instances[i].UIPos = XMFLOAT4(-0.7f + i%10*0.05f, 0.74f - i/10 *0.125f, -0.65f+i%10*0.05f, 0.64f - i/10 *0.125f);
+		PlayerName->Instances[i].UIUVPos = XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+		PlayerName->Instances[i].MaterialIndex = 4;
+	}
+
+	mInstanceCount.push_back((unsigned int)(PlayerName->Instances.size()));
+
+	mRenderItems[ROOM].renderItems[UI].push_back(PlayerName.get());
+	mRenderItems[ROOM].allItems.push_back(std::move(PlayerName));
 }
 
 void Game::BuildPlayerData() // 생성된 렌더러 아이템에 좌표로 플레이어에 월드벡터에 정보를 갱신함.
