@@ -5,8 +5,6 @@ using namespace std;
 using namespace DirectX;
 
 
-NetworkModule gNetwork;
-
 LRESULT CALLBACK
 MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -304,7 +302,6 @@ LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	// We pause the game when the window is deactivated and unpause it 
 	// when it becomes active.  
 	case WM_CREATE:
-		gNetwork.init(hwnd);
 		return 0;
 	case WM_ACTIVATE:
 		if( LOWORD(wParam) == WA_INACTIVE )
@@ -430,20 +427,6 @@ LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         else if((int)wParam == VK_F2)
             Set4xMsaaState(!m4xMsaaState);
         return 0;
-	case WM_SOCKET:
-		if (WSAGETSELECTERROR(lParam)) {
-			closesocket((SOCKET)wParam);
-			return 0;
-		}
-		switch (WSAGETSELECTEVENT(lParam)) {
-		case FD_READ:
-			gNetwork.ReadPacket((SOCKET)wParam);
-			return 0;
-		case FD_CLOSE:
-			closesocket((SOCKET)wParam);
-			return 0;
-		}
-		return 0;
 	}
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);

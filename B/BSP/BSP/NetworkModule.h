@@ -23,7 +23,7 @@ public:
 	NetworkModule();
 	~NetworkModule();
 
-	void init(HWND& hWnd);
+	void init_Network(HWND& hWnd);
 	void ProcessPacket(char *ptr);
 	void ReadPacket(SOCKET sock);
 

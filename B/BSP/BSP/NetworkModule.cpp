@@ -1,4 +1,5 @@
 #include "NetworkModule.h"
+#include "../../../K/Server2019G/header/protocol.h"
 
 
 
@@ -14,7 +15,7 @@ NetworkModule::~NetworkModule()
 }
 
 
-void NetworkModule::init(HWND & hWnd)
+void NetworkModule::init_Network(HWND & hWnd)
 {
 	WSADATA wsadata;
 
@@ -27,11 +28,10 @@ void NetworkModule::init(HWND & hWnd)
 	ServerAddr.sin_family = AF_INET;
 	ServerAddr.sin_port = htons(MY_SERVER_PORT);
 	char ipaddr[17];
-	//cout << "서버의 IP주소 입력 : ";
-	//cin >> ipaddr;
-	FreeConsole();
-	//ServerAddr.sin_addr.s_addr = inet_addr(ipaddr);
-	ServerAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	cout << "서버의 IP주소 입력 : ";
+	cin >> ipaddr;
+	ServerAddr.sin_addr.s_addr = inet_addr(ipaddr);
+	//ServerAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
 	WSAConnect(m_mysocket, (sockaddr *)&ServerAddr, sizeof(ServerAddr), NULL, NULL, NULL, NULL);
 
@@ -41,20 +41,34 @@ void NetworkModule::init(HWND & hWnd)
 	send_wsabuf.len = BUF_SIZE;
 	recv_wsabuf.buf = recv_buffer;
 	recv_wsabuf.len = BUF_SIZE;
+
+	DWORD iobyte;
+	cs_userinfo_packet* uip = reinterpret_cast<cs_userinfo_packet*>(send_buffer);
+	uip->size = sizeof(cs_userinfo_packet);
+	send_wsabuf.len = sizeof(cs_userinfo_packet);
+	uip->type = CS_LOGIN;
+	char cb[10];
+	cout << "ID : ";
+	cin >> cb;
+	mbstowcs(uip->id, cb, strlen(cb) + 1);
+	cout << "PASSWORD :";
+	cin >> cb;
+	mbstowcs(uip->password, cb, strlen(cb) + 1);
+	WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
 }
 
 void NetworkModule::ProcessPacket(char * ptr)
 {
-	cout << "야아 패킷이 온걸보니 되긴 되는구나!" << endl;
 	switch (ptr[1]) {
-
+	case SC_LOGINSUCCESS:
+		cout << "로그인 성공" << endl;
+		break;
 	}
 }
 
 void NetworkModule::ReadPacket(SOCKET sock)
 {
 	DWORD iobyte, ioflag = 0;
-
 	int ret = WSARecv(sock, &recv_wsabuf, 1, &iobyte, &ioflag, NULL, NULL);
 	if (ret) {
 		int err_code = WSAGetLastError();
