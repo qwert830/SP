@@ -452,25 +452,41 @@ bool D3DApp::InitMainWindow()
 		return false;
 	}
 
+#if defined(DEBUG) || defined(_DEBUG)
 	RECT R = { 0, 0, mClientWidth, mClientHeight };
     AdjustWindowRect(&R, 
-		//WS_OVERLAPPEDWINDOW |
-		WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_POPUP | WS_EX_APPWINDOW
-		, false);
+		WS_OVERLAPPEDWINDOW, false);
+	
 	int width  = R.right - R.left;
 	int height = R.bottom - R.top;
 
 	mhMainWnd = CreateWindow(L"MainWnd", mMainWndCaption.c_str(), 
-		//WS_OVERLAPPEDWINDOW |
+		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, 0, 0, mhAppInst, 0);
+#else
+	RECT R = { 0, 0, mClientWidth, mClientHeight };
+	AdjustWindowRect(&R,
+		WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_POPUP | WS_EX_APPWINDOW
+		, false);
+
+	int width = R.right - R.left;
+	int height = R.bottom - R.top;
+
+	mhMainWnd = CreateWindow(L"MainWnd", mMainWndCaption.c_str(),
 		WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_POPUP | WS_EX_APPWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, 0, 0, mhAppInst, 0);
+#endif	
+
+
+
 	if( !mhMainWnd )
 	{
 		MessageBox(0, L"CreateWindow Failed.", 0, 0);
 		return false;
 	}
-
-	//ShowWindow(mhMainWnd, SW_SHOW);
+#if defined(DEBUG) || defined(_DEBUG)
+	ShowWindow(mhMainWnd, SW_SHOW);
+#else
 	ShowWindow(mhMainWnd, SW_SHOWMAXIMIZED);
+#endif
 	UpdateWindow(mhMainWnd);
 
 	return true;

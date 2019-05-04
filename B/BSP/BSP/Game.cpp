@@ -1,7 +1,4 @@
-/*
-mRenderItems[ROOM].renderItems[UI][1].instance[0~9] => 방에 첫 접속한 플레이어
-이후 인스턴스 10~19 / 20~29 순으로 접속 => uv좌표 변경으로 플레이어 이름 변경가능
-*/
+
 #include "NetworkModule.h"
 #include "d3dApp.h"
 #include "MathHelper.h"
@@ -132,6 +129,9 @@ private:
 
 	void RoomCheckButton(float x, float y);
 	void ButtonClick();
+
+	void ChangeUserName(int id, char* name, unsigned int nameCount);
+
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 private:
 
@@ -1809,7 +1809,7 @@ void Game::BuildRenderItemsRoom()
 	{
 		UVPos uv;
 		uv = mFontManager.GetUV(' ');
-		PlayerName->Instances[i].UIPos = XMFLOAT4(-0.7f + i%10*0.05f, 0.74f - i/10 *0.125f, -0.65f+i%10*0.05f, 0.64f - i/10 *0.125f);
+		PlayerName->Instances[i].UIPos = XMFLOAT4(-0.7f + i%10*0.075f, 0.75f - i/10 *0.125f, -0.625f+i%10*0.075f, 0.625f - i/10 *0.125f);
 		PlayerName->Instances[i].UIUVPos = XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 		PlayerName->Instances[i].MaterialIndex = 4;
 	}
@@ -1969,17 +1969,41 @@ void Game::ButtonClick()
 		rdp->size = sizeof(cs_ready_packet);
 		if (mButton.readyButton >= 10)
 		{
-			rdp->type = CS_READY;
+			rdp->type = CS_UNREADY;
 			mButton.readyButton = 2;
 			mButton.readyUI[mPlayer.GetPlayerID()] = -1;
 		}
 		else
 		{
-			rdp->type = CS_UNREADY;
+			rdp->type = CS_READY;
 			mButton.readyButton = 10;
 			mButton.readyUI[mPlayer.GetPlayerID()] = 10;
+
+			//char test[11] = "abcdefghij";
+			//ChangeUserName(mPlayer.GetPlayerID(), test, 10);
+			//사용 예시 및 테스트 코드
+
 		}
 		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
+	}
+}
+
+void Game::ChangeUserName(int id, char* name, unsigned int nameCount)
+{
+	int i = id * 10;
+	UVPos uv;
+	for (int j = 0; j < 10; ++j)
+	{
+		mRenderItems[ROOM].renderItems[UI][1]->Instances[i + j].UIUVPos = XMFLOAT4(0, 0, 0, 0);
+	}
+
+	for (int j = 0; j < nameCount; ++i, ++j)
+	{
+		uv = mFontManager.GetUV(name[j]);
+		mRenderItems[ROOM].renderItems[UI][1]->Instances[i].UIPos = 
+			XMFLOAT4(-0.7f + j* 0.04f, 0.75f - (i / 10 * 0.125f), -0.7f + j * 0.04f +uv.w, 0.625f - (i / 10 * 0.125f));
+
+		mRenderItems[ROOM].renderItems[UI][1]->Instances[i].UIUVPos = XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 	}
 }
 
