@@ -310,7 +310,14 @@ void ModelManager::ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxSce
 				BlendingIndexWeightPair currBlendingIndexWeightPair;
 				currBlendingIndexWeightPair.mBlendingIndex = currJointIndex;
 				currBlendingIndexWeightPair.mBlendingWeight = currCluster->GetControlPointWeights();
-				
+				pOutData[0][i * 3].weights = currBlendingIndexWeightPair.mBlendingWeight[i * 3];
+				pOutData[0][i * 3 + 1].weights = currBlendingIndexWeightPair.mBlendingWeight[i * 3 + 1];
+				pOutData[0][i * 3 + 2].weights = currBlendingIndexWeightPair.mBlendingWeight[i * 3 + 2];
+				pOutData[0][i * 3 + 3].weights = currBlendingIndexWeightPair.mBlendingWeight[i * 3 + 3];
+				pOutData[0][i * 3].boneids = currBlendingIndexWeightPair.mBlendingIndex;
+				pOutData[0][i * 3 + 1].boneids = currBlendingIndexWeightPair.mBlendingIndex;
+				pOutData[0][i * 3 + 2].boneids = currBlendingIndexWeightPair.mBlendingIndex;
+				pOutData[0][i * 3 + 3].boneids = currBlendingIndexWeightPair.mBlendingIndex;
 //				mControlPoints[currCluster->GetControlPointIndices()[i]]->mBlendingInfo.push_back(currBlendingIndexWeightPair);
 			}
 
@@ -429,7 +436,7 @@ HRESULT ModelManager::LoadAnim(const char* filename, std::vector<ModelData>* pOu
 				for (int k = 0; k < iNumVertices; k++) {
 				}
 			}
-			ProcessJointsAndAnim(pFbxRootNode, pMesh, pFbxScene);
+			ProcessJointsAndAnim(pFbxRootNode, pMesh, pFbxScene, pOutData);
 		}
 
 	}

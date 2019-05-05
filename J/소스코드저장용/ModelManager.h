@@ -24,8 +24,8 @@ struct ModelData
 	float x, y, z, w, tu, tv, nx, ny, nz;
 	int state, frameTime;
 	unsigned int index;
-	XMFLOAT4 boneids;
-	XMFLOAT4 weights;
+	unsigned int boneids;
+	double weights;
 };
 
 struct BlendingIndexWeightPair
