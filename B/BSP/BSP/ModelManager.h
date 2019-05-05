@@ -1,7 +1,6 @@
 #pragma once
 #include "d3dUtil.h"
 #include <fbxsdk.h>
-#include <string>
 #include <map>
 #include <set>
 using namespace DirectX;
@@ -10,26 +9,23 @@ struct VERTEX
 {
 	XMFLOAT3 pos;
 	XMFLOAT2 tex;
-	XMFLOAT3 weights;
-	BYTE boneids[4];
+	XMFLOAT4 boneids;
+	XMFLOAT4 weights;
 
 	VERTEX()
 	{
-		weights = { 0, 0, 0 };
-		boneids[0] = 0;
-		boneids[1] = 0;
-		boneids[2] = 0;
-		boneids[3] = 0;
+		boneids = { 0, 0, 0, 0 };
+		weights = { 0, 0, 0, 0 };
 	}
 };
 
 struct ModelData
 {
 	float x, y, z, w, tu, tv, nx, ny, nz;
-	XMFLOAT3 BoneWeights;
-	BYTE BoneIndices[4];
 	int state, frameTime;
 	unsigned int index;
+	unsigned int boneids;
+	double weights;
 };
 
 struct BlendingIndexWeightPair
@@ -89,22 +85,18 @@ class ModelManager
 public:
 	FbxManager * g_pFbxSdkManager = nullptr;
 	FbxAnimStack * I_animStack = nullptr;
-	//std::vector<int, std::vector<BlendingIndexWeightPair>> mControlPoints;
-	std::vector<double*> mCPoints;
 	std::string mAnimationName;
-
 	int mAnimationLength;
-	int mKeyframe = 0;
+	std::map<int, int> mControlPoints;
 	Skeleton mSkeleton;
-
-
 
 	ModelManager();
 	~ModelManager();
 
 	HRESULT LoadFBX(const char* filename, std::vector<ModelData>* pOutData);
+	HRESULT LoadAnim(const char* filename, std::vector<ModelData>* pOutData);
 
-	void ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxScene* inFbxScene);
+	void ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxScene* inFbxScene, std::vector<ModelData>* pOutData);
 	FbxAMatrix GetGeometryTransformation(FbxNode* inNode);
 	void ProcessSkeletonHierarchyRecursively(FbxNode* inNode, int inDepth, int myIndex, int inParentIndex);
 	unsigned int FindJointIndexUsingName(std::string inNode);
@@ -112,5 +104,4 @@ public:
 	vec2 ReadUV(FbxMesh* mesh, int controlPointIndex, int vertexCounter);
 	void LoadUV(FbxMesh* mesh, std::vector<ModelData>* data);
 	void LoadNormal(FbxMesh* mesh, std::vector<ModelData>* data);
-	void LoadAnim();
 };

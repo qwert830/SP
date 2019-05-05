@@ -1,4 +1,3 @@
-
 #include "NetworkModule.h"
 #include "d3dApp.h"
 #include "MathHelper.h"
@@ -9,9 +8,10 @@
 #include "ModelManager.h"
 #include "ShadowMap.h"
 #include "FontManager.h"
+#include "MapLoader.h"
 #include <fstream>
 
-#include <crtdbg.h>
+const float radian = 3.141572 / 180;
 
 enum SCENENAME
 {
@@ -135,13 +135,14 @@ private:
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 private:
 
-	SCENENAME mScene = ROOM;
+	SCENENAME	mScene = GAME;
+	Button		mButton;
 
-	Player mPlayer;
-	ModelManager mModelManager;
-	FontManager mFontManager;
-
-	Button mButton;
+	Player			mPlayer;
+	ModelManager	mModelManager;
+	FontManager		mFontManager;
+	MapLoader		mMapLoader;
+	
 
 	std::unique_ptr<ShadowMap> mShadowMap;
 	
@@ -165,28 +166,21 @@ private:
     ComPtr<ID3DBlob> mvsByteCode = nullptr;
     ComPtr<ID3DBlob> mpsByteCode = nullptr;
 
-	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
-	std::unordered_map<std::string, std::unique_ptr<Material>> mMaterials;
-	std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
-	std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
-    std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> mPSOs;
+	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>>	mGeometries;
+	std::unordered_map<std::string, std::unique_ptr<Material>>		mMaterials;
+	std::unordered_map<std::string, std::unique_ptr<Texture>>		mTextures;
+	std::unordered_map<std::string, ComPtr<ID3DBlob>>				mShaders;
+    std::unordered_map<std::string, ComPtr<ID3D12PipelineState>>	mPSOs;
 	std::vector<unsigned int> mInstanceCount;
 
     std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mBillboardsInputLayout;
-	// List of all the render items.
-	
-	//std::vector<std::unique_ptr<RenderItem>> mAllRitems;
-
-	//std::unordered_map<int, std::vector<RenderItem*>> gameRenderItem;
 
 	std::unordered_map<int, RenderItmeSet> mRenderItems;
 
-	UINT mShadowMapHeapIndex = 0;
-
-	UINT mDeferredMapHeapIndex = 0;
-
-	UINT mObjectCount = 0;
+	UINT mShadowMapHeapIndex	= 0;
+	UINT mDeferredMapHeapIndex	= 0;
+	UINT mObjectCount			= 0;
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mNullSrv;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mDeferredNullSrv[4];
@@ -262,6 +256,7 @@ bool Game::Initialize()
 	mShadowMap = std::make_unique<ShadowMap>(md3dDevice.Get(), 2048, 2048);
 	bool h;
 	h = mFontManager.InitFont();
+	mMapLoader.LoadMapData();
 
 	LoadTextures();
 	BuildDescriptorHeaps();
@@ -544,6 +539,8 @@ void Game::OnMouseUp(WPARAM btnState, int x, int y)
 void Game::OnMouseMove(WPARAM btnState, int x, int y)
 {
 	POINT pos;
+	pos.x = x;
+	pos.y = y;
 	ClientToScreen(mhMainWnd, &pos);
 	if (mScene == GAME)
 		mPlayer.PlayerMouseMove(btnState, pos.x, pos.y);
@@ -841,7 +838,8 @@ void Game::LoadTextures()
 		"playerShotTex",
 		"ReadyRoomTex",
 		"ReadyButtonTex",
-		"QuitButtonTex"
+		"QuitButtonTex",
+		"CubeTex"
 	};
 
 	std::vector<std::wstring> fileNames =
@@ -856,7 +854,8 @@ void Game::LoadTextures()
 		L"Resource/PlayerShot.dds",
 		L"Resource/ReadyRoom.dds",
 		L"Resource/ReadyButton.dds",
-		L"Resource/QuitButton.dds"
+		L"Resource/QuitButton.dds",
+		L"Resource/Cube.dds"
 	};
 
 	for (int i = 0; i < texNames.size(); ++i)
@@ -916,7 +915,7 @@ void Game::BuildInstancingRootSignature()
 	// 디스크립터 바꿀댄 셰이더 코드를 꼭 바꾸자 젭라..
 	int num = 0;
 
-	int tex = 11;
+	int tex = 12;
 	CD3DX12_DESCRIPTOR_RANGE texTable;
 	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, tex, num, 0);
 	num += tex;
@@ -977,7 +976,7 @@ void Game::BuildDescriptorHeaps()
 	//디스크립터 힙에 쉐이더 리소스 뷰를 하나씩 탑재
 
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 16;
+	srvHeapDesc.NumDescriptors = 17;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -996,7 +995,8 @@ void Game::BuildDescriptorHeaps()
 		mTextures["playerShotTex"]->Resource,
 		mTextures["ReadyRoomTex"]->Resource,
 		mTextures["ReadyButtonTex"]->Resource,
-		mTextures["QuitButtonTex"]->Resource
+		mTextures["QuitButtonTex"]->Resource,
+		mTextures["CubeTex"]->Resource
 	};
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -1109,69 +1109,25 @@ void Game::BuildShapeGeometry()
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 20.0f, 20, 40);
 	GeometryGenerator::MeshData uiGrid = geoGen.CreateGrid(10.0f, 10.0f, 2, 2);
 	GeometryGenerator::MeshData quad = geoGen.CreateQuad(-1.0f, 1.0f, 2.0f, 2.0f, 0.0f);
-	// 모델 로딩
-	fin.open("Resource/model.txt");
-	if (fin.fail())
-	{
-		return;
-	}
-	fin.get(input);
-	while (input != ':')
-	{
-		fin.get(input);
-	}
-
-	fin >> m_vertexCount;
-	m_indexCount = m_vertexCount;
-
-	struct modeltype { float x, y, z, tu, tv, nx, ny, nz; };
-
-	modeltype* tempModelType = new modeltype[m_vertexCount];
-
-	fin.get(input);
-	while (input != ':')
-	{
-		fin.get(input);
-	}
-	fin.get(input);
-	fin.get(input);
-	float x = 0;
-	// Read in the vertex data. 
-	for (i = 0; i < m_vertexCount; i++)
-	{
-		fin >> tempModelType[i].x >> tempModelType[i].y >> tempModelType[i].z;
-		fin >> tempModelType[i].tu >> tempModelType[i].tv;
-		fin >> tempModelType[i].nx >> tempModelType[i].ny >> tempModelType[i].nz;
-	}
-	// Close the model file.
-	fin.close();
-	// 모델로딩완료
 
 	std::vector<ModelData> data;
 	mModelManager.LoadFBX("Resource//PlayerChar.fbx", &data);
-
+	//16488개 버텍스
+	//mModelManager.LoadAnim("Resource//PlayerChar.fbx", &data);
+	
 	std::vector<ModelData> data2;
-
 	mModelManager.LoadFBX("Resource//PlayerGun.fbx", &data2);
 
+	std::vector<ModelData> data3;
+	mModelManager.LoadFBX("Resource//Cube.fbx", &data3);
+
 	// 모델 데이터 입력
-	auto totalVertexCount = (size_t)m_vertexCount + grid.Vertices.size()+ data.size() + uiGrid.Vertices.size() + quad.Vertices.size() + data2.size();
+	auto totalVertexCount = grid.Vertices.size()+ data.size() + uiGrid.Vertices.size() + quad.Vertices.size() + data2.size() + data3.size();
 	
 	std::vector<Vertex> vertices(totalVertexCount);
 	std::vector<uint16_t> indices;
 	
 	int k = 0;
-
-	for (int i = 0; i < m_vertexCount; ++i, ++k)
-	{
-		vertices[k].Pos = XMFLOAT4(tempModelType[i].x, tempModelType[i].y, tempModelType[i].z, 0.0f);
-		vertices[k].Tex = XMFLOAT2(tempModelType[i].tu, tempModelType[i].tv);
-		vertices[k].Normal = XMFLOAT3(tempModelType[i].nx, tempModelType[i].ny, tempModelType[i].nz);
-
-		indices.insert(indices.end(), i);
-	}
-	UINT modelIndexCount = (UINT)indices.size();
-
 	for (int i = 0; i < grid.Vertices.size(); ++i, ++k)
 	{
 		vertices[k].Pos = XMFLOAT4(grid.Vertices[i].Position.x, grid.Vertices[i].Position.y, grid.Vertices[i].Position.z, 0.0f);
@@ -1215,15 +1171,20 @@ void Game::BuildShapeGeometry()
 	}
 	UINT playerGunIndex = (UINT)data2.size();
 
+	for (int i = 0; i < data3.size(); ++i, ++k)
+	{
+		vertices[k].Pos = XMFLOAT4(data3[i].x, data3[i].y, data3[i].z, 0.0f);
+		vertices[k].Tex = XMFLOAT2(data3[i].tu, 1 - data3[i].tv);
+		vertices[k].Normal = XMFLOAT3(data3[i].nx, data3[i].ny, data3[i].nz);
+		indices.insert(indices.end(), i);
+	}
+	UINT CubeIndex = (UINT)data3.size();
 
     const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
-	UINT modelIndexOffset = 0;
-	UINT modelVertexOffset = 0;
-
-	UINT gridIndexOffset = modelIndexCount;
-	UINT gridVertexOffset = m_vertexCount;
+	UINT gridIndexOffset = 0;
+	UINT gridVertexOffset = 0;
 
 	UINT uiGridIndexOffset = (UINT)grid.Indices32.size() + gridIndexOffset;
 	UINT uiGridVertexOffset = (UINT)grid.Vertices.size() + gridVertexOffset;
@@ -1236,6 +1197,9 @@ void Game::BuildShapeGeometry()
 
 	UINT PlayerGunIndexOffset = (UINT)quad.Indices32.size() + QuadIndexOffset;
 	UINT PlayerGunVertexOffset = (UINT)quad.Vertices.size() + QuadVertexOffset;
+
+	UINT CubeIndexOffset = playerGunIndex + PlayerGunIndexOffset;
+	UINT CubeVertexOffset = (UINT)data2.size() + PlayerGunVertexOffset;
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = "shapeGeo";
@@ -1259,11 +1223,6 @@ void Game::BuildShapeGeometry()
 	geo->VertexBufferByteSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
 	geo->IndexBufferByteSize = ibByteSize;
-
-	SubmeshGeometry submesh;
-	submesh.IndexCount = (UINT)modelIndexCount;
-	submesh.StartIndexLocation = modelIndexOffset;
-	submesh.BaseVertexLocation = modelVertexOffset;
 
 	SubmeshGeometry gridSubmesh;
 	gridSubmesh.IndexCount = (UINT)grid.Indices32.size();
@@ -1290,12 +1249,17 @@ void Game::BuildShapeGeometry()
 	PlayerGunSubmesh.StartIndexLocation = PlayerGunIndexOffset;
 	PlayerGunSubmesh.BaseVertexLocation = PlayerGunVertexOffset;
 
-	geo->DrawArgs["testModel"] = submesh;
+	SubmeshGeometry CubeSubmesh;
+	CubeSubmesh.IndexCount = (UINT)CubeIndex;
+	CubeSubmesh.StartIndexLocation = CubeIndexOffset;
+	CubeSubmesh.BaseVertexLocation = CubeVertexOffset;
+
 	geo->DrawArgs["grid"] = gridSubmesh;
 	geo->DrawArgs["uiGrid"] = uiGridSubmesh;
 	geo->DrawArgs["PlayerChar"] = PlayerSubmesh;
 	geo->DrawArgs["quad"] = QuadSubmesh;
 	geo->DrawArgs["playerGun"] = PlayerGunSubmesh;
+	geo->DrawArgs["cube"] = CubeSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
 }
@@ -1490,24 +1454,6 @@ void Game::BuildMaterials()
 
 void Game::BuildRenderItemsGame()
 {
-	auto boxRitem = std::make_unique<RenderItem>();
-	boxRitem->ObjCBIndex = mObjectCount++;
-	boxRitem->Mat = mMaterials["seafloor0"].get();
-	boxRitem->Geo = mGeometries["shapeGeo"].get();
-	boxRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	boxRitem->IndexCount = boxRitem->Geo->DrawArgs["testModel"].IndexCount;
-	boxRitem->StartIndexLocation = boxRitem->Geo->DrawArgs["testModel"].StartIndexLocation;
-	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["testModel"].BaseVertexLocation;
-
-	boxRitem->Instances.resize(1);
-	XMStoreFloat4x4(&boxRitem->Instances[0].World, XMMatrixScaling(2.0f, 2.0f, 2.0f)*XMMatrixTranslation(0.0f, 1.0f, 0.0f));
-	XMStoreFloat4x4(&boxRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-	boxRitem->Instances[0].MaterialIndex = 0;
-
-	mInstanceCount.push_back((unsigned int)(boxRitem->Instances.size()));
-
-	mRenderItems[GAME].allItems.push_back(std::move(boxRitem));
-
 	auto gridRitem = std::make_unique<RenderItem>();
 
 	gridRitem->ObjCBIndex = mObjectCount++;
@@ -1520,59 +1466,12 @@ void Game::BuildRenderItemsGame()
 
 	gridRitem->Instances.resize(1);
 	XMStoreFloat4x4(&gridRitem->Instances[0].World, XMMatrixScaling(50.0f, 1.0f, 50.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
-	XMStoreFloat4x4(&gridRitem->Instances[0].TexTransform, XMMatrixScaling(100.0f, 100.0f, 1.0f));
+	XMStoreFloat4x4(&gridRitem->Instances[0].TexTransform, XMMatrixScaling(20.0f, 20.0f, 1.0f));
 	gridRitem->Instances[0].MaterialIndex = 1;
 
 	mInstanceCount.push_back((unsigned int)gridRitem->Instances.size());
 
 	mRenderItems[GAME].allItems.push_back(std::move(gridRitem));
-
-	auto testRitem = std::make_unique<RenderItem>();
-	testRitem->World = MathHelper::Identity4x4();
-	testRitem->TexTransform = MathHelper::Identity4x4();
-	testRitem->ObjCBIndex = mObjectCount++;
-	testRitem->Mat = mMaterials["seafloor0"].get();
-	testRitem->Geo = mGeometries["shapeGeo"].get();
-	testRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	testRitem->InstanceCount = 0;
-	testRitem->IndexCount = testRitem->Geo->DrawArgs["testModel"].IndexCount;
-	testRitem->StartIndexLocation = testRitem->Geo->DrawArgs["testModel"].StartIndexLocation;
-	testRitem->BaseVertexLocation = testRitem->Geo->DrawArgs["testModel"].BaseVertexLocation;
-
-	int n = 5;
-	testRitem->Instances.resize(n*n*n);
-
-	float width = 200.0f;
-	float height = 200.0f;
-	float depth = 200.0f;
-
-	float x = -0.5f*width;
-	float y = -0.5f*height;
-	float z = -0.5f*depth;
-	float dx = width / (n - 1);
-	float dy = height / (n - 1);
-	float dz = depth / (n - 1);
-	for (int k = 0; k < n; ++k)
-	{
-		for (int i = 0; i < n; ++i)
-		{
-			for (int j = 0; j < n; ++j)
-			{
-				int index = k * n*n + i * n + j;
-				testRitem->Instances[index].World = XMFLOAT4X4(
-					3.0f, 0.0f, 0.0f, 0.0f,
-					0.0f, 3.0f, 0.0f, 0.0f,
-					0.0f, 0.0f, 3.0f, 0.0f,
-					x + j * dx, y + i * dy, z + k * dz, 1.0f);
-
-				XMStoreFloat4x4(&testRitem->Instances[index].TexTransform, XMMatrixScaling(3.0f, 3.0f, 3.0f));
-				testRitem->Instances[index].MaterialIndex = rand() % 2;
-			}
-		}
-	}
-	mInstanceCount.push_back((unsigned int)testRitem->Instances.size());
-
-	mRenderItems[GAME].allItems.push_back(std::move(testRitem));
 
 	auto PlayerRitem = std::make_unique<RenderItem>();
 	PlayerRitem->World = MathHelper::Identity4x4();
@@ -1586,14 +1485,14 @@ void Game::BuildRenderItemsGame()
 	PlayerRitem->StartIndexLocation = PlayerRitem->Geo->DrawArgs["PlayerChar"].StartIndexLocation;
 	PlayerRitem->BaseVertexLocation = PlayerRitem->Geo->DrawArgs["PlayerChar"].BaseVertexLocation;
 
-	n = 3;
+	int n = 3;
 	PlayerRitem->Instances.resize(n*n);
-	width = 100.0f;
-	depth = 100.0f;
-	x = -0.5f*width;
-	z = -0.5f*depth;
-	dx = width / (n - 1);
-	dz = depth / (n - 1);
+	float width = 100.0f;
+	float depth = 100.0f;
+	float x = -0.5f*width;
+	float z = -0.5f*depth;
+	float dx = width / (n - 1);
+	float dz = depth / (n - 1);
 	for (int k = 0; k < n; ++k)
 	{
 			for (int j = 0; j < n; ++j)
@@ -1603,7 +1502,7 @@ void Game::BuildRenderItemsGame()
 					0.1f, 0.0f, 0.0f, 0.0f,
 					0.0f, 0.1f, 0.0f, 0.0f,
 					0.0f, 0.0f, 0.1f, 0.0f,
-					x + j * dx, 10, z + (k-1) * dz, 1.0f);
+					x + j * dx, 0, z + (k-1) * dz, 1.0f);
 
 				XMStoreFloat4x4(&PlayerRitem->Instances[index].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 				PlayerRitem->Instances[index].MaterialIndex = 3;
@@ -1755,6 +1654,35 @@ void Game::BuildRenderItemsGame()
 	mInstanceCount.push_back((unsigned int)playerShotRitem->Instances.size());
 	mRenderItems[GAME].renderItems[BILLBOARDITEM].push_back(playerShotRitem.get());
 	mRenderItems[GAME].allItems.push_back(std::move(playerShotRitem));
+
+	auto CubeRitem = std::make_unique <RenderItem>();
+	CubeRitem->World = MathHelper::Identity4x4();
+	CubeRitem->TexTransform = MathHelper::Identity4x4();
+	CubeRitem->ObjCBIndex = mObjectCount++;
+	CubeRitem->Mat = mMaterials["seafloor0"].get();
+	CubeRitem->Geo = mGeometries["shapeGeo"].get();
+	CubeRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	CubeRitem->IndexCount = CubeRitem->Geo->DrawArgs["cube"].IndexCount;
+	CubeRitem->StartIndexLocation = CubeRitem->Geo->DrawArgs["cube"].StartIndexLocation;
+	CubeRitem->BaseVertexLocation = CubeRitem->Geo->DrawArgs["cube"].BaseVertexLocation;
+
+	CubeRitem->Instances.resize(mMapLoader.GetSizeofData());
+
+	for (int i = 0; i < CubeRitem->Instances.size(); ++i)
+	{
+		MapData d = mMapLoader.GetMapData(i);
+		CubeRitem->Instances[i].MaterialIndex = 11;
+		XMStoreFloat4x4(&CubeRitem->Instances[i].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+		XMStoreFloat4x4(&CubeRitem->Instances[i].World, 
+			XMMatrixScaling(d.scalingX, d.scalingY, d.scalingZ)*
+			XMMatrixRotationY(d.rotationY*radian)*
+			XMMatrixTranslation(d.offsetX, d.offsetY, d.offsetZ));
+		CubeRitem->Instances[i].IsDraw = 1;
+	}
+
+	mInstanceCount.push_back((unsigned int)CubeRitem->Instances.size());
+	mRenderItems[GAME].renderItems[OPAQUEITEM].push_back(CubeRitem.get());
+	mRenderItems[GAME].allItems.push_back(std::move(CubeRitem));
 }
 
 void Game::BuildRenderItemsRoom()

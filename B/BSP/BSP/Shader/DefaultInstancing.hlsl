@@ -69,10 +69,10 @@ cbuffer cbSkinned : register(b1)
     float4x4 gBoneTransforms[10][96];
 };
 
-Texture2D gDiffuseMap[11] : register(t0);
-Texture2D gShadowMap : register(t11);
-Texture2D gDepthResource : register(t12);
-Texture2D gBufferResource[3] : register(t13);
+Texture2D gDiffuseMap[12] : register(t0);
+Texture2D gShadowMap : register(t12);
+Texture2D gDepthResource : register(t13);
+Texture2D gBufferResource[3] : register(t14);
 
 
 SamplerState gsamPointWrap : register(s0);

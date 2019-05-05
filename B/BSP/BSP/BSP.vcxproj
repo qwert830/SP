@@ -161,6 +161,7 @@
     <ClInclude Include="FrameResource.h" />
     <ClInclude Include="GameTimer.h" />
     <ClInclude Include="GeometryGenerator.h" />
+    <ClInclude Include="MapLoader.h" />
     <ClInclude Include="MathHelper.h" />
     <ClInclude Include="ModelManager.h" />
     <ClInclude Include="NetworkModule.h" />
@@ -183,6 +184,7 @@
     <ClCompile Include="d3dUtil.cpp" />
     <ClCompile Include="GameTimer.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
+    <ClCompile Include="MapLoader.cpp" />
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="ModelManager.cpp" />
     <ClCompile Include="NetworkModule.cpp" />

@@ -27,6 +27,8 @@ private:
 	unsigned char moveState = MOVE::STAND;
 	unsigned char attackState = ATTACK::NOATTACK;
 
+	const float moveSpeed = 300.0f;
+
 	float superheat = 0.0f;
 	float attackCool = 0.1f;
 
