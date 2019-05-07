@@ -746,6 +746,7 @@ void worker_thread()
 		}
 		else if (GAMEACTION == p_over->work)
 		{
+
 			switch (g_clients[key].m_MoveDirection) {
 			case LEFT_DR:
 				g_clients[key].movex = -3.0f / 60.0f;
@@ -778,6 +779,10 @@ void worker_thread()
 			case DRIGHT_DR:
 				g_clients[key].movez = 2.1f / 60.0f;
 				g_clients[key].movex = 2.1f / 60.0f;
+				break;
+			case STOP_DR:
+				g_clients[key].movez = 0;
+				g_clients[key].movex = 0;
 				break;
 			}
 
