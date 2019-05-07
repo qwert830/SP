@@ -1,6 +1,8 @@
 #define MAX_BUFF_SIZE   4096
 #define MAX_PACKET_SIZE  255
 
+#define FRAME_PER_SEC (1.0f / 60.0f)
+
 #define MAX_USER 2000
 
 #define MY_SERVER_PORT  4000

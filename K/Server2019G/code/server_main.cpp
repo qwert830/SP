@@ -14,6 +14,7 @@
 #include <string>
 #include <sqlext.h>  
 #include <locale.h>
+#include "../header/PhysXModule.h"
 
 
 #define MAX(a,b)	((a)>(b))?(a):(b)
@@ -43,6 +44,7 @@ public:
 	int m_RoomNumber;
 	char m_Condition;
 	unsigned char m_MoveDirection;
+	PxCapsuleController*	mCapsuleController;
 
 	EXOVER m_rxover;
 	int m_packet_size;
@@ -53,7 +55,7 @@ public:
 		m_Score = 0;
 		m_IsConnected = false;
 		x = 0;
-		y = 0;
+		y = -5;
 		z = 0;
 		m_RoomNumber = LOBBYNUMBER;
 		m_Condition = US_WAIT;
@@ -65,14 +67,21 @@ public:
 		m_rxover.work = RECV;
 		m_prev_packet_size = 0;
 	}
+	~Client() {
+		mCapsuleController->release();
+	}
 };
 
-class Room {
+class Room 
+{
 public:
 	unordered_set<int> m_JoinIdList;
 	unsigned char m_CurrentNum;
 	mutex m_mJoinIdList;
 	unsigned char m_RoomStatus;
+
+	PhysXModule* m_PhysXModule;
+
 	Room() {
 		m_JoinIdList.clear();
 		m_CurrentNum = 0;
@@ -110,10 +119,18 @@ public:
 				return false;
 		}
 		m_RoomStatus = RS_PLAY;
+		m_PhysXModule = new PhysXModule;
+		float PosZ = 0;
 		for (int d : m_JoinIdList) {
 			g_clients[d].m_Condition = US_PLAY;
+			m_PhysXModule->setCapsuleController(g_clients[d].mCapsuleController, PxExtendedVec3(0, 50, PosZ), 25, 10);
+			PosZ -= 50;
 		}
 		return true;
+	}
+
+	void gameover() {
+		delete m_PhysXModule;
 	}
 
 };
@@ -727,32 +744,32 @@ void worker_thread()
 		{
 			switch (g_clients[key].m_MoveDirection) {
 			case LEFT_DR:
-				g_clients[key].x--;
+				g_clients[key].x = -3.0f / 60.0f;
 				break;
 			case RIGHT_DR:
-				g_clients[key].x++;
+				g_clients[key].x = 3.0f / 60.0f;
 				break;
 			case UP_DR:
-				g_clients[key].y--;
+				g_clients[key].z = -3.0f / 60.0f;
 				break;
 			case DOWN_DR:
-				g_clients[key].y++;
+				g_clients[key].z = 3.0f / 60.0f;
 				break;
 			case ULEFT_DR:
-				g_clients[key].y -= 0.7;
-				g_clients[key].x -= 0.7;
+				g_clients[key].z = -2.1f / 60.0f;
+				g_clients[key].x = -2.1f / 60.0f;
 				break;
 			case URIGHT_DR:
-				g_clients[key].y -= 0.7;
-				g_clients[key].x += 0.7;
+				g_clients[key].z = -2.1f / 60.0f;
+				g_clients[key].x = 2.1f / 60.0f;
 				break;
 			case DLEFT_DR:
-				g_clients[key].y += 0.7;
-				g_clients[key].x -= 0.7;
+				g_clients[key].z = 2.1f / 60.0f;
+				g_clients[key].x = -2.1f / 60.0f;
 				break;
 			case DRIGHT_DR:
-				g_clients[key].y += 0.7;
-				g_clients[key].x += 0.7;
+				g_clients[key].z = 2.1f / 60.0f;
+				g_clients[key].x = 2.1f / 60.0f;
 				break;
 			}
 
@@ -854,11 +871,15 @@ void Timer_Thread() {
 		count = (count + 1) % 60;
 		for (Room& d : g_rooms) {
 			if (d.m_RoomStatus != RS_PLAY) continue;
+
 			for (int d : d.m_JoinIdList) {
 				PostQueuedCompletionStatus(ghiocp, 1, d, &over.m_over);
 				if(!count)
 					PostQueuedCompletionStatus(ghiocp, 1, d, &periodic.m_over);
+				PxControllerFilters filter;
+				g_clients[d].mCapsuleController->move(PxVec3(g_clients[d].x, g_clients[d].y, g_clients[d].z), 0.001f, FRAME_PER_SEC, filter);
 			}
+			d.m_PhysXModule->stepPhysics(FRAME_PER_SEC);
 		}
 		chrono::system_clock::time_point t2 = chrono::system_clock::now();
 		chrono::duration<double> sptime = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
@@ -876,7 +897,7 @@ int main()
 
 	thread a_thread{ Accept_Threads };
 	thread t_thread{ Timer_Thread };
-
+	cout << "서버 시작" << endl;
 	for (auto &t : w_threads)
 		t.join();
 
