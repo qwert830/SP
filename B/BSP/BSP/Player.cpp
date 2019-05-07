@@ -13,10 +13,11 @@ Player::~Player()
 {
 }
 
-void Player::SelectPlayer(const char i)
+void Player::SelectPlayer(const int i)
 {
 	PlayerID = i;
 	mCamera.SetCamera(mVector[PlayerID].mPosition, mVector[PlayerID].mRight, mVector[PlayerID].mLook, mVector[PlayerID].mUp);
+	
 }
 
 void Player::PlayerKeyBoardInput(const GameTimer & gt)

@@ -27,7 +27,7 @@ private:
 	unsigned char moveState = MOVE::STAND;
 	unsigned char attackState = ATTACK::NOATTACK;
 
-	const float moveSpeed = 300.0f;
+	const float moveSpeed = 600.0f;
 
 	float superheat = 0.0f;
 	float attackCool = 0.1f;
@@ -46,7 +46,7 @@ public:
 
 	DirectX::XMFLOAT3 offset;
 
-	void SelectPlayer(const char i);
+	void SelectPlayer(const int i);
 	void PlayerKeyBoardInput(const GameTimer& gt);
 	void PlayerMouseMove(WPARAM btnState, int x, int y);
 	void PlayerMouseDown(WPARAM btnState, int x, int y);

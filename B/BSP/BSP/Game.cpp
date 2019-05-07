@@ -107,7 +107,6 @@ private:
 	void UpdateTime(const GameTimer& gt);
 	void UpdateButton();
 
-
 	void OnKeyboardInput(const GameTimer& gt);
 
 	void LoadTextures();
@@ -131,7 +130,7 @@ private:
 	void ButtonClick();
 
 	void ChangeUserName(int id, char* name, unsigned int nameCount);
-
+	void SelectID(int id);
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 private:
 
@@ -143,7 +142,6 @@ private:
 	FontManager		mFontManager;
 	MapLoader		mMapLoader;
 	
-
 	std::unique_ptr<ShadowMap> mShadowMap;
 	
 	Microsoft::WRL::ComPtr<ID3D12Resource> mDeferredResource[4] = { nullptr, };
@@ -256,7 +254,7 @@ bool Game::Initialize()
 	mShadowMap = std::make_unique<ShadowMap>(md3dDevice.Get(), 2048, 2048);
 	bool h;
 	h = mFontManager.InitFont();
-	mMapLoader.LoadMapData();
+	mMapLoader.LoadData();
 
 	LoadTextures();
 	BuildDescriptorHeaps();
@@ -272,7 +270,8 @@ bool Game::Initialize()
     BuildPSOs();
 
 	mPlayer.mCamera.SetPosition(0.0f, 5.0f, -15.0f);
-	
+	SelectID(2);
+
     ThrowIfFailed(mCommandList->Close());
 	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
@@ -1485,30 +1484,18 @@ void Game::BuildRenderItemsGame()
 	PlayerRitem->StartIndexLocation = PlayerRitem->Geo->DrawArgs["PlayerChar"].StartIndexLocation;
 	PlayerRitem->BaseVertexLocation = PlayerRitem->Geo->DrawArgs["PlayerChar"].BaseVertexLocation;
 
-	int n = 3;
-	PlayerRitem->Instances.resize(n*n);
-	float width = 100.0f;
-	float depth = 100.0f;
-	float x = -0.5f*width;
-	float z = -0.5f*depth;
-	float dx = width / (n - 1);
-	float dz = depth / (n - 1);
-	for (int k = 0; k < n; ++k)
+	PlayerRitem->Instances.resize(mMapLoader.GetSizeofPlayerData());
+	for (int i = 0; i < PlayerRitem->Instances.size(); ++i)
 	{
-			for (int j = 0; j < n; ++j)
-			{
-				int index = k * n +  j;
-				PlayerRitem->Instances[index].World = XMFLOAT4X4(
-					0.1f, 0.0f, 0.0f, 0.0f,
-					0.0f, 0.1f, 0.0f, 0.0f,
-					0.0f, 0.0f, 0.1f, 0.0f,
-					x + j * dx, 0, z + (k-1) * dz, 1.0f);
-
-				XMStoreFloat4x4(&PlayerRitem->Instances[index].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-				PlayerRitem->Instances[index].MaterialIndex = 3;
-			}
+		PlayerData d = mMapLoader.GetPlayerData(i);
+		PlayerRitem->Instances[i].World = XMFLOAT4X4(
+			0.1f, 0.0f, 0.0f, 0.0f,
+			0.0f, 0.1f, 0.0f, 0.0f,
+			0.0f, 0.0f, 0.1f, 0.0f,
+			d.tx, d.ty, d.tz, 1.0f);
+		XMStoreFloat4x4(&PlayerRitem->Instances[i].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+		PlayerRitem->Instances[i].MaterialIndex = 3;
 	}
-
 	mInstanceCount.push_back((unsigned int)PlayerRitem->Instances.size());
 
 	auto UIRitem = std::make_unique<RenderItem>();
@@ -1666,7 +1653,7 @@ void Game::BuildRenderItemsGame()
 	CubeRitem->StartIndexLocation = CubeRitem->Geo->DrawArgs["cube"].StartIndexLocation;
 	CubeRitem->BaseVertexLocation = CubeRitem->Geo->DrawArgs["cube"].BaseVertexLocation;
 
-	CubeRitem->Instances.resize(mMapLoader.GetSizeofData());
+	CubeRitem->Instances.resize(mMapLoader.GetSizeofMapData());
 
 	for (int i = 0; i < CubeRitem->Instances.size(); ++i)
 	{
@@ -1933,6 +1920,12 @@ void Game::ChangeUserName(int id, char* name, unsigned int nameCount)
 
 		mRenderItems[ROOM].renderItems[UI][1]->Instances[i].UIUVPos = XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 	}
+}
+
+void Game::SelectID(int id)
+{
+	mPlayer.SelectPlayer(id);
+	mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = -1;
 }
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> Game::GetStaticSamplers()
