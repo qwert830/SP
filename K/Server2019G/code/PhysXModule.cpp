@@ -80,7 +80,7 @@ void PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirec
 }
 
 
-void PhysXModule::setCapsuleController(PxCapsuleController * mCapsuleController, PxExtendedVec3 pos, float height, float radius)
+PxCapsuleController* PhysXModule::setCapsuleController(PxExtendedVec3 pos, float height, float radius)
 {
 	PxCapsuleControllerDesc capsuleDesc;
 	capsuleDesc.height = height; //Height of capsule
@@ -97,9 +97,10 @@ void PhysXModule::setCapsuleController(PxCapsuleController * mCapsuleController,
 
 	//충돌 콜백 함수
 	//capsuleDesc.reportCallback = collisionCallback; //충돌함수로 지면과 닿았을때 중력가속을 0으로?
-	
+
+	capsuleDesc.reportCallback = &collisionCallback;
 	//캡슐 컨트롤러 생성
-	mCapsuleController = static_cast<PxCapsuleController*>(mControllerManager->createController(capsuleDesc));
+	return static_cast<PxCapsuleController*>(mControllerManager->createController(capsuleDesc));
 	
 	//캡슐 컨트롤러에 key값 부여
 	//mCapsuleController->setUserData(new int(key));

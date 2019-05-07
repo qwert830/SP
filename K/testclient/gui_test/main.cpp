@@ -34,12 +34,13 @@ int		saved_packet_size = 0;
 class Client {
 public:
 	wstring ID;
+	int unum;
 	int Score;
 	float x;
 	float y;
 	unsigned char movedir;
 
-	Client() : Score(0), x(0), y(0), movedir(STOP_DR) {
+	Client() : unum(0), Score(0), x(0), y(0), movedir(STOP_DR) {
 	}
 
 	Client(wstring id, int scr, int xd, int yd) : ID(id), Score(scr), x(xd), y(yd), movedir(STOP_DR) {
@@ -223,7 +224,7 @@ void ProcessPacket(char *ptr)
 		for (Client& d : g_client) {
 			if (d.ID == msp->id) {
 				d.x = msp->x;
-				d.y = msp->y;
+				d.y = msp->z;
 				d.movedir = msp->type;
 			}
 		}
