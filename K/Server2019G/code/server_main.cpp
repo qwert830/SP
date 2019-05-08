@@ -38,9 +38,9 @@ public:
 	bool m_IsConnected;
 	wstring m_ID;
 	int m_Score;
-	float x;
-	float y;
-	float z;
+	float movex;
+	float movey;
+	float movez;
 	int m_RoomNumber;
 	char m_Condition;
 	unsigned char m_MoveDirection;
@@ -54,9 +54,9 @@ public:
 		m_ID = L"Temp";
 		m_Score = 0;
 		m_IsConnected = false;
-		x = 0;
-		y = -5;
-		z = 0;
+		movex = 0;
+		movey = 0;
+		movez = 0;
 		m_RoomNumber = LOBBYNUMBER;
 		m_Condition = US_WAIT;
 		m_MoveDirection = STOP_DR;
@@ -118,14 +118,16 @@ public:
 			if (g_clients[d].m_Condition != US_READY)
 				return false;
 		}
-		m_RoomStatus = RS_PLAY;
 		m_PhysXModule = new PhysXModule;
-		float PosZ = 0;
+		float PosZ = 25;
 		for (int d : m_JoinIdList) {
-			g_clients[d].m_Condition = US_PLAY;
-			m_PhysXModule->setCapsuleController(g_clients[d].mCapsuleController, PxExtendedVec3(0, 50, PosZ), 25, 10);
+			g_clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 50, PosZ), 25, 10);
+			if(g_clients[d].mCapsuleController)
+				cout << "Ä¸½¶»ý¼º¿Ï·á" << endl;
 			PosZ -= 50;
+			g_clients[d].m_Condition = US_PLAY;
 		}
+		m_RoomStatus = RS_PLAY;
 		return true;
 	}
 
@@ -490,11 +492,12 @@ inline void ProcessPacket(int id, char *packet)
 				return;
 			}
 		}
-		if (DBCall_Login(id, packet_login->id, packet_login->password)) {
+		idp.type = SC_LOGINSUCCESS;
+		/*if (DBCall_Login(id, packet_login->id, packet_login->password)) {
 			idp.type = SC_LOGINSUCCESS;
 		}
 		else
-			idp.type = SC_LOGINFAIL;
+			idp.type = SC_LOGINFAIL;*/
 		SendPacket(id, &idp);
 	}
 		break;
@@ -633,7 +636,6 @@ inline void ProcessPacket(int id, char *packet)
 		g_clients[id].m_RoomNumber = LOBBYNUMBER;
 		break;
 	}
-	{
 	case STOP_DR:
 	case LEFT_DR:
 	case RIGHT_DR:
@@ -643,14 +645,16 @@ inline void ProcessPacket(int id, char *packet)
 	case URIGHT_DR:
 	case DLEFT_DR:
 	case DRIGHT_DR:
+	{
 		g_clients[id].m_MoveDirection = packet[1];
 		{
 			sc_movestatus_packet p;
 			p.size = sizeof(sc_movestatus_packet);
 			p.type = packet[1];
 			wcscpy(p.id, g_clients[id].m_ID.c_str());
-			p.x = g_clients[id].x;
-			p.y = g_clients[id].y;
+			p.x = g_clients[id].mCapsuleController->getPosition().x;
+			p.y = g_clients[id].mCapsuleController->getPosition().y;
+			p.z = g_clients[id].mCapsuleController->getPosition().z;
 			for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
 				SendPacket(d, &p);
 			}
@@ -742,34 +746,43 @@ void worker_thread()
 		}
 		else if (GAMEACTION == p_over->work)
 		{
+
 			switch (g_clients[key].m_MoveDirection) {
 			case LEFT_DR:
-				g_clients[key].x = -3.0f / 60.0f;
+				g_clients[key].movex = -3.0f / 60.0f;
+				g_clients[key].movez = 0;
 				break;
 			case RIGHT_DR:
-				g_clients[key].x = 3.0f / 60.0f;
+				g_clients[key].movex = 3.0f / 60.0f;
+				g_clients[key].movez = 0;
 				break;
 			case UP_DR:
-				g_clients[key].z = -3.0f / 60.0f;
+				g_clients[key].movex = 0;
+				g_clients[key].movez = -3.0f / 60.0f;
 				break;
 			case DOWN_DR:
-				g_clients[key].z = 3.0f / 60.0f;
+				g_clients[key].movex = 0;
+				g_clients[key].movez = 3.0f / 60.0f;
 				break;
 			case ULEFT_DR:
-				g_clients[key].z = -2.1f / 60.0f;
-				g_clients[key].x = -2.1f / 60.0f;
+				g_clients[key].movez = -2.1f / 60.0f;
+				g_clients[key].movex = -2.1f / 60.0f;
 				break;
 			case URIGHT_DR:
-				g_clients[key].z = -2.1f / 60.0f;
-				g_clients[key].x = 2.1f / 60.0f;
+				g_clients[key].movez = -2.1f / 60.0f;
+				g_clients[key].movex = 2.1f / 60.0f;
 				break;
 			case DLEFT_DR:
-				g_clients[key].z = 2.1f / 60.0f;
-				g_clients[key].x = -2.1f / 60.0f;
+				g_clients[key].movez = 2.1f / 60.0f;
+				g_clients[key].movex = -2.1f / 60.0f;
 				break;
 			case DRIGHT_DR:
-				g_clients[key].z = 2.1f / 60.0f;
-				g_clients[key].x = 2.1f / 60.0f;
+				g_clients[key].movez = 2.1f / 60.0f;
+				g_clients[key].movex = 2.1f / 60.0f;
+				break;
+			case STOP_DR:
+				g_clients[key].movez = 0;
+				g_clients[key].movex = 0;
 				break;
 			}
 
@@ -779,8 +792,9 @@ void worker_thread()
 			p.size = sizeof(sc_movestatus_packet);
 			p.type = g_clients[key].m_MoveDirection;
 			wcscpy(p.id, g_clients[key].m_ID.c_str());
-			p.x = g_clients[key].x;
-			p.y = g_clients[key].y;
+			p.x = g_clients[key].mCapsuleController->getPosition().x;
+			p.y = g_clients[key].mCapsuleController->getPosition().y;
+			p.z = g_clients[key].mCapsuleController->getPosition().z;
 			SendPacket(key, &p);
 		}
 		else
@@ -877,14 +891,14 @@ void Timer_Thread() {
 				if(!count)
 					PostQueuedCompletionStatus(ghiocp, 1, d, &periodic.m_over);
 				PxControllerFilters filter;
-				g_clients[d].mCapsuleController->move(PxVec3(g_clients[d].x, g_clients[d].y, g_clients[d].z), 0.001f, FRAME_PER_SEC, filter);
+				g_clients[d].mCapsuleController->move(PxVec3(g_clients[d].movex, g_clients[d].movey, g_clients[d].movez), 0.001f, FRAME_PER_SEC, filter);
 			}
 			d.m_PhysXModule->stepPhysics(FRAME_PER_SEC);
 		}
 		chrono::system_clock::time_point t2 = chrono::system_clock::now();
 		chrono::duration<double> sptime = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
 		delay = MAX(0, 1 - sptime.count());
-		Sleep(delay * 16.6);
+		Sleep(delay / 0.06);
 	}
 }
 

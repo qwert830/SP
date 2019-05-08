@@ -152,6 +152,7 @@ struct sc_movestatus_packet {
 	wchar_t id[10];
 	float x;
 	float y;
+	float z;
 };
 
 struct sc_timer_packet {
