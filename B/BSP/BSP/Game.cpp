@@ -2039,7 +2039,7 @@ void Game::GameStart()
 			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[i].IsDraw = -1;
 		}
 	}
-
+	mPlayer.SetMousePos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
 	mScene = GAME;
 }
 
