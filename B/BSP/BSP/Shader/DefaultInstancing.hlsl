@@ -502,6 +502,13 @@ ShadowVertexOut SHADOW_VS(ShadowVertexIn vin, uint instanceID : SV_InstanceID)
     uint matIndex = instData.MaterialIndex;
     MaterialConstants matData = gMaterialData[0];
 
+    if (instData.IsDraw < 0)
+    {
+        vout.PosH = float4(-100000.0f, -100000.0f, 0.0f,0.0f);
+
+        return vout;
+    }
+
     vout.MatIndex = matIndex;
 
     float4 posW = mul(float4(vin.PosL, 1.0f), world);

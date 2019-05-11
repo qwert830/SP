@@ -1,7 +1,9 @@
 #pragma once
+#include"NetworkModule.h"
 #include"d3dUtil.h"
 #include"GameTimer.h"
 #include"Camera.h"
+
 #define ATTACK_DELAY 0.1f
 
 enum MOVE{ LEFTUP, UP, RIGHTUP, LEFT, STAND, RIGHT, LEFTDOWN, DOWN, RIGHTDOWN };
@@ -21,8 +23,9 @@ private:
 
 	float k = 20;
 
-	char PlayerID = 0;
-	float sensitivity = 0.25f;
+	char mPlayerID = 0;
+	float sensitivity = 0;
+	TEAM mPlayerTeam;
 
 	unsigned char moveState = MOVE::STAND;
 	unsigned char attackState = ATTACK::NOATTACK;

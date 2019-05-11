@@ -2,7 +2,7 @@
 #include <WindowsX.h>
 Player::Player()
 {
-	PlayerID = -1;
+	mPlayerID = -1;
 	sensitivity = 0.25f;
 	k = 20;
 	offset = { 2.0f, 18.5, 2.0f };
@@ -15,8 +15,8 @@ Player::~Player()
 
 void Player::SelectPlayer(const int i)
 {
-	PlayerID = i;
-	mCamera.SetCamera(mVector[PlayerID].mPosition, mVector[PlayerID].mRight, mVector[PlayerID].mLook, mVector[PlayerID].mUp);
+	mPlayerID = i;
+	mCamera.SetCamera(mVector[mPlayerID].mPosition, mVector[mPlayerID].mRight, mVector[mPlayerID].mLook, mVector[mPlayerID].mUp);
 	
 }
 
@@ -157,48 +157,48 @@ void Player::SetMousePos(int x, int y)
 
 void Player::Forward(float d)
 {
-	if (PlayerID < 0)
+	if (mPlayerID < 0)
 		return;
 	DirectX::XMFLOAT3 up = { 0,1,0 };
 	DirectX::XMVECTOR s = DirectX::XMVectorReplicate(d);
-	DirectX::XMVECTOR r = DirectX::XMLoadFloat3(&mVector[PlayerID].mRight);
+	DirectX::XMVECTOR r = DirectX::XMLoadFloat3(&mVector[mPlayerID].mRight);
 	DirectX::XMVECTOR u = DirectX::XMLoadFloat3(&up);
 	DirectX::XMVECTOR l = DirectX::XMVector3Cross(r, u);
-	DirectX::XMVECTOR p = XMLoadFloat3(&mVector[PlayerID].mPosition);
-	DirectX::XMStoreFloat3(&mVector[PlayerID].mPosition, DirectX::XMVectorMultiplyAdd(s, l, p));
+	DirectX::XMVECTOR p = XMLoadFloat3(&mVector[mPlayerID].mPosition);
+	DirectX::XMStoreFloat3(&mVector[mPlayerID].mPosition, DirectX::XMVectorMultiplyAdd(s, l, p));
 }
 
 void Player::Strafe(float d)
 {
-	if (PlayerID < 0)
+	if (mPlayerID < 0)
 		return;
 	DirectX::XMVECTOR s = DirectX::XMVectorReplicate(d);
-	DirectX::XMVECTOR r = DirectX::XMLoadFloat3(&mVector[PlayerID].mRight);
-	DirectX::XMVECTOR p = DirectX::XMLoadFloat3(&mVector[PlayerID].mPosition);
-	DirectX::XMStoreFloat3(&mVector[PlayerID].mPosition, DirectX::XMVectorMultiplyAdd(s, r, p));
+	DirectX::XMVECTOR r = DirectX::XMLoadFloat3(&mVector[mPlayerID].mRight);
+	DirectX::XMVECTOR p = DirectX::XMLoadFloat3(&mVector[mPlayerID].mPosition);
+	DirectX::XMStoreFloat3(&mVector[mPlayerID].mPosition, DirectX::XMVectorMultiplyAdd(s, r, p));
 }
 
 void Player::Pitch(float angle)
 {
-	if (PlayerID < 0)
+	if (mPlayerID < 0)
 		return;
 	
-	DirectX::XMMATRIX R = DirectX::XMMatrixRotationAxis(DirectX::XMLoadFloat3(&mVector[PlayerID].mRight), angle);
+	DirectX::XMMATRIX R = DirectX::XMMatrixRotationAxis(DirectX::XMLoadFloat3(&mVector[mPlayerID].mRight), angle);
 
-	DirectX::XMStoreFloat3(&mVector[PlayerID].mUp,		DirectX::XMVector3TransformNormal(XMLoadFloat3(&mVector[PlayerID].mUp), R));
-	DirectX::XMStoreFloat3(&mVector[PlayerID].mLook,	DirectX::XMVector3TransformNormal(XMLoadFloat3(&mVector[PlayerID].mLook), R));
+	DirectX::XMStoreFloat3(&mVector[mPlayerID].mUp,		DirectX::XMVector3TransformNormal(XMLoadFloat3(&mVector[mPlayerID].mUp), R));
+	DirectX::XMStoreFloat3(&mVector[mPlayerID].mLook,	DirectX::XMVector3TransformNormal(XMLoadFloat3(&mVector[mPlayerID].mLook), R));
 }
 
 void Player::RotateY(float angle)
 {
-	if (PlayerID < 0)
+	if (mPlayerID < 0)
 		return;
 
 	DirectX::XMMATRIX R = DirectX::XMMatrixRotationY(angle);
 
-	DirectX::XMStoreFloat3(&mVector[PlayerID].mRight,	DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&mVector[PlayerID].mRight), R));
-	DirectX::XMStoreFloat3(&mVector[PlayerID].mUp,		DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&mVector[PlayerID].mUp), R));
-	DirectX::XMStoreFloat3(&mVector[PlayerID].mLook,	DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&mVector[PlayerID].mLook), R));
+	DirectX::XMStoreFloat3(&mVector[mPlayerID].mRight,	DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&mVector[mPlayerID].mRight), R));
+	DirectX::XMStoreFloat3(&mVector[mPlayerID].mUp,		DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&mVector[mPlayerID].mUp), R));
+	DirectX::XMStoreFloat3(&mVector[mPlayerID].mLook,	DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&mVector[mPlayerID].mLook), R));
 }
 
 void Player::Update(const GameTimer& gt)
@@ -257,55 +257,55 @@ void Player::MoveUpdate(const float & dt)
 		Forward(moveSpeed*dt);
 		/*mCamera.Strafe(-10.0f*dt);
 		mCamera.Forward(10.0f*dt);*/
-		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + k, mVector[PlayerID].mPosition.z);
+		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	case UP:
 		Forward(moveSpeed*dt);
 	/*	mCamera.Forward(10.0f*dt);*/
-		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + k, mVector[PlayerID].mPosition.z);
+		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	case RIGHTUP:
 		Strafe(moveSpeed*dt);
 		Forward(moveSpeed*dt);
 		//mCamera.Strafe(10.0f*dt);
 		//mCamera.Forward(10.0f*dt);
-		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + k, mVector[PlayerID].mPosition.z);
+		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	case LEFT:
 		Strafe(-moveSpeed *dt);
 		/*mCamera.Strafe(-10.0f*dt);*/
-		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + k, mVector[PlayerID].mPosition.z);
+		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	case RIGHT:
 		Strafe(moveSpeed*dt);
 		/*mCamera.Strafe(10.0f*dt);*/
-		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + k, mVector[PlayerID].mPosition.z);
+		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	case LEFTDOWN:
 		Strafe(-moveSpeed *dt);
 		Forward(-moveSpeed *dt);
 		//mCamera.Strafe(-10.0f*dt);
 		//mCamera.Forward(-10.0f*dt);
-		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + k, mVector[PlayerID].mPosition.z);
+		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	case DOWN:
 		Forward(-moveSpeed *dt);
 		//mCamera.Forward(-10.0f*dt);
-		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + k, mVector[PlayerID].mPosition.z);
+		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	case RIGHTDOWN:
 		Strafe(moveSpeed*dt);
 		Forward(-moveSpeed *dt);
 		//mCamera.Strafe(10.0f*dt);
 		//mCamera.Forward(-10.0f*dt);
-		mCamera.SetPosition(mVector[PlayerID].mPosition.x, mVector[PlayerID].mPosition.y + k, mVector[PlayerID].mPosition.z);
+		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	}
 }
 
 const char Player::GetPlayerID()
 {
-	return PlayerID;
+	return mPlayerID;
 }
 
 float Player::GetSuperheat()

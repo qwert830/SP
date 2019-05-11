@@ -129,8 +129,13 @@ private:
 	void RoomCheckButton(float x, float y);
 	void ButtonClick();
 
-	void ChangeUserName(int id, char* name, unsigned int nameCount);
+	void ChangeUserName(int id, const char* name, unsigned int nameCount); // 룸씬에서 플레이어 아이디를 변경함
 	void SelectID(int id);
+
+	void SearchID(); // 비어있는 mIDNumber값을 검색함
+	void JoinUserID(std::string name); // 스트링을 키값으로 ID값을 배정함
+	void QuitUserID(std::string name); // 스트링으로 ID제거
+
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 private:
 
@@ -142,6 +147,11 @@ private:
 	FontManager		mFontManager;
 	MapLoader		mMapLoader;
 	
+	bool mIDSearch[10] = { false, };
+	unsigned int mIDNumber = 0;
+	std::unordered_map<std::string, unsigned int> mUserID;
+
+
 	std::unique_ptr<ShadowMap> mShadowMap;
 	
 	Microsoft::WRL::ComPtr<ID3D12Resource> mDeferredResource[4] = { nullptr, };
@@ -1903,7 +1913,7 @@ void Game::ButtonClick()
 	}
 }
 
-void Game::ChangeUserName(int id, char* name, unsigned int nameCount)
+void Game::ChangeUserName(int id, const char* name, unsigned int nameCount)
 {
 	int i = id * 10;
 	UVPos uv;
@@ -1920,12 +1930,50 @@ void Game::ChangeUserName(int id, char* name, unsigned int nameCount)
 
 		mRenderItems[ROOM].renderItems[UI][1]->Instances[i].UIUVPos = XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 	}
+
+	for (int j = nameCount; j < 10; ++i, ++j)
+	{
+		uv = mFontManager.GetUV(' ');
+		mRenderItems[ROOM].renderItems[UI][1]->Instances[i].UIPos =
+			XMFLOAT4(-0.7f + j * 0.04f, 0.75f - (i / 10 * 0.125f), -0.7f + j * 0.04f + uv.w, 0.625f - (i / 10 * 0.125f));
+
+		mRenderItems[ROOM].renderItems[UI][1]->Instances[i].UIUVPos = XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+	}
 }
 
 void Game::SelectID(int id)
 {
 	mPlayer.SelectPlayer(id);
 	mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = -1;
+}
+
+void Game::SearchID()
+{
+	for (int i = 0; i < 10; i++)
+	{
+		if (mIDSearch[i] == false)
+		{
+			mIDNumber = i;
+			mIDSearch[i] = true;
+		}
+	}
+}
+
+void Game::JoinUserID(std::string name)
+{
+	SearchID();
+	mUserID[name] = mIDNumber;
+	ChangeUserName(mIDNumber, name.c_str(), name.length());
+}
+
+void Game::QuitUserID(std::string name)
+{
+	int k = -1;
+	k = mUserID[name];
+	mIDSearch[k] = false;
+	mUserID.erase(name);
+	const char temp = ' ';
+	ChangeUserName(k, &temp, 1);
 }
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> Game::GetStaticSamplers()
@@ -1997,7 +2045,6 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> Game::GetStaticSamplers()
 		shadow
 	};
 }
-
 
 LRESULT Game::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
