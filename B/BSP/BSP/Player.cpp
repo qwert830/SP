@@ -205,7 +205,7 @@ void Player::Update(const GameTimer& gt)
 {
 	const float dt = gt.DeltaTime();
 	AttackUpdate(dt);
-	MoveUpdate(dt);
+	MoveUpdate(dt); 
 }
 
 void Player::AttackUpdate(const float & dt)
@@ -255,52 +255,33 @@ void Player::MoveUpdate(const float & dt)
 	case LEFTUP:
 		Strafe(-moveSpeed *dt);
 		Forward(moveSpeed*dt);
-		/*mCamera.Strafe(-10.0f*dt);
-		mCamera.Forward(10.0f*dt);*/
-		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	case UP:
 		Forward(moveSpeed*dt);
-	/*	mCamera.Forward(10.0f*dt);*/
-		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	case RIGHTUP:
 		Strafe(moveSpeed*dt);
 		Forward(moveSpeed*dt);
-		//mCamera.Strafe(10.0f*dt);
-		//mCamera.Forward(10.0f*dt);
-		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	case LEFT:
 		Strafe(-moveSpeed *dt);
-		/*mCamera.Strafe(-10.0f*dt);*/
-		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	case RIGHT:
 		Strafe(moveSpeed*dt);
-		/*mCamera.Strafe(10.0f*dt);*/
-		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	case LEFTDOWN:
 		Strafe(-moveSpeed *dt);
 		Forward(-moveSpeed *dt);
-		//mCamera.Strafe(-10.0f*dt);
-		//mCamera.Forward(-10.0f*dt);
-		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	case DOWN:
 		Forward(-moveSpeed *dt);
-		//mCamera.Forward(-10.0f*dt);
-		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	case RIGHTDOWN:
 		Strafe(moveSpeed*dt);
 		Forward(-moveSpeed *dt);
-		//mCamera.Strafe(10.0f*dt);
-		//mCamera.Forward(-10.0f*dt);
-		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 		break;
 	}
+	mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + k, mVector[mPlayerID].mPosition.z);
 }
 
 const char Player::GetPlayerID()

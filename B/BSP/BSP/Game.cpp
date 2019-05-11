@@ -11,7 +11,7 @@
 #include "MapLoader.h"
 #include <fstream>
 
-const float radian = 3.141572 / 180;
+const float radian = (float)(3.141572f / 180.0f);
 
 enum SCENENAME
 {
@@ -135,11 +135,18 @@ private:
 	void SearchID(); // 비어있는 mIDNumber값을 검색함
 	void JoinUserID(std::string name); // 스트링을 키값으로 ID값을 배정함
 	void QuitUserID(std::string name); // 스트링으로 ID제거
+	void Ready(std::string name, int state);
+	void SetPosition(std::string name, XMFLOAT3 position);
+	void SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3 up);
+	void GameStart();
+	XMFLOAT3 GetLookVector();
+	XMFLOAT3 GetUpVector();
+	XMFLOAT3 GetRightVector();
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 private:
 
-	SCENENAME	mScene = GAME;
+	SCENENAME	mScene = ROOM;
 	Button		mButton;
 
 	Player			mPlayer;
@@ -213,7 +220,7 @@ private:
 		XMFLOAT3(0.0f, -0.707f, -0.707f)
 	};
 
-	float time = 600.0f;
+	float mTime = 600.0f;
 
 };
 
@@ -280,7 +287,7 @@ bool Game::Initialize()
     BuildPSOs();
 
 	mPlayer.mCamera.SetPosition(0.0f, 5.0f, -15.0f);
-	SelectID(2);
+	SelectID(0);
 
     ThrowIfFailed(mCommandList->Close());
 	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
@@ -800,10 +807,10 @@ void Game::UpdateShadowTransform(const GameTimer & gt)
 
 void Game::UpdateTime(const GameTimer & gt)
 {
-	time -= gt.DeltaTime();
-	if (time <= 0)
-		time = 0;
-	int tempTime = (int)time;
+	mTime -= gt.DeltaTime();
+	if (mTime <= 0)
+		mTime = 0;
+	int tempTime = (int)mTime;
 	char id[10];
 	UVPos uv;
 	_itoa_s(tempTime / 60 / 10, id, _countof(id), 10);
@@ -1108,10 +1115,6 @@ void Game::BuildShadersAndInputLayout()
 void Game::BuildShapeGeometry()
 {
 	std::ifstream fin;
-	char input;
-	int i;
-	int m_vertexCount;
-	int m_indexCount;
 
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData box = geoGen.CreateBox(10.0f, 10.0f, 10.0f, 3);
@@ -1922,7 +1925,7 @@ void Game::ChangeUserName(int id, const char* name, unsigned int nameCount)
 		mRenderItems[ROOM].renderItems[UI][1]->Instances[i + j].UIUVPos = XMFLOAT4(0, 0, 0, 0);
 	}
 
-	for (int j = 0; j < nameCount; ++i, ++j)
+	for (unsigned int j = 0; j < nameCount; ++i, ++j)
 	{
 		uv = mFontManager.GetUV(name[j]);
 		mRenderItems[ROOM].renderItems[UI][1]->Instances[i].UIPos = 
@@ -1963,7 +1966,7 @@ void Game::JoinUserID(std::string name)
 {
 	SearchID();
 	mUserID[name] = mIDNumber;
-	ChangeUserName(mIDNumber, name.c_str(), name.length());
+	ChangeUserName(mIDNumber, name.c_str(), (unsigned int)name.length());
 }
 
 void Game::QuitUserID(std::string name)
@@ -1974,6 +1977,84 @@ void Game::QuitUserID(std::string name)
 	mUserID.erase(name);
 	const char temp = ' ';
 	ChangeUserName(k, &temp, 1);
+}
+
+void Game::Ready(std::string name, int state)
+{
+	if(state == CS_UNREADY)
+		mButton.readyUI[mUserID[name]] = -1;
+	if(state == CS_READY)
+		mButton.readyUI[mUserID[name]] = 10;
+}
+
+void Game::SetPosition(std::string name, XMFLOAT3 position)
+{
+	int id = mUserID[name];
+	mPlayer.mVector[id].mPosition.x = position.x;
+	mPlayer.mVector[id].mPosition.y = position.y;
+	mPlayer.mVector[id].mPosition.z = position.z;
+	mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].World = XMFLOAT4X4
+	{
+		mPlayer.mVector[id].mRight.x,		mPlayer.mVector[id].mRight.y,		mPlayer.mVector[id].mRight.z,		0.0f,
+		mPlayer.mVector[id].mUp.x,			mPlayer.mVector[id].mUp.y,			mPlayer.mVector[id].mUp.z,			0.0f,
+		mPlayer.mVector[id].mLook.x,		mPlayer.mVector[id].mLook.y,		mPlayer.mVector[id].mLook.z,		0.0f,
+		mPlayer.mVector[id].mPosition.x,	mPlayer.mVector[id].mPosition.y,	mPlayer.mVector[id].mPosition.z,	1.0f
+	};
+}
+
+void Game::SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3 up)
+{
+	int id = mUserID[name];
+	mPlayer.mVector[id].mRight.x = right.x;
+	mPlayer.mVector[id].mRight.y = right.y;
+	mPlayer.mVector[id].mRight.z = right.z;
+	mPlayer.mVector[id].mUp.x = up.x;
+	mPlayer.mVector[id].mUp.y = up.y;
+	mPlayer.mVector[id].mUp.z = up.z;
+	mPlayer.mVector[id].mLook.x = look.x;
+	mPlayer.mVector[id].mLook.y = look.y;
+	mPlayer.mVector[id].mLook.z = look.z;
+	
+	mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].World = XMFLOAT4X4
+	{
+		mPlayer.mVector[id].mRight.x,		mPlayer.mVector[id].mRight.y,		mPlayer.mVector[id].mRight.z,		0.0f,
+		mPlayer.mVector[id].mUp.x,			mPlayer.mVector[id].mUp.y,			mPlayer.mVector[id].mUp.z,			0.0f,
+		mPlayer.mVector[id].mLook.x,		mPlayer.mVector[id].mLook.y,		mPlayer.mVector[id].mLook.z,		0.0f,
+		mPlayer.mVector[id].mPosition.x,	mPlayer.mVector[id].mPosition.y,	mPlayer.mVector[id].mPosition.z,	1.0f
+	};
+}
+
+void Game::GameStart()
+{
+	mTime = 600.0f;
+	for (int i = 0; i < 10; i++)
+	{
+		if (mIDSearch[i])
+		{
+			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[i].IsDraw = 1;
+		}
+		else
+		{
+			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[i].IsDraw = -1;
+		}
+	}
+
+	mScene = GAME;
+}
+
+XMFLOAT3 Game::GetLookVector()
+{
+	return mPlayer.mVector[0].mLook;
+}
+
+XMFLOAT3 Game::GetUpVector()
+{
+	return mPlayer.mVector[0].mUp;
+}
+
+XMFLOAT3 Game::GetRightVector()
+{
+	return mPlayer.mVector[0].mRight;
 }
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> Game::GetStaticSamplers()
