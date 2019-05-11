@@ -1958,6 +1958,7 @@ void Game::SearchID()
 		{
 			mIDNumber = i;
 			mIDSearch[i] = true;
+			return;
 		}
 	}
 }

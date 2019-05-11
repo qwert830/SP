@@ -137,10 +137,10 @@ public:
 		for (int d : m_JoinIdList) {
 			switch (i) {
 			case 0:
-				g_clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 30, 350), 21.5, 2.5);
+				g_clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 30, 350), 21.5, 2);
 				break;
 			case 1:
-				g_clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 30, -350), 21.5, 2.5);
+				g_clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 30, -350), 21.5, 2);
 				break;
 			case 2:
 				break;
@@ -830,7 +830,7 @@ void worker_thread()
 			p.type = g_clients[key].m_MoveDirection;
 			wcscpy(p.id, g_clients[key].m_ID.c_str());
 			p.x = g_clients[key].posP.X;
-			p.y = g_clients[key].posP.Y;
+			p.y = g_clients[key].posP.Y - 11.25f;
 			p.z = g_clients[key].posP.Z;
 			SendPacket(key, &p);
 		}
