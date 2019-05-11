@@ -1981,9 +1981,9 @@ void Game::QuitUserID(std::string name)
 
 void Game::Ready(std::string name, int state)
 {
-	if(state == CS_UNREADY)
+	if(state == SC_UNREADY)
 		mButton.readyUI[mUserID[name]] = -1;
-	if(state == CS_READY)
+	if(state == SC_READY)
 		mButton.readyUI[mUserID[name]] = 10;
 }
 
@@ -2291,15 +2291,52 @@ void Game::ProcessPacket(char * ptr)
 		atp->size = sizeof(cs_autojoin_packet);
 		atp->type = CS_AUTOJOIN;
 		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
-	}
 		break;
+	}
 	case SC_JOIN_PLAYER:
 	{
 		sc_player_join_packet* pjp = reinterpret_cast<sc_player_join_packet*>(ptr);
 		char idbuff[10];
 		wcstombs(idbuff, pjp->id, wcslen(pjp->id) + 1);
-		cout << idbuff << endl;
-	}
+		JoinUserID(idbuff);
 		break;
 	}
+	case SC_QUIT_PLAYER:
+	{
+		sc_player_quit_packet* pqp = reinterpret_cast<sc_player_quit_packet*>(ptr);
+		char idbuff[10];
+		wcstombs(idbuff, pqp->id, wcslen(pqp->id) + 1);
+		JoinUserID(idbuff);
+		break;
+	}
+	case SC_UNREADY:
+	case SC_READY:
+	{
+		sc_usercondition_packet* ucp = reinterpret_cast<sc_usercondition_packet*>(ptr);
+		char idbuff[10];
+		wcstombs(idbuff, ucp->id, wcslen(ucp->id) + 1);
+		Ready(idbuff, ucp->type);
+		break;
+	}
+	case SC_GO:
+		GameStart();
+		break;
+	case STOP_DR:
+	case LEFT_DR:
+	case RIGHT_DR:
+	case UP_DR:
+	case DOWN_DR:
+	case ULEFT_DR:
+	case URIGHT_DR:
+	case DLEFT_DR:
+	case DRIGHT_DR:
+	{
+		sc_movestatus_packet* msp = reinterpret_cast<sc_movestatus_packet*>(ptr);
+		char idbuff[10];
+		wcstombs(idbuff, msp->id, wcslen(msp->id) + 1);
+		SetPosition(idbuff, XMFLOAT3(msp->x,msp->y,msp->z));
+ 		break;
+	}
+	}
+
 }

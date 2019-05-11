@@ -29,7 +29,8 @@ PhysXModule::PhysXModule()
 	mControllerManager = PxCreateControllerManager(*mScene);
 	mControllerManager->setOverlapRecoveryModule(true);
 
-
+	PxRigidStatic* groundPlane = PxCreatePlane(*mPhysics, PxPlane(0, 1, 0, 0), *mMaterial);
+	mScene->addActor(*groundPlane);
 }
 
 PhysXModule::~PhysXModule()

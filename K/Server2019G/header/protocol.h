@@ -52,7 +52,10 @@ enum SC_PacketKind {
 	SC_LOGINSUCCESS,
 	SC_REGISTFAIL,
 	SC_REGISTSUCCESS, 
-	SC_GO
+	SC_GO,
+	SC_READY,
+	SC_UNREADY,
+	SC_POSITION
 };
 #pragma pack (push, 1)
 // 클라이언트 -> 서버------------------------
