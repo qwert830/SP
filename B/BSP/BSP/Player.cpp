@@ -289,6 +289,11 @@ const char Player::GetPlayerID()
 	return mPlayerID;
 }
 
+unsigned char Player::GetMoveState()
+{
+	return moveState;
+}
+
 float Player::GetSuperheat()
 {
 	return superheat;

@@ -125,6 +125,7 @@ struct cs_movestatus_packet {
 struct sc_id_packet {
 	unsigned char size;
 	unsigned char type;
+	wchar_t id[10];
 };
 
 struct sc_roomstatus_packet {

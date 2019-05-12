@@ -220,7 +220,7 @@ private:
 		XMFLOAT3(0.0f, -0.707f, -0.707f)
 	};
 
-	float mTime = 600.0f;
+	float mTime = 600.0f;//√ ¥‹¿ß
 
 };
 
@@ -574,6 +574,40 @@ void Game::OnKeyboardInput(const GameTimer& gt)
 {
 	//if (mScene == GAME)
 		mPlayer.PlayerKeyBoardInput(gt);
+		DWORD iobyte;
+		cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
+		send_wsabuf.len = sizeof(cs_movestatus_packet);
+		msp->size = sizeof(cs_movestatus_packet);
+		switch (mPlayer.GetMoveState()) {
+		case MOVE::DOWN:
+			msp->type = move_direction::DOWN_DR;
+			break;
+		case MOVE::LEFT:
+			msp->type = move_direction::LEFT_DR;
+			break;
+		case MOVE::LEFTDOWN:
+			msp->type = move_direction::DLEFT_DR;
+			break;
+		case MOVE::LEFTUP:
+			msp->type = move_direction::ULEFT_DR;
+			break;
+		case MOVE::RIGHT:
+			msp->type = move_direction::RIGHT_DR;
+			break;
+		case MOVE::RIGHTDOWN:
+			msp->type = move_direction::DRIGHT_DR;
+			break;
+		case MOVE::RIGHTUP:
+			msp->type = move_direction::URIGHT_DR;
+			break;
+		case MOVE::STAND:
+			msp->type = move_direction::STOP_DR;
+			break;
+		case MOVE::UP:
+			msp->type = move_direction::UP_DR;
+			break;
+		}
+		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
 }
 
 void Game::UpdateObjectCBs(const GameTimer& gt)
@@ -1508,6 +1542,7 @@ void Game::BuildRenderItemsGame()
 			d.tx, d.ty, d.tz, 1.0f);
 		XMStoreFloat4x4(&PlayerRitem->Instances[i].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 		PlayerRitem->Instances[i].MaterialIndex = 3;
+		PlayerRitem->Instances[i].IsDraw = -1;
 	}
 	mInstanceCount.push_back((unsigned int)PlayerRitem->Instances.size());
 
@@ -2030,7 +2065,11 @@ void Game::GameStart()
 	mTime = 600.0f;
 	for (int i = 0; i < 10; i++)
 	{
-		if (mIDSearch[i])
+		if (i == 0)
+		{
+			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[i].IsDraw = -1;
+		}
+		else if (mIDSearch[i])
 		{
 			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[i].IsDraw = 1;
 		}
@@ -2292,6 +2331,11 @@ void Game::ProcessPacket(char * ptr)
 		atp->size = sizeof(cs_autojoin_packet);
 		atp->type = CS_AUTOJOIN;
 		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
+
+		sc_id_packet* ip = reinterpret_cast<sc_id_packet*>(ptr);
+		char idbuff[10];
+		wcstombs(idbuff, ip->id, wcslen(ip->id) + 1);
+		JoinUserID(idbuff);
 		break;
 	}
 	case SC_JOIN_PLAYER:
@@ -2307,7 +2351,7 @@ void Game::ProcessPacket(char * ptr)
 		sc_player_quit_packet* pqp = reinterpret_cast<sc_player_quit_packet*>(ptr);
 		char idbuff[10];
 		wcstombs(idbuff, pqp->id, wcslen(pqp->id) + 1);
-		JoinUserID(idbuff);
+		QuitUserID(idbuff);
 		break;
 	}
 	case SC_UNREADY:

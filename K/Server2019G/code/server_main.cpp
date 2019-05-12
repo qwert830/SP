@@ -523,6 +523,7 @@ inline void ProcessPacket(int id, char *packet)
 		sc_id_packet idp;
 		idp.size = sizeof(sc_id_packet);
 		cs_userinfo_packet* packet_login = reinterpret_cast<cs_userinfo_packet*>(packet);
+		wcscpy(idp.id, g_clients[id].m_ID.c_str());
 		for (int i = 0; i < MAX_USER; ++i) {
 			if (g_clients[i].m_ID == packet_login->id) {
 				idp.type = SC_LOGINFAIL;
@@ -531,6 +532,8 @@ inline void ProcessPacket(int id, char *packet)
 			}
 		}
 		idp.type = SC_LOGINSUCCESS;
+		
+
 		/*if (DBCall_Login(id, packet_login->id, packet_login->password)) {
 			idp.type = SC_LOGINSUCCESS;
 		}
@@ -564,7 +567,7 @@ inline void ProcessPacket(int id, char *packet)
 					wcscpy(p.id, g_clients[id].m_ID.c_str());
 					//방 인원 전원에게 해당 아이디가 조인했음을 알림
 					for (int d : g_rooms[packet_join->roomnumber].m_JoinIdList) {
-						if (d == id) continue;
+						//if (d == id) continue;
 						SendPacket(d, &p);
 					}
 					//해당 아이디에게 방에 접속중인 인원의 정보를 보냄

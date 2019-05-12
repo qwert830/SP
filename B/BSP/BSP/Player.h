@@ -63,6 +63,7 @@ public:
 	void AttackUpdate(const float& dt);
 	void MoveUpdate(const float& dt);
 	const char GetPlayerID();
+	unsigned char GetMoveState();
 	float GetSuperheat();
 	float IsAttack();
 	POINT mLastMousePos;
