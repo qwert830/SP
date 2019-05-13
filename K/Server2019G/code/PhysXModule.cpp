@@ -29,8 +29,8 @@ PhysXModule::PhysXModule()
 	mControllerManager = PxCreateControllerManager(*mScene);
 	mControllerManager->setOverlapRecoveryModule(true);
 
-	PxRigidStatic* groundPlane = PxCreatePlane(*mPhysics, PxPlane(0, 1, 0, 0), *mMaterial);
-	mScene->addActor(*groundPlane);
+	//PxRigidStatic* groundPlane = PxCreatePlane(*mPhysics, PxPlane(0, 1, 0, 0), *mMaterial);
+	//mScene->addActor(*groundPlane);
 }
 
 PhysXModule::~PhysXModule()
@@ -62,7 +62,7 @@ void PhysXModule::setGravity(const PxVec3& gravityP)
 	mScene->setGravity(gravityP);
 }
 
-void PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange)
+int PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange)
 {
 	//레이가 관통하여 여러번 체크하고싶다면 히트버퍼를 배열로 선언할 것
 	PxRaycastHit buffer;
@@ -77,11 +77,14 @@ void PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirec
 	if (status) {
 		//hit이아니라 buffer를 이용할 것
 		//예) buffer.actor->release();
+		if(buffer.actor->userData)
+			return reinterpret_cast<int*>(buffer.actor->userData)[0];
 	}
+	return -1;
 }
 
 
-PxCapsuleController* PhysXModule::setCapsuleController(PxExtendedVec3 pos, float height, float radius)
+PxCapsuleController* PhysXModule::setCapsuleController(PxExtendedVec3 pos, float height, float radius, int key)
 {
 	PxCapsuleControllerDesc capsuleDesc;
 	capsuleDesc.height = height; //Height of capsule
@@ -100,12 +103,16 @@ PxCapsuleController* PhysXModule::setCapsuleController(PxExtendedVec3 pos, float
 	//capsuleDesc.reportCallback = collisionCallback; //충돌함수로 지면과 닿았을때 중력가속을 0으로?
 
 	capsuleDesc.reportCallback = &collisionCallback;
-	//캡슐 컨트롤러 생성
-	return static_cast<PxCapsuleController*>(mControllerManager->createController(capsuleDesc));
 	
-	//캡슐 컨트롤러에 key값 부여
-	//mCapsuleController->setUserData(new int(key));
-	//불러올때 쓰는 방법
-	//reinterpret_cast<int*>(mCapsuleController->getUserData())[0];
 
+	PxCapsuleController* PC = static_cast<PxCapsuleController*>(mControllerManager->createController(capsuleDesc));
+	//캡슐 컨트롤러에 유저정보 부여
+	PC->getActor()->userData = (new int(key));
+	//불러올때 쓰는 방법
+	//reinterpret_cast<저장한데이터형*>(mCapsuleController->getUserData())[0];
+
+	
+	//캡슐 컨트롤러 생성
+	return PC;
+	
 }

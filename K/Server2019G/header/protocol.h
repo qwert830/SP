@@ -41,7 +41,11 @@ enum CS_PacketKind {
 	CS_READY,
 	CS_UNREADY,
 	CS_GAMERESULT,
-	CS_MOVE
+	CS_MOVE,
+	CS_ATTACK_BULLET,
+	CS_ATTACK_LASER,
+	CS_ANGLE,
+
 };
 
 enum SC_PacketKind {
@@ -55,7 +59,9 @@ enum SC_PacketKind {
 	SC_GO,
 	SC_READY,
 	SC_UNREADY,
-	SC_POSITION
+	SC_POSITION,
+	SC_GAMEOVER_REDWIN,
+	SC_GAMEOVER_BLUEWIN
 };
 #pragma pack (push, 1)
 // 클라이언트 -> 서버------------------------
@@ -102,17 +108,19 @@ struct cs_ready_packet {
 struct cs_attack_packet {
 	unsigned char size;
 	unsigned char type;
-	float up;
-	float right;
-	float look;
+	float cameraPosx;
+	float cameraPosy;
+	float cameraPosz;
+	float lx;
+	float ly;
+	float lz;
 };
 
 struct cs_angle_packet {
 	unsigned char size;
 	unsigned char type;
-	float up;
-	float right;
-	float look;
+	float lookx, looky, lookz;
+	float rx, ry, rz;
 };
 
 struct cs_movestatus_packet {
@@ -191,5 +199,9 @@ struct sc_hit_packet {
 	unsigned int hp;
 };
 
+struct sc_gameover_packet {
+	unsigned char size;
+	unsigned char type;
+};
 
 #pragma pack (pop)

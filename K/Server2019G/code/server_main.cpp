@@ -21,7 +21,7 @@
 #define	MIN(a,b)	((a)<(b))?(a):(b)
 
 using namespace std;
-
+inline void SendPacket(int id, void * ptr);
 
 enum kind_of_work { RECV = 1, GAMEACTION, PERIODICACTION };
 
@@ -47,11 +47,15 @@ public:
 	bool m_IsConnected;
 	wstring m_ID;
 	int m_Score;
-	//피직스 이동함수에 쓸 속도변수
-	Point3f moveP;
-	//그래픽 표시를 위해 보내줘야할 변수
-	float yRotate;
+
+	//피직스 이동함수에 쓸 변수
+	PxVec3 moveP;
+	PxVec3 look;
+	PxVec3 right;
 	Point3f posP;
+
+	char hp;
+	char team;
 
 	int m_RoomNumber;
 	char m_Condition;
@@ -66,10 +70,10 @@ public:
 		m_ID = L"Temp";
 		m_Score = 0;
 		m_IsConnected = false;
-		moveP.X = 0;
-		moveP.Y = 0;
-		moveP.Z = 0;
-
+		moveP.x = 0;
+		moveP.y = 0;
+		moveP.z = 0;
+		hp = 100;
 		m_RoomNumber = LOBBYNUMBER;
 		m_Condition = US_WAIT;
 		m_MoveDirection = STOP_DR;
@@ -124,23 +128,37 @@ public:
 			m_RoomStatus = RS_JOINABLE;
 	}
 
-	bool gosign(array <Client, MAX_USER>& g_clients) {
+	bool gosign(array <Client, MAX_USER>& clients) {
 		if (m_CurrentNum % 2 != 0)
 			return false;
 		for (int d : m_JoinIdList) {
-			if (g_clients[d].m_Condition != US_READY)
+			if (clients[d].m_Condition != US_READY)
 				return false;
 		}
 		m_PhysXModule = new PhysXModule;
-		float PosZ = 25;
 		int i = 0;
 		for (int d : m_JoinIdList) {
+			clients[d].hp = 100;
 			switch (i) {
 			case 0:
-				g_clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 30, 350), 21.5, 2);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 30, 350), 21.5, 2.5, d);
+				clients[d].team = RED_READER;
+				clients[d].look.x = 0;
+				clients[d].look.y = 0;
+				clients[d].look.z = -1;
+				clients[d].right.x = -1;
+				clients[d].right.y = 0;
+				clients[d].right.z = 0;
 				break;
 			case 1:
-				g_clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 30, -350), 21.5, 2);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 30, -350), 21.5, 2.5, d);
+				clients[d].team = BLUE_READER;
+				clients[d].look.x = 0;
+				clients[d].look.y = 0;
+				clients[d].look.z = 1;
+				clients[d].right.x = 1;
+				clients[d].right.y = 0;
+				clients[d].right.z = 0;
 				break;
 			case 2:
 				break;
@@ -159,13 +177,11 @@ public:
 			case 9:
 				break;
 			}
-			if(g_clients[d].mCapsuleController)
-				cout << "캡슐생성완료" << endl;
-			PosZ -= 50;
-			g_clients[d].m_Condition = US_PLAY;
+			clients[d].m_Condition = US_PLAY;
 			++i;
 		}
 		m_RoomStatus = RS_PLAY;
+		
 		return true;
 	}
 
@@ -173,6 +189,23 @@ public:
 		delete m_PhysXModule;
 	}
 
+	void attack(PxVec3 pos, PxVec3 rayDir, array <Client, MAX_USER>& clients) {
+		int hituser = m_PhysXModule->doRaycast(pos, rayDir, 1000.0f);
+		if (hituser != -1)
+			clients[hituser].hp -= 10;
+		if (clients[hituser].hp <= 0) {
+			sc_gameover_packet p;
+			p.size = sizeof(sc_gameover_packet);
+			if (clients[hituser].team == RED_READER) {
+				p.type = SC_GAMEOVER_BLUEWIN;
+			}
+			else if (clients[hituser].team == BLUE_READER) {
+				p.type = SC_GAMEOVER_REDWIN;
+			}
+			for(int d : m_JoinIdList)
+				SendPacket(d, &p);
+		}
+	}
 };
 
 HANDLE ghiocp;
@@ -517,7 +550,7 @@ inline void ProcessPacket(int id, char *packet)
 			idp.type = SC_REGISTFAIL;
 		SendPacket(id, &idp);
 	}
-		break;
+	break;
 	case CS_LOGIN:
 	{
 		sc_id_packet idp;
@@ -532,7 +565,7 @@ inline void ProcessPacket(int id, char *packet)
 			}
 		}
 		idp.type = SC_LOGINSUCCESS;
-		
+
 
 		/*if (DBCall_Login(id, packet_login->id, packet_login->password)) {
 			idp.type = SC_LOGINSUCCESS;
@@ -541,7 +574,7 @@ inline void ProcessPacket(int id, char *packet)
 			idp.type = SC_LOGINFAIL;*/
 		SendPacket(id, &idp);
 	}
-		break;
+	break;
 	case CS_REFRESH:
 		sc_roomstatus_packet packet_rs;
 		packet_rs.size = sizeof(sc_roomstatus_packet);
@@ -582,7 +615,7 @@ inline void ProcessPacket(int id, char *packet)
 		}
 		break;
 	case CS_AUTOJOIN:
-		if(g_clients[id].m_RoomNumber == LOBBYNUMBER)
+		if (g_clients[id].m_RoomNumber == LOBBYNUMBER)
 		{
 			for (int i = 0; i < MAX_ROOMNUMBER; ++i) {
 				g_rooms[i].m_mJoinIdList.lock();
@@ -668,7 +701,7 @@ inline void ProcessPacket(int id, char *packet)
 	case CS_GAMERESULT:
 	{
 		cs_gameresult_packet* packet_gs = reinterpret_cast<cs_gameresult_packet*>(packet);
-		DBCall_SetData(id, g_clients[id].m_Score + packet_gs->score);
+		//DBCall_SetData(id, g_clients[id].m_Score + packet_gs->score);
 
 		g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.lock();
 		g_rooms[g_clients[id].m_RoomNumber].quit(id);
@@ -693,12 +726,29 @@ inline void ProcessPacket(int id, char *packet)
 			p.type = packet[1];
 			wcscpy(p.id, g_clients[id].m_ID.c_str());
 			p.x = g_clients[id].posP.X;
-			p.y = g_clients[id].posP.Y;
+			p.y = 0;
 			p.z = g_clients[id].posP.Z;
 			for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
 				SendPacket(d, &p);
 			}
 		}
+		break;
+	}
+	case CS_ATTACK_BULLET:
+	{
+		cs_attack_packet* packet_atk = reinterpret_cast<cs_attack_packet*>(packet);
+		g_rooms[g_clients[id].m_RoomNumber].attack(PxVec3(packet_atk->cameraPosx, packet_atk->cameraPosy, packet_atk->cameraPosz), PxVec3(packet_atk->lx, packet_atk->ly, packet_atk->lz), g_clients);
+		break;
+	}
+	case CS_ANGLE:
+	{
+		cs_angle_packet* packet_agl = reinterpret_cast<cs_angle_packet*>(packet);
+		g_clients[id].look.x = packet_agl->lookx;
+		g_clients[id].look.y = packet_agl->looky;
+		g_clients[id].look.z = packet_agl->lookz;
+		g_clients[id].right.x = packet_agl->rx;
+		g_clients[id].right.y = packet_agl->ry;
+		g_clients[id].right.z = packet_agl->rz;
 		break;
 	}
 	default:
@@ -786,46 +836,48 @@ void worker_thread()
 		}
 		else if (GAMEACTION == p_over->work)
 		{
+			PxVec3 speedl = g_clients[key].look * 60.0f / 60.0f;
+			PxVec3 speedr = g_clients[key].right * 60.0f / 60.0f;
 
 			switch (g_clients[key].m_MoveDirection) {
 			case LEFT_DR:
-				g_clients[key].moveP.X = -3.0f / 60.0f;
-				g_clients[key].moveP.Z = 0;
+				g_clients[key].moveP.x = -speedr.x;
+				g_clients[key].moveP.z = -speedr.z;
 				break;
 			case RIGHT_DR:
-				g_clients[key].moveP.X = 3.0f / 60.0f;
-				g_clients[key].moveP.Z = 0;
+				g_clients[key].moveP.x = speedr.x;
+				g_clients[key].moveP.z = speedr.z;
 				break;
 			case UP_DR:
-				g_clients[key].moveP.X = 0;
-				g_clients[key].moveP.Z = -3.0f / 60.0f;
+				g_clients[key].moveP.x = speedl.x;
+				g_clients[key].moveP.z = speedl.z;
 				break;
 			case DOWN_DR:
-				g_clients[key].moveP.X = 0;
-				g_clients[key].moveP.Z = 3.0f / 60.0f;
+				g_clients[key].moveP.x = -speedl.x;
+				g_clients[key].moveP.z = -speedl.z;
 				break;
 			case ULEFT_DR:
-				g_clients[key].moveP.Z = -2.1f / 60.0f;
-				g_clients[key].moveP.X = -2.1f / 60.0f;
+				g_clients[key].moveP.x = speedl.x - speedr.x;
+				g_clients[key].moveP.z = speedl.z - speedr.z;
 				break;
 			case URIGHT_DR:
-				g_clients[key].moveP.Z = -2.1f / 60.0f;
-				g_clients[key].moveP.X = 2.1f / 60.0f;
+				g_clients[key].moveP.x = speedl.x + speedr.x;
+				g_clients[key].moveP.z = speedl.z + speedr.z;
 				break;
 			case DLEFT_DR:
-				g_clients[key].moveP.Z = 2.1f / 60.0f;
-				g_clients[key].moveP.X = -2.1f / 60.0f;
+				g_clients[key].moveP.x = -speedl.x - speedr.x;
+				g_clients[key].moveP.z = -speedl.z - speedr.z;
 				break;
 			case DRIGHT_DR:
-				g_clients[key].moveP.Z = 2.1f / 60.0f;
-				g_clients[key].moveP.X = 2.1f / 60.0f;
+				g_clients[key].moveP.x = -speedl.x + speedr.x;
+				g_clients[key].moveP.z = -speedl.z + speedr.z;
 				break;
 			case STOP_DR:
-				g_clients[key].moveP.Z = 0;
-				g_clients[key].moveP.X = 0;
+				g_clients[key].moveP.x = 0;
+				g_clients[key].moveP.z = 0;
 				break;
 			}
-			g_clients[key].moveP.Y = -10;
+			g_clients[key].moveP.y = 0;
 		}
 		else if (PERIODICACTION == p_over->work) {
 			sc_movestatus_packet p;
@@ -833,7 +885,7 @@ void worker_thread()
 			p.type = g_clients[key].m_MoveDirection;
 			wcscpy(p.id, g_clients[key].m_ID.c_str());
 			p.x = g_clients[key].posP.X;
-			p.y = g_clients[key].posP.Y - 11.25f;
+			p.y = 0;
 			p.z = g_clients[key].posP.Z;
 			SendPacket(key, &p);
 		}
@@ -930,9 +982,10 @@ void Timer_Thread() {
 				if(!count)
 					PostQueuedCompletionStatus(ghiocp, 1, id, &periodic.m_over);
 				PxControllerFilters filter;
-				g_clients[id].mCapsuleController->move(PxVec3(g_clients[id].moveP.X, g_clients[id].moveP.Y, g_clients[id].moveP.Z), 0.001f, FRAME_PER_SEC, filter);
+				g_clients[id].mCapsuleController->move(PxVec3(g_clients[id].moveP.x, g_clients[id].moveP.y, g_clients[id].moveP.z), 0.001f, FRAME_PER_SEC, filter);
 				g_clients[id].posP = Point3f(g_clients[id].mCapsuleController->getPosition().x, g_clients[id].mCapsuleController->getPosition().y, g_clients[id].mCapsuleController->getPosition().z);
 			}
+			
 			d.m_PhysXModule->stepPhysics(FRAME_PER_SEC);
 
 		}
