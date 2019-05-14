@@ -107,7 +107,6 @@ void Player::PlayerKeyBoardInput(const GameTimer & gt)
 		SelectPlayer(4);
 	// --------------------------------
 
-	mCamera.UpdateViewMatrix();
 }
 
 void Player::PlayerMouseMove(WPARAM btnState, int x, int y)
@@ -206,6 +205,7 @@ void Player::Update(const GameTimer& gt)
 	const float dt = gt.DeltaTime();
 	AttackUpdate(dt);
 	MoveUpdate(dt); 
+	mCamera.UpdateViewMatrix();
 }
 
 void Player::AttackUpdate(const float & dt)
