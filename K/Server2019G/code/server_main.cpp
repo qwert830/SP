@@ -32,14 +32,6 @@ struct EXOVER {
 	char work;
 };
 
-struct Point3f {
-	float X;
-	float Y;
-	float Z;
-
-	Point3f() {};
-	Point3f(float x, float y, float z) : X(x), Y(y), Z(z) {}
-};
 
 class Client {
 public:
@@ -52,7 +44,9 @@ public:
 	PxVec3 moveP;
 	PxVec3 look;
 	PxVec3 right;
-	Point3f posP;
+	float x;
+	float y;
+	float z;
 
 	char hp;
 	char team;
@@ -137,12 +131,17 @@ public:
 		}
 		m_PhysXModule = new PhysXModule;
 		int i = 0;
+		
+		sc_teaminfo_packet p;
+		p.size = sizeof(sc_teaminfo_packet);
+
 		for (int d : m_JoinIdList) {
 			clients[d].hp = 100;
 			switch (i) {
 			case 0:
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 30, 350), 21.5, 2.5, d);
 				clients[d].team = RED_READER;
+				p.type = RED_READER;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
 				clients[d].look.z = -1;
@@ -153,6 +152,7 @@ public:
 			case 1:
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 30, -350), 21.5, 2.5, d);
 				clients[d].team = BLUE_READER;
+				p.type = BLUE_READER;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
 				clients[d].look.z = 1;
@@ -178,6 +178,7 @@ public:
 				break;
 			}
 			clients[d].m_Condition = US_PLAY;
+			SendPacket(d, &p);
 			++i;
 		}
 		m_RoomStatus = RS_PLAY;
@@ -725,9 +726,9 @@ inline void ProcessPacket(int id, char *packet)
 			p.size = sizeof(sc_movestatus_packet);
 			p.type = packet[1];
 			wcscpy(p.id, g_clients[id].m_ID.c_str());
-			p.x = g_clients[id].posP.X;
+			p.x = g_clients[id].x;
 			p.y = 0;
-			p.z = g_clients[id].posP.Z;
+			p.z = g_clients[id].z;
 			for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
 				SendPacket(d, &p);
 			}
@@ -759,6 +760,10 @@ inline void ProcessPacket(int id, char *packet)
 		p.rx = g_clients[id].right.x;
 		p.ry = g_clients[id].right.y;
 		p.rz = g_clients[id].right.z;
+		for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
+			if (d == id) continue;
+			SendPacket(d, &p);
+		}
 		break;
 	}
 	default:
@@ -894,9 +899,9 @@ void worker_thread()
 			p.size = sizeof(sc_movestatus_packet);
 			p.type = g_clients[key].m_MoveDirection;
 			wcscpy(p.id, g_clients[key].m_ID.c_str());
-			p.x = g_clients[key].posP.X;
+			p.x = g_clients[key].x;
 			p.y = 0;
-			p.z = g_clients[key].posP.Z;
+			p.z = g_clients[key].z;
 			SendPacket(key, &p);
 		}
 		else
@@ -993,7 +998,9 @@ void Timer_Thread() {
 					PostQueuedCompletionStatus(ghiocp, 1, id, &periodic.m_over);
 				PxControllerFilters filter;
 				g_clients[id].mCapsuleController->move(PxVec3(g_clients[id].moveP.x, g_clients[id].moveP.y, g_clients[id].moveP.z), 0.001f, FRAME_PER_SEC, filter);
-				g_clients[id].posP = Point3f(g_clients[id].mCapsuleController->getPosition().x, g_clients[id].mCapsuleController->getPosition().y, g_clients[id].mCapsuleController->getPosition().z);
+				g_clients[id].x = g_clients[id].mCapsuleController->getPosition().x;
+				g_clients[id].y = g_clients[id].mCapsuleController->getPosition().y;
+				g_clients[id].z = g_clients[id].mCapsuleController->getPosition().z;
 			}
 			
 			d.m_PhysXModule->stepPhysics(FRAME_PER_SEC);

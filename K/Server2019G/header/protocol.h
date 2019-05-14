@@ -204,4 +204,9 @@ struct sc_gameover_packet {
 	unsigned char type;
 };
 
+struct sc_teaminfo_packet {
+	unsigned char size;
+	unsigned char type;
+};
+
 #pragma pack (pop)
