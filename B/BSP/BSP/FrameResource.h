@@ -6,7 +6,7 @@
 
 using namespace DirectX;
 
-struct InstanceData // 플레이어 isDraw 10 = RedReader / isDraw 100 = BlueReader
+struct InstanceData // 플레이어 isDraw 11 = RedReader / isDraw 101 = BlueReader
 {
 	DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
 	DirectX::XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();

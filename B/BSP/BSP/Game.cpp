@@ -2084,31 +2084,16 @@ void Game::SetTeam(std::string name, unsigned char team)
 	else
 	{
 		if (team == TEAM::RED_READER)
-			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = 10;
-		else if (team == TEAM::BLUE_READER)
-			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = 100;
+			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = 11;
+		if (team == TEAM::BLUE_READER)
+			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = 101;
 	}
-
 }
 
 void Game::GameStart()
 {
 	mTime = 600.0f;
-	for (int i = 0; i < 10; i++)
-	{
-		if (i == 0)
-		{
-			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[i].IsDraw = -1;
-		}
-		else if (mIDSearch[i])
-		{
-			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[i].IsDraw = 1;
-		}
-		else
-		{
-			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[i].IsDraw = -1;
-		}
-	}
+
 	mPlayer.SetMousePos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
 	mScene = GAME;
 }

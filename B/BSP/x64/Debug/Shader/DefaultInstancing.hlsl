@@ -333,13 +333,13 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
     if(pin.MatIndex == 6)
         diffuseAlbedo.x += superheat / 100.0f;
 
-    if(pin.MatIndex ==3)
+    if(pin.MatIndex == 3)
     {
-        if(pin.Instance == 0)
+        if(pin.IsDraw == 11)
         {
             diffuseAlbedo.x = 1;
         }
-        else if(pin.Instance == 1)
+        if(pin.IsDraw == 101)
         {
             diffuseAlbedo.z = 1;
         }
