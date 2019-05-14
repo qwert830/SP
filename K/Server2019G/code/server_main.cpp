@@ -582,7 +582,7 @@ inline void ProcessPacket(int id, char *packet)
 		sc_roomstatus_packet packet_rs;
 		packet_rs.size = sizeof(sc_roomstatus_packet);
 		packet_rs.type = SC_REFRESH;
-		for (int i = 0; i < 200; ++i) {
+		for (int i = 0; i < MAX_ROOMNUMBER; ++i) {
 			packet_rs.roomstatus[i] = g_rooms[i].m_RoomStatus;
 		}
 		SendPacket(id, &packet_rs);
@@ -603,7 +603,7 @@ inline void ProcessPacket(int id, char *packet)
 					wcscpy(p.id, g_clients[id].m_ID.c_str());
 					//방 인원 전원에게 해당 아이디가 조인했음을 알림
 					for (int d : g_rooms[packet_join->roomnumber].m_JoinIdList) {
-						//if (d == id) continue;
+						if (d == id) continue;
 						SendPacket(d, &p);
 					}
 					//해당 아이디에게 방에 접속중인 인원의 정보를 보냄
