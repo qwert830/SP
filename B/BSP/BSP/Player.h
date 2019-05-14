@@ -66,6 +66,10 @@ public:
 	unsigned char GetMoveState();
 	float GetSuperheat();
 	float IsAttack();
+
+	DirectX::XMFLOAT3 GetPlayerLookVector();
+	DirectX::XMFLOAT3 GetPlayerRightVector();
+
 	POINT mLastMousePos;
 };
 

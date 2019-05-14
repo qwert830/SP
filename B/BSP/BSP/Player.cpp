@@ -305,3 +305,13 @@ float Player::IsAttack()
 		return attackCool*2;
 	return -1.0f;
 }
+
+DirectX::XMFLOAT3 Player::GetPlayerLookVector()
+{
+	return mVector[0].mLook;
+}
+
+DirectX::XMFLOAT3 Player::GetPlayerRightVector()
+{
+	return mVector[0].mRight;
+}

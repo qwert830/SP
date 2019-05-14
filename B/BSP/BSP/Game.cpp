@@ -559,8 +559,25 @@ void Game::OnMouseMove(WPARAM btnState, int x, int y)
 	pos.y = y;
 	ClientToScreen(mhMainWnd, &pos);
 	if (mScene == GAME)
+	{
 		mPlayer.PlayerMouseMove(btnState, pos.x, pos.y);
-	if (mScene == ROOM)
+		DWORD iobyte;
+		XMFLOAT3 tempLook = mPlayer.GetPlayerLookVector();
+		XMFLOAT3 tempRight = mPlayer.GetPlayerRightVector();
+		cs_angle_packet* agp = reinterpret_cast<cs_angle_packet*>(send_buffer);
+		send_wsabuf.len = sizeof(cs_angle_packet);
+		agp->size = sizeof(cs_angle_packet);
+		agp->type = CS_PacketKind::CS_ANGLE;
+		agp->lookx = tempLook.x;
+		agp->looky = tempLook.y;
+		agp->lookz = tempLook.z;
+		agp->rx = tempRight.x;
+		agp->ry = tempRight.y;
+		agp->rz = tempRight.z;
+
+		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
+	}
+	else if (mScene == ROOM)
 	{
 		float xpos = (float)(x * 2) / (float)mClientWidth - 1.0f; 
 		float ypos = (float)(mClientHeight - (y * 2)) / (float)mClientHeight;
