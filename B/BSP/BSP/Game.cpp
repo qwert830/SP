@@ -326,14 +326,13 @@ void Game::Update(const GameTimer& gt)
 	UpdateTime(gt);
 	UpdateObjectCBs(gt);
 	UpdatePlayerData();
+	mPlayer.Update(gt);
 	UpdateButton();
 	UpdateInstanceData(gt);
 	UpdateMaterialCBs(gt);
 	UpdateShadowTransform(gt);
 	UpdateMainPassCB(gt);
 	UpdateShadowPassCB(gt);
-
-	mPlayer.Update(gt);
 }
 
 void Game::Draw(const GameTimer& gt)
@@ -2049,7 +2048,6 @@ void Game::SetPosition(std::string name, XMFLOAT3 position)
 		mPlayer.mVector[id].mLook.x,		mPlayer.mVector[id].mLook.y,		mPlayer.mVector[id].mLook.z,		0.0f,
 		mPlayer.mVector[id].mPosition.x,	mPlayer.mVector[id].mPosition.y,	mPlayer.mVector[id].mPosition.z,	1.0f
 	};
-	UpdatePlayerData();
 }
 
 void Game::SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3 up)
@@ -2072,7 +2070,6 @@ void Game::SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3
 		mPlayer.mVector[id].mLook.x,		mPlayer.mVector[id].mLook.y,		mPlayer.mVector[id].mLook.z,		0.0f,
 		mPlayer.mVector[id].mPosition.x,	mPlayer.mVector[id].mPosition.y,	mPlayer.mVector[id].mPosition.z,	1.0f
 	};
-	UpdatePlayerData();
 }
 
 void Game::GameStart()
