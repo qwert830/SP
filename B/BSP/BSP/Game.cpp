@@ -138,6 +138,7 @@ private:
 	void Ready(std::string name, int state);
 	void SetPosition(std::string name, XMFLOAT3 position);
 	void SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3 up);
+	void SetTeam(std::string name, unsigned char team);
 	void GameStart();
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
@@ -2072,6 +2073,24 @@ void Game::SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3
 	};
 }
 
+void Game::SetTeam(std::string name, unsigned char team)
+{
+	int id = mUserID[name];
+	if (id == 0)
+	{
+		mPlayer.SetTeam(team);
+		mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = -1;
+	}
+	else
+	{
+		if (team == TEAM::RED_READER)
+			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = 10;
+		else if (team == TEAM::BLUE_READER)
+			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = 100;
+	}
+
+}
+
 void Game::GameStart()
 {
 	mTime = 600.0f;
@@ -2358,6 +2377,17 @@ void Game::ProcessPacket(char * ptr)
 		char idbuff[10];
 		wcstombs(idbuff, ucp->id, wcslen(ucp->id) + 1);
 		Ready(idbuff, ucp->type);
+		break;
+	}
+	case BLUE_READER:
+	case RED_READER:
+	case BLUE_TEAM:
+	case RED_TEAM:
+	{
+		sc_teaminfo_packet* tip = reinterpret_cast<sc_teaminfo_packet*>(ptr);
+		char idbuff[10];
+		wcstombs(idbuff, tip->id, wcslen(tip->id) + 1);
+		SetTeam(idbuff, (TEAM)tip->type);
 		break;
 	}
 	case SC_GO:

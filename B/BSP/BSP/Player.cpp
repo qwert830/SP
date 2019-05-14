@@ -306,6 +306,11 @@ float Player::IsAttack()
 	return -1.0f;
 }
 
+void Player::SetTeam(unsigned char team)
+{
+	mPlayerTeam = team;
+}
+
 DirectX::XMFLOAT3 Player::GetPlayerLookVector()
 {
 	return mVector[0].mLook;

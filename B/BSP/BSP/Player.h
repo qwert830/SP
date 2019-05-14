@@ -25,7 +25,7 @@ private:
 
 	char mPlayerID = 0;
 	float sensitivity = 0;
-	TEAM mPlayerTeam;
+	unsigned char mPlayerTeam;
 
 	unsigned char moveState = MOVE::STAND;
 	unsigned char attackState = ATTACK::NOATTACK;
@@ -66,7 +66,7 @@ public:
 	unsigned char GetMoveState();
 	float GetSuperheat();
 	float IsAttack();
-
+	void SetTeam(unsigned char team);
 	DirectX::XMFLOAT3 GetPlayerLookVector();
 	DirectX::XMFLOAT3 GetPlayerRightVector();
 

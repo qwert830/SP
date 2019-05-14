@@ -335,13 +335,13 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
 
     if(pin.MatIndex ==3)
     {
-        if(pin.Instance == 0)
-        {
-            diffuseAlbedo.x = 1;
-        }
-        else if(pin.Instance == 1)
+        if(pin.IsDraw >= 100)
         {
             diffuseAlbedo.z = 1;
+        }
+        else if(pin.IsDraw >= 10)
+        {
+            diffuseAlbedo.x = 1;
         }
     }
 
