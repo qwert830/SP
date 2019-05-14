@@ -102,6 +102,7 @@ struct VertexOut
 
     nointerpolation uint MatIndex : MATINDEX;
     nointerpolation float IsDraw : MATINDEX1;
+    nointerpolation uint Instance : MATINDEX2;
 };
 
 struct ShadowVertexIn
@@ -277,7 +278,7 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
     vout.ShadowPosH = mul(posW, gShadowTransform);
 
     vout.IsDraw = instData.IsDraw;
-
+    vout.Instance = instanceID;
     return vout;
 };
 
@@ -331,6 +332,18 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
 
     if(pin.MatIndex == 6)
         diffuseAlbedo.x += superheat / 100.0f;
+
+    if(pin.MatIndex ==3)
+    {
+        if(pin.Instance == 0)
+        {
+            diffuseAlbedo.x = 1;
+        }
+        else if(pin.Instance == 1)
+        {
+            diffuseAlbedo.z = 1;
+        }
+    }
 
     return PackGBuffer(diffuseAlbedo.xyz, pin.NormalW, fresnelR0.x, shininess, pos);
 };
@@ -488,6 +501,13 @@ ShadowVertexOut SHADOW_VS(ShadowVertexIn vin, uint instanceID : SV_InstanceID)
     float4x4 texTransform = instData.TexTransform;
     uint matIndex = instData.MaterialIndex;
     MaterialConstants matData = gMaterialData[0];
+
+    if (instData.IsDraw < 0)
+    {
+        vout.PosH = float4(-100000.0f, -100000.0f, 0.0f,0.0f);
+
+        return vout;
+    }
 
     vout.MatIndex = matIndex;
 

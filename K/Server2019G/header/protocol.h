@@ -60,8 +60,9 @@ enum SC_PacketKind {
 	SC_READY,
 	SC_UNREADY,
 	SC_POSITION,
+	SC_ANGLE,
 	SC_GAMEOVER_REDWIN,
-	SC_GAMEOVER_BLUEWIN
+	SC_GAMEOVER_BLUEWIN,
 };
 #pragma pack (push, 1)
 // 클라이언트 -> 서버------------------------
@@ -179,9 +180,8 @@ struct sc_angle_packet {
 	unsigned char size;
 	unsigned char type;
 	wchar_t id[10];
-	float up;
-	float right;
-	float look;
+	float lookx, looky, lookz;
+	float rx, ry, rz;
 };
 
 struct sc_attack_packet {

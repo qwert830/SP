@@ -681,7 +681,7 @@ inline void ProcessPacket(int id, char *packet)
 		else {
 			sc_usercondition_packet p;
 			p.size = sizeof(sc_usercondition_packet);
-			p.type = US_READY;
+			p.type = SC_READY;
 			wcscpy(p.id, g_clients[id].m_ID.c_str());
 			for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
 				SendPacket(d, &p);
@@ -692,7 +692,7 @@ inline void ProcessPacket(int id, char *packet)
 		g_clients[id].m_Condition = US_WAIT;
 		sc_usercondition_packet p;
 		p.size = sizeof(sc_usercondition_packet);
-		p.type = US_WAIT;
+		p.type = SC_UNREADY;
 		wcscpy(p.id, g_clients[id].m_ID.c_str());
 		for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
 			SendPacket(d, &p);
@@ -749,6 +749,16 @@ inline void ProcessPacket(int id, char *packet)
 		g_clients[id].right.x = packet_agl->rx;
 		g_clients[id].right.y = packet_agl->ry;
 		g_clients[id].right.z = packet_agl->rz;
+		sc_angle_packet p;
+		p.size = sizeof(sc_angle_packet);
+		p.type = SC_ANGLE;
+		wcscpy(p.id, g_clients[id].m_ID.c_str());
+		p.lookx = g_clients[id].look.x;
+		p.looky = g_clients[id].look.y;
+		p.lookz = g_clients[id].look.z;
+		p.rx = g_clients[id].right.x;
+		p.ry = g_clients[id].right.y;
+		p.rz = g_clients[id].right.z;
 		break;
 	}
 	default:
@@ -836,8 +846,8 @@ void worker_thread()
 		}
 		else if (GAMEACTION == p_over->work)
 		{
-			PxVec3 speedl = g_clients[key].look * 60.0f / 60.0f;
-			PxVec3 speedr = g_clients[key].right * 60.0f / 60.0f;
+			PxVec3 speedl = g_clients[key].look * 600.0f / 60.0f;
+			PxVec3 speedr = g_clients[key].right * 600.0f / 60.0f;
 
 			switch (g_clients[key].m_MoveDirection) {
 			case LEFT_DR:
@@ -1000,7 +1010,7 @@ int main()
 {
 	vector <thread> w_threads;
 	Initialize();
-	for (int i = 0; i < 2; ++i)
+	for (int i = 0; i < 4; ++i)
 		w_threads.push_back(thread{ worker_thread });
 
 	thread a_thread{ Accept_Threads };
