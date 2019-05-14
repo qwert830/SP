@@ -2386,7 +2386,7 @@ void Game::ProcessPacket(char * ptr)
 		sc_angle_packet* agp = reinterpret_cast<sc_angle_packet*>(ptr);
 		char idbuff[10];
 		wcstombs(idbuff, agp->id, wcslen(agp->id) + 1);
-		SetRotation(idbuff, XMFLOAT3(agp->lookx, agp->looky, agp->lookz), XMFLOAT3(agp->rx, agp->ry, agp->rz), XMFLOAT3(0, 1, 0));
+		SetRotation(idbuff, XMFLOAT3(agp->lookx, agp->looky, agp->lookz), XMFLOAT3(agp->rx, agp->ry, agp->rz), XMFLOAT3(0, 0.1f, 0));
 		break;
 	}
 	}

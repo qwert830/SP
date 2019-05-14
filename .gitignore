@@ -7,7 +7,7 @@
 *.pdb
 *.lib
 *.dll
-*.ilk
-*.pdb
 *.tlog
+*.pdb
+*.ilk
 .vs/
