@@ -581,7 +581,6 @@ void Game::OnMouseMove(WPARAM btnState, int x, int y)
 		
 		RoomCheckButton(xpos, ypos);
 	}
-
 }
 
 void Game::OnKeyboardInput(const GameTimer& gt)
