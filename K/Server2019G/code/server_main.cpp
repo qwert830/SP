@@ -178,7 +178,9 @@ public:
 				break;
 			}
 			clients[d].m_Condition = US_PLAY;
-			SendPacket(d, &p);
+			wcscpy(p.id, clients[d].m_ID.c_str());
+			for (int f : m_JoinIdList)
+				SendPacket(f, &p);
 			++i;
 		}
 		m_RoomStatus = RS_PLAY;
