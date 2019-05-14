@@ -139,9 +139,6 @@ private:
 	void SetPosition(std::string name, XMFLOAT3 position);
 	void SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3 up);
 	void GameStart();
-	XMFLOAT3 GetLookVector();
-	XMFLOAT3 GetUpVector();
-	XMFLOAT3 GetRightVector();
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 private:
@@ -2099,21 +2096,6 @@ void Game::GameStart()
 	mScene = GAME;
 }
 
-XMFLOAT3 Game::GetLookVector()
-{
-	return mPlayer.mVector[0].mLook;
-}
-
-XMFLOAT3 Game::GetUpVector()
-{
-	return mPlayer.mVector[0].mUp;
-}
-
-XMFLOAT3 Game::GetRightVector()
-{
-	return mPlayer.mVector[0].mRight;
-}
-
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> Game::GetStaticSamplers()
 {
 	// Applications usually only need a handful of samplers.  So just define them all up front
@@ -2398,6 +2380,14 @@ void Game::ProcessPacket(char * ptr)
 		wcstombs(idbuff, msp->id, wcslen(msp->id) + 1);
 		SetPosition(idbuff, XMFLOAT3(msp->x,msp->y,msp->z));
  		break;
+	}
+	case SC_ANGLE:
+	{
+		sc_angle_packet* agp = reinterpret_cast<sc_angle_packet*>(ptr);
+		char idbuff[10];
+		wcstombs(idbuff, agp->id, wcslen(agp->id) + 1);
+		SetRotation(idbuff, XMFLOAT3(agp->lookx, agp->looky, agp->lookz), XMFLOAT3(agp->rx, agp->ry, agp->rz), XMFLOAT3(0, 1, 0));
+		break;
 	}
 	}
 
