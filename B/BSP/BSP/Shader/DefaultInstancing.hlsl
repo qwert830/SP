@@ -59,6 +59,10 @@ cbuffer cbPass : register(b0)
     float gFarZ;
     float gTotalTime;
     float gDeltaTime;
+    float MaxHP;
+    float CurrentHP;
+    float pad1;
+    float pad2;
     float4 gAmbientLight;
 
     Light gLights[MaxLights];
@@ -69,10 +73,10 @@ cbuffer cbSkinned : register(b1)
     float4x4 gBoneTransforms[10][96];
 };
 
-Texture2D gDiffuseMap[12] : register(t0);
-Texture2D gShadowMap : register(t12);
-Texture2D gDepthResource : register(t13);
-Texture2D gBufferResource[3] : register(t14);
+Texture2D gDiffuseMap[17] : register(t0);
+Texture2D gShadowMap : register(t17);
+Texture2D gDepthResource : register(t18);
+Texture2D gBufferResource[3] : register(t19);
 
 
 SamplerState gsamPointWrap : register(s0);
@@ -489,6 +493,24 @@ float4 UI_PS(VertexOut pin) : SV_Target
         if (pin.IsDraw > 1)
             return float4(1.0f, 1.0f, 1.0f, 1.0f);
     }
+
+    if (pin.MatIndex == 16)
+    {
+        float hp = CurrentHP / MaxHP;
+        hp = clamp(hp * 0.8 + 0.2, 0, 1);
+        if(diffuseAlbedo.x == 1.0f && diffuseAlbedo.z == 1.0f && diffuseAlbedo.y != 1.0f )
+        {
+            float red = 1.0f;
+            float gnb = 0;
+            if (sin(gTotalTime + 1)+1 >= pin.TexC.x + pin.TexC.y*2 && pin.TexC.x + pin.TexC.y*2 >= sin(gTotalTime) + 1)
+                gnb = 1.0f;
+            if (pin.TexC.x <= hp)
+                diffuseAlbedo = float4(red, gnb, gnb, 1.0f);
+            else
+                discard;
+        }
+    }
+
     return diffuseAlbedo;
 };
 

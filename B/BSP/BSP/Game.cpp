@@ -15,7 +15,7 @@ const float radian = (float)(3.141572f / 180.0f);
 
 enum SCENENAME
 {
-	GAME,ROOM
+	GAME, ROOM
 };
 
 enum RENDERITEM
@@ -139,6 +139,7 @@ private:
 	void SetPosition(std::string name, XMFLOAT3 position);
 	void SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3 up);
 	void SetTeam(std::string name, unsigned char team);
+	void TeamCheck();
 	void GameStart();
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
@@ -154,6 +155,9 @@ private:
 	
 	bool mIDSearch[10] = { false, };
 	unsigned int mIDNumber = 0;
+
+	bool gameStart = false;
+
 	std::unordered_map<std::string, unsigned int> mUserID;
 
 
@@ -771,6 +775,8 @@ void Game::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.FarZ = 1000.0f;
 	mMainPassCB.TotalTime = gt.TotalTime();
 	mMainPassCB.DeltaTime = gt.DeltaTime();
+	mMainPassCB.MaxHP = mPlayer.GetMaxHP();
+	mMainPassCB.CurrentHP = mPlayer.GetCurrentHP();
 	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
 	mMainPassCB.Lights[0].Direction = mBaseLightDirections[0];
 	mMainPassCB.Lights[0].Strength = { 0.8f, 0.8f, 0.8f };
@@ -902,7 +908,12 @@ void Game::LoadTextures()
 		"ReadyRoomTex",
 		"ReadyButtonTex",
 		"QuitButtonTex",
-		"CubeTex"
+		"CubeTex",
+		"RedReaderTex",
+		"BlueReaderTex",
+		"RedTeamTex",
+		"BlueTeamTex",
+		"HPTex"
 	};
 
 	std::vector<std::wstring> fileNames =
@@ -918,7 +929,12 @@ void Game::LoadTextures()
 		L"Resource/ReadyRoom.dds",
 		L"Resource/ReadyButton.dds",
 		L"Resource/QuitButton.dds",
-		L"Resource/Cube.dds"
+		L"Resource/Cube.dds",
+		L"Resource/REDREADER.dds",
+		L"Resource/BLUEREADER.dds",
+		L"Resource/REDTEAM.dds",
+		L"Resource/BLUETEAM.dds",
+		L"Resource/HP.dds"
 	};
 
 	for (int i = 0; i < texNames.size(); ++i)
@@ -978,7 +994,7 @@ void Game::BuildInstancingRootSignature()
 	// µð½ºÅ©¸³ÅÍ ¹Ù²Ü´í ¼ÎÀÌ´õ ÄÚµå¸¦ ²À ¹Ù²ÙÀÚ Á«¶ó..
 	int num = 0;
 
-	int tex = 12;
+	int tex = 17;
 	CD3DX12_DESCRIPTOR_RANGE texTable;
 	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, tex, num, 0);
 	num += tex;
@@ -1039,7 +1055,7 @@ void Game::BuildDescriptorHeaps()
 	//µð½ºÅ©¸³ÅÍ Èü¿¡ ½¦ÀÌ´õ ¸®¼Ò½º ºä¸¦ ÇÏ³ª¾¿ Å¾Àç
 
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 17;
+	srvHeapDesc.NumDescriptors = 22;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -1059,7 +1075,12 @@ void Game::BuildDescriptorHeaps()
 		mTextures["ReadyRoomTex"]->Resource,
 		mTextures["ReadyButtonTex"]->Resource,
 		mTextures["QuitButtonTex"]->Resource,
-		mTextures["CubeTex"]->Resource
+		mTextures["CubeTex"]->Resource,
+		mTextures["RedReaderTex"]->Resource,
+		mTextures["BlueReaderTex"]->Resource,
+		mTextures["RedTeamTex"]->Resource,
+		mTextures["BlueTeamTex"]->Resource,
+		mTextures["HPTex"]->Resource
 	};
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -1573,7 +1594,7 @@ void Game::BuildRenderItemsGame()
 
 	UIRitem->Instances.resize(11);
 	// uiÃÑ
-	UIRitem->Instances[0].UIPos = XMFLOAT4(0.48f,-0.75f,0.98f,-1.25f);
+	UIRitem->Instances[0].UIPos = XMFLOAT4(0.40f,-0.725f,0.98f,-1.225f);
 	UIRitem->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
 	XMStoreFloat4x4(&UIRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	UIRitem->Instances[0].MaterialIndex = 2;
@@ -1616,6 +1637,35 @@ void Game::BuildRenderItemsGame()
 	mRenderItems[GAME].renderItems[PLAYER].push_back(mRenderItems[GAME].allItems[mRenderItems[GAME].allItems.size() - 1].get());
 
 	mRenderItems[GAME].allItems.push_back(std::move(UIRitem));
+	mRenderItems[GAME].renderItems[UI].push_back(mRenderItems[GAME].allItems[mRenderItems[GAME].allItems.size() - 1].get());
+
+	auto UIRitem2 = std::make_unique<RenderItem>();
+	UIRitem2->World = MathHelper::Identity4x4();
+	UIRitem2->TexTransform = MathHelper::Identity4x4();
+	UIRitem2->ObjCBIndex = mObjectCount++;
+	UIRitem2->Mat = mMaterials["seafloor0"].get();
+	UIRitem2->Geo = mGeometries["shapeGeo"].get();
+	UIRitem2->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	UIRitem2->InstanceCount = 0;
+	UIRitem2->IndexCount = UIRitem2->Geo->DrawArgs["uiGrid"].IndexCount;
+	UIRitem2->StartIndexLocation = UIRitem2->Geo->DrawArgs["uiGrid"].StartIndexLocation;
+	UIRitem2->BaseVertexLocation = UIRitem2->Geo->DrawArgs["uiGrid"].BaseVertexLocation;
+	
+	UIRitem2->Instances.resize(2); // ÆÀÇ¥½Ã, HP¹ÙÇ¥½Ã
+
+	UIRitem2->Instances[0].UIPos = XMFLOAT4(-0.2f, -0.78f, 0.2f, -0.88f);
+	UIRitem2->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+	XMStoreFloat4x4(&UIRitem2->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+	UIRitem2->Instances[0].MaterialIndex = 12;
+
+	UIRitem2->Instances[1].UIPos = XMFLOAT4(-0.9f, -0.7f, -0.3f, -0.9f);
+	UIRitem2->Instances[1].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+	XMStoreFloat4x4(&UIRitem2->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+	UIRitem2->Instances[1].MaterialIndex = 16;
+
+	mInstanceCount.push_back((unsigned int)UIRitem2->Instances.size());
+
+	mRenderItems[GAME].allItems.push_back(std::move(UIRitem2));
 	mRenderItems[GAME].renderItems[UI].push_back(mRenderItems[GAME].allItems[mRenderItems[GAME].allItems.size() - 1].get());
 
 	auto quadRitem = std::make_unique<RenderItem>();
@@ -2078,24 +2128,47 @@ void Game::SetTeam(std::string name, unsigned char team)
 	int id = mUserID[name];
 	if (id == 0)
 	{
+		int teamTextureIndex;
+		if (team == TEAM::RED_READER)
+			teamTextureIndex = 12;
+		else if (team == TEAM::BLUE_READER)
+			teamTextureIndex = 13;
+		else if (team == TEAM::RED_TEAM)
+			teamTextureIndex = 14;
+		else if (team == TEAM::BLUE_TEAM)
+			teamTextureIndex = 15;
+
 		mPlayer.SetTeam(team);
 		mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = -1;
+		mRenderItems[GAME].renderItems[UI][1]->Instances[0].MaterialIndex = teamTextureIndex;
 	}
 	else
 	{
 		if (team == TEAM::RED_READER)
+		{
 			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = 11;
+		}
 		if (team == TEAM::BLUE_READER)
+		{
 			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = 101;
+		}
 	}
+}
+
+void Game::TeamCheck()
+{
+	mScene = GAME;
+	mPlayer.SetMousePos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
+
+	mRenderItems[GAME].renderItems[UI][1]->Instances[0].UIPos = XMFLOAT4(-0.5f, 0.5f, 0.5f, -0.5f);
 }
 
 void Game::GameStart()
 {
 	mTime = 600.0f;
+	mRenderItems[GAME].renderItems[UI][1]->Instances[0].UIPos = XMFLOAT4(-0.2f, -0.78f, 0.2f, -0.88f);
 
-	mPlayer.SetMousePos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
-	mScene = GAME;
+	gameStart = true;
 }
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> Game::GetStaticSamplers()

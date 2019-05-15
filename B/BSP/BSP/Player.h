@@ -21,24 +21,26 @@ class Player
 {
 private:
 
-	float k = 20;
+	float mCameraOffsetY = 20;
 
 	char mPlayerID = 0;
-	float sensitivity = 0;
+	float mSensitivity = 0;
 	unsigned char mPlayerTeam;
 
-	unsigned char moveState = MOVE::STAND;
-	unsigned char attackState = ATTACK::NOATTACK;
+	unsigned char mMoveState = MOVE::STAND;
+	unsigned char mAttackState = ATTACK::NOATTACK;
 
-	const float moveSpeed = 600.0f;
+	const float mMoveSpeed = 600.0f;
 
-	float superheat = 0.0f;
-	float attackCool = 0.1f;
+	float mSuperheat = 0.0f;
+	float mAttackCool = 0.1f;
+	float mMaxHP = 300.0f;
+	float mCurrentHP = 300.0f;
 
-	bool LButtonDown = false;
-	bool RButtonDown = false;
+	bool mLButtonDown = false;
+	bool mRButtonDown = false;
 
-	POINT mouse;
+	POINT mMousePos;
 
 public:
 	Player();
@@ -62,11 +64,14 @@ public:
 	void Update(const GameTimer& gt);
 	void AttackUpdate(const float& dt);
 	void MoveUpdate(const float& dt);
+	
+	float IsAttack();
+	void SetTeam(unsigned char team);
 	const char GetPlayerID();
 	unsigned char GetMoveState();
 	float GetSuperheat();
-	float IsAttack();
-	void SetTeam(unsigned char team);
+	float GetCurrentHP();
+	float GetMaxHP();
 	DirectX::XMFLOAT3 GetPlayerLookVector();
 	DirectX::XMFLOAT3 GetPlayerRightVector();
 
