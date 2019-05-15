@@ -497,15 +497,11 @@ float4 UI_PS(VertexOut pin) : SV_Target
     if (pin.MatIndex == 16)
     {
         float hp = CurrentHP / MaxHP;
-        hp = clamp(hp * 0.8 + 0.2, 0, 1);
-        if(diffuseAlbedo.x == 1.0f && diffuseAlbedo.z == 1.0f && diffuseAlbedo.y != 1.0f )
+        hp = clamp(hp * 0.78 + 0.22, 0, 1);
+        if(diffuseAlbedo.x >= 0.96f && diffuseAlbedo.z >= 0.96f && diffuseAlbedo.y != 1.0f )
         {
-            float red = 1.0f;
-            float gnb = 0;
-            if (sin(gTotalTime + 1)+1 >= pin.TexC.x + pin.TexC.y*2 && pin.TexC.x + pin.TexC.y*2 >= sin(gTotalTime) + 1)
-                gnb = 1.0f;
             if (pin.TexC.x <= hp)
-                diffuseAlbedo = float4(red, gnb, gnb, 1.0f);
+                diffuseAlbedo = float4(0.9f, 0.1f, 0.0f, 1.0f);
             else
                 discard;
         }

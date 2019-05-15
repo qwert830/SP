@@ -146,8 +146,9 @@ private:
 private:
 
 	SCENENAME	mScene = ROOM;
-	Button		mButton;
+	bool		mGameStart = false;
 
+	Button			mButton;
 	Player			mPlayer;
 	ModelManager	mModelManager;
 	FontManager		mFontManager;
@@ -156,7 +157,6 @@ private:
 	bool mIDSearch[10] = { false, };
 	unsigned int mIDNumber = 0;
 
-	bool gameStart = false;
 
 	std::unordered_map<std::string, unsigned int> mUserID;
 
@@ -559,7 +559,7 @@ void Game::OnMouseMove(WPARAM btnState, int x, int y)
 	pos.x = x;
 	pos.y = y;
 	ClientToScreen(mhMainWnd, &pos);
-	if (mScene == GAME)
+	if (mScene == GAME && mGameStart)
 	{
 		mPlayer.PlayerMouseMove(btnState, pos.x, pos.y);
 		DWORD iobyte;
@@ -589,7 +589,8 @@ void Game::OnMouseMove(WPARAM btnState, int x, int y)
 
 void Game::OnKeyboardInput(const GameTimer& gt)
 {
-	//if (mScene == GAME)
+	if (mScene == GAME && mGameStart)
+	{
 		mPlayer.PlayerKeyBoardInput(gt);
 		DWORD iobyte;
 		cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
@@ -625,6 +626,7 @@ void Game::OnKeyboardInput(const GameTimer& gt)
 			break;
 		}
 		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
+	}
 }
 
 void Game::UpdateObjectCBs(const GameTimer& gt)
@@ -687,8 +689,30 @@ void Game::UpdatePlayerData() // 렌더러아이템에 월드행렬을 플레이어에 벡터들을 �
 		XMLoadFloat4x4(&gunMatrix)*
 		XMMatrixTranslation(mPlayer.mVector[id].mPosition.x, mPlayer.mVector[id].mPosition.y + Offset.y + 0.5f, mPlayer.mVector[id].mPosition.z)
 	);
+	mRenderItems[GAME].renderItems[BILLBOARDITEM][0]->Instances[id].IsDraw = mPlayer.IsAttack(0);
 
-	mRenderItems[GAME].renderItems[BILLBOARDITEM][0]->Instances[id].IsDraw = mPlayer.IsAttack();
+	for (int i = 1; i < 10; ++i)
+	{
+		XMFLOAT4X4 ShotMatrix =
+		{
+			mPlayer.mVector[i].mRight.x,		mPlayer.mVector[i].mRight.y,		mPlayer.mVector[i].mRight.z,		0.0f,
+			mPlayer.mVector[i].mUp.x,			mPlayer.mVector[i].mUp.y,			mPlayer.mVector[i].mUp.z,			0.0f,
+			mPlayer.mVector[i].mLook.x,			mPlayer.mVector[i].mLook.y,			mPlayer.mVector[i].mLook.z,			0.0f,
+			0.0f,								0.0f,								0.0f,								1.0f
+		};
+
+		XMStoreFloat4x4
+		(
+			&mRenderItems[GAME].renderItems[BILLBOARDITEM][0]->Instances[i].World,
+			XMMatrixScaling(100.0f, 100.0f, 1.0f)*
+			XMMatrixTranslation(Offset.x, 0, Offset.z + 15.5f)*
+			XMLoadFloat4x4(&ShotMatrix)*
+			XMMatrixTranslation(mPlayer.mVector[i].mPosition.x, mPlayer.mVector[i].mPosition.y+17.5f, mPlayer.mVector[i].mPosition.z)
+		);
+
+		mRenderItems[GAME].renderItems[BILLBOARDITEM][0]->Instances[i].IsDraw = 0.0f;
+	}
+
 }
 
 void Game::UpdateInstanceData(const GameTimer & gt)
@@ -1452,19 +1476,8 @@ void Game::BuildPSOs()
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&deferredPsoDesc, IID_PPV_ARGS(&mPSOs["DeferredResource"])));
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC deferredTransparentPsoDesc = deferredPsoDesc;
-	D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
-	transparencyBlendDesc.BlendEnable = true;
-	transparencyBlendDesc.LogicOpEnable = false;
-	transparencyBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	transparencyBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-	transparencyBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
-	transparencyBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
-	transparencyBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
-	transparencyBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
-	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	deferredTransparentPsoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
-	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&deferredPsoDesc, IID_PPV_ARGS(&mPSOs["DeferredTransparentResource"])));
+	deferredTransparentPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&deferredTransparentPsoDesc, IID_PPV_ARGS(&mPSOs["DeferredTransparentResource"])));
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC deferredRenderPsoDesc = instancingPsoDesc;
 	deferredRenderPsoDesc.DepthStencilState.DepthEnable = false;
@@ -1658,7 +1671,7 @@ void Game::BuildRenderItemsGame()
 	XMStoreFloat4x4(&UIRitem2->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	UIRitem2->Instances[0].MaterialIndex = 12;
 
-	UIRitem2->Instances[1].UIPos = XMFLOAT4(-0.9f, -0.7f, -0.3f, -0.9f);
+	UIRitem2->Instances[1].UIPos = XMFLOAT4(-0.9f, 0.9f, -0.3f, 0.7f);
 	UIRitem2->Instances[1].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
 	XMStoreFloat4x4(&UIRitem2->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	UIRitem2->Instances[1].MaterialIndex = 16;
@@ -2005,10 +2018,6 @@ void Game::ButtonClick()
 			mButton.readyButton = 10;
 			mButton.readyUI[mPlayer.GetPlayerID()] = 10;
 
-			//char test[11] = "abcdefghij";
-			//ChangeUserName(mPlayer.GetPlayerID(), test, 10);
-			//사용 예시 및 테스트 코드
-
 		}
 		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
 	}
@@ -2141,6 +2150,9 @@ void Game::SetTeam(std::string name, unsigned char team)
 		mPlayer.SetTeam(team);
 		mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = -1;
 		mRenderItems[GAME].renderItems[UI][1]->Instances[0].MaterialIndex = teamTextureIndex;
+		mRenderItems[GAME].renderItems[UI][1]->Instances[0].UIPos = XMFLOAT4(-0.5f, 0.5f, 0.5f, -0.5f);
+		mPlayer.SetMousePos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
+		mScene = GAME;
 	}
 	else
 	{
@@ -2168,7 +2180,7 @@ void Game::GameStart()
 	mTime = 600.0f;
 	mRenderItems[GAME].renderItems[UI][1]->Instances[0].UIPos = XMFLOAT4(-0.2f, -0.78f, 0.2f, -0.88f);
 
-	gameStart = true;
+	mGameStart = true;
 }
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> Game::GetStaticSamplers()
@@ -2418,6 +2430,7 @@ void Game::ProcessPacket(char * ptr)
 		char idbuff[10];
 		wcstombs(idbuff, pjp->id, wcslen(pjp->id) + 1);
 		JoinUserID(idbuff);
+		Ready(idbuff, pjp->readystatus);
 		break;
 	}
 	case SC_QUIT_PLAYER:
