@@ -93,7 +93,7 @@ public:
 
 	PhysXModule* m_PhysXModule;
 
-	unsigned char m_StartCount;
+	int m_StartCount;
 
 	Room() {
 		m_JoinIdList.clear();
@@ -1014,7 +1014,7 @@ void Timer_Thread() {
 		count = (count + 1) % 60;
 		for (Room& d : g_rooms) {
 			if (d.m_RoomStatus != RS_PLAY) continue;
-			if (d.m_StartCount-- == 0) {
+			if (d.m_StartCount == 0) {
 				sc_usercondition_packet p;
 				p.size = sizeof(sc_usercondition_packet);
 				p.type = SC_GO;
@@ -1022,6 +1022,8 @@ void Timer_Thread() {
 					SendPacket(idx, &p);
 				}
 			}
+			else
+				d.m_StartCount--;
 
 			for (int id : d.m_JoinIdList) {
 				PostQueuedCompletionStatus(ghiocp, 1, id, &over.m_over);
