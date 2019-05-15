@@ -93,10 +93,13 @@ public:
 
 	PhysXModule* m_PhysXModule;
 
+	unsigned char m_StartCount;
+
 	Room() {
 		m_JoinIdList.clear();
 		m_CurrentNum = 0;
 		m_RoomStatus = RS_EMPTY;
+		m_StartCount = 301;
 	}
 
 	bool join(const int id) {
@@ -125,10 +128,14 @@ public:
 	bool gosign(array <Client, MAX_USER>& clients) {
 		if (m_CurrentNum % 2 != 0)
 			return false;
+		m_mJoinIdList.lock();
 		for (int d : m_JoinIdList) {
-			if (clients[d].m_Condition != US_READY)
+			if (clients[d].m_Condition != US_READY) {
+				m_mJoinIdList.unlock();
 				return false;
+			}
 		}
+		m_mJoinIdList.unlock();
 		m_PhysXModule = new PhysXModule;
 		int i = 0;
 		
@@ -189,6 +196,11 @@ public:
 	}
 
 	void gameover() {
+		if (m_CurrentNum == MAX_ROOMLIMIT)
+			m_RoomStatus = RS_FULL;
+		else
+			m_RoomStatus = RS_JOINABLE;
+		m_StartCount = 301;
 		delete m_PhysXModule;
 	}
 
@@ -600,6 +612,7 @@ inline void ProcessPacket(int id, char *packet)
 					sc_player_join_packet p;
 					p.type = SC_JOIN_PLAYER;
 					p.size = sizeof(sc_player_join_packet);
+					p.readystatus = SC_UNREADY;
 					wcscpy(p.id, g_clients[id].m_ID.c_str());
 					//방 인원 전원에게 해당 아이디가 조인했음을 알림
 					for (int d : g_rooms[packet_join->roomnumber].m_JoinIdList) {
@@ -610,6 +623,10 @@ inline void ProcessPacket(int id, char *packet)
 					for (int d : g_rooms[packet_join->roomnumber].m_JoinIdList) {
 						if (d == id) continue;
 						wcscpy(p.id, g_clients[d].m_ID.c_str());
+						if(g_clients[d].m_Condition == US_READY)
+							p.readystatus = SC_READY;
+						else
+							p.readystatus = SC_UNREADY;
 						SendPacket(id, &p);
 					}
 				}
@@ -674,12 +691,12 @@ inline void ProcessPacket(int id, char *packet)
 		g_clients[id].m_Condition = US_READY;
 		if (g_rooms[g_clients[id].m_RoomNumber].gosign(g_clients)) {
 			g_clients[id].m_Condition = US_PLAY;
-			sc_usercondition_packet p;
-			p.size = sizeof(sc_usercondition_packet);
-			p.type = SC_GO;
-			for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
-				SendPacket(d, &p);
-			}
+			//sc_usercondition_packet p;
+			//p.size = sizeof(sc_usercondition_packet);
+			//p.type = SC_GO;
+			//for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
+			//	SendPacket(d, &p);
+			//}
 		}
 		else {
 			sc_usercondition_packet p;
@@ -987,26 +1004,37 @@ void Timer_Thread() {
 	periodic.m_wsabuf.len = sizeof(periodic.m_wsabuf.buf);
 	periodic.work = PERIODICACTION;
 
+	ZeroMemory(&periodic.m_over, sizeof(WSAOVERLAPPED));
+	periodic.m_wsabuf.buf = periodic.m_iobuf;
+	periodic.m_wsabuf.len = sizeof(periodic.m_wsabuf.buf);
+	periodic.work = PERIODICACTION;
 
 	while (true) {
 		chrono::system_clock::time_point t1 = chrono::system_clock::now();
 		count = (count + 1) % 60;
 		for (Room& d : g_rooms) {
 			if (d.m_RoomStatus != RS_PLAY) continue;
+			if (d.m_StartCount-- == 0) {
+				sc_usercondition_packet p;
+				p.size = sizeof(sc_usercondition_packet);
+				p.type = SC_GO;
+				for (auto idx : d.m_JoinIdList) {
+					SendPacket(idx, &p);
+				}
+			}
 
 			for (int id : d.m_JoinIdList) {
 				PostQueuedCompletionStatus(ghiocp, 1, id, &over.m_over);
-				if(!count)
+				if (!count) {
 					PostQueuedCompletionStatus(ghiocp, 1, id, &periodic.m_over);
+				}
 				PxControllerFilters filter;
 				g_clients[id].mCapsuleController->move(PxVec3(g_clients[id].moveP.x, g_clients[id].moveP.y, g_clients[id].moveP.z), 0.001f, FRAME_PER_SEC, filter);
 				g_clients[id].x = g_clients[id].mCapsuleController->getPosition().x;
 				g_clients[id].y = g_clients[id].mCapsuleController->getPosition().y;
 				g_clients[id].z = g_clients[id].mCapsuleController->getPosition().z;
 			}
-			
 			d.m_PhysXModule->stepPhysics(FRAME_PER_SEC);
-
 		}
 		chrono::system_clock::time_point t2 = chrono::system_clock::now();
 		chrono::duration<double> sptime = chrono::duration_cast<chrono::duration<double>>(t2 - t1);

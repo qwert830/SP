@@ -152,7 +152,9 @@ struct sc_usercondition_packet {
 struct sc_player_join_packet {
 	unsigned char size;
 	unsigned char type;
+	unsigned char readystatus;
 	wchar_t id[10];
+
 };
 
 struct sc_player_quit_packet {
