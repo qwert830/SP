@@ -213,7 +213,9 @@ void Player::Update(const GameTimer& gt)
 
 void Player::AttackUpdate(const float & dt)
 {
-	mAttackCool += dt;
+	for (int i = 0; i < 10; ++i)
+		mAttackCools[i] += dt;
+
 	if (mAttackState != ATTACK::UNABLE_ATTACK)
 	{
 		if (mLButtonDown)
@@ -224,12 +226,12 @@ void Player::AttackUpdate(const float & dt)
 	switch (mAttackState)
 	{
 	case ATTACK::GUN:
-		if (mAttackCool < ATTACK_DELAY)
+		if (mAttackCools[0] < ATTACK_DELAY)
 			break;
 		mSuperheat += 5;
 		RotateY(mCamera.ShakeCamera());
 		mAttackState = ATTACK::NOATTACK;
-		mAttackCool = 0;
+		mAttackCools[0] = 0;
 		break;
 	case ATTACK::LASER:
 		mSuperheat += 150 * dt;
@@ -311,10 +313,10 @@ float Player::GetMaxHP()
 	return mMaxHP;
 }
 
-float Player::IsAttack()
+float Player::IsAttack(int i)
 {
-	if (mAttackCool < ATTACK_DELAY)
-		return mAttackCool*2;
+	if (mAttackCools[i] < ATTACK_DELAY)
+		return mAttackCools[i]*2;
 	return -1.0f;
 }
 

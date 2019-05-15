@@ -33,7 +33,8 @@ private:
 	const float mMoveSpeed = 600.0f;
 
 	float mSuperheat = 0.0f;
-	float mAttackCool = 0.1f;
+	float mAttackCools[10] = { 0.1f, };
+
 	float mMaxHP = 300.0f;
 	float mCurrentHP = 300.0f;
 
@@ -65,7 +66,7 @@ public:
 	void AttackUpdate(const float& dt);
 	void MoveUpdate(const float& dt);
 	
-	float IsAttack();
+	float IsAttack(int index);
 	void SetTeam(unsigned char team);
 	const char GetPlayerID();
 	unsigned char GetMoveState();
