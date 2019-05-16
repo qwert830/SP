@@ -42,10 +42,8 @@ enum CS_PacketKind {
 	CS_UNREADY,
 	CS_GAMERESULT,
 	CS_MOVE,
-	CS_ATTACK_BULLET,
-	CS_ATTACK_LASER,
 	CS_ANGLE,
-
+	CS_ATTACK,
 };
 
 enum SC_PacketKind {
@@ -63,6 +61,8 @@ enum SC_PacketKind {
 	SC_ANGLE,
 	SC_GAMEOVER_REDWIN,
 	SC_GAMEOVER_BLUEWIN,
+	SC_HIT,
+
 };
 #pragma pack (push, 1)
 // 클라이언트 -> 서버------------------------

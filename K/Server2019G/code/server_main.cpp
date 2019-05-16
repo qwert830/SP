@@ -754,7 +754,7 @@ inline void ProcessPacket(int id, char *packet)
 		}
 		break;
 	}
-	case CS_ATTACK_BULLET:
+	case CS_ATTACK:
 	{
 		cs_attack_packet* packet_atk = reinterpret_cast<cs_attack_packet*>(packet);
 		g_rooms[g_clients[id].m_RoomNumber].attack(PxVec3(packet_atk->cameraPosx, packet_atk->cameraPosy, packet_atk->cameraPosz), PxVec3(packet_atk->lx, packet_atk->ly, packet_atk->lz), g_clients);
@@ -1014,17 +1014,16 @@ void Timer_Thread() {
 		count = (count + 1) % 60;
 		for (Room& d : g_rooms) {
 			if (d.m_RoomStatus != RS_PLAY) continue;
-			if (d.m_StartCount == 0) {
-				sc_usercondition_packet p;
-				p.size = sizeof(sc_usercondition_packet);
-				p.type = SC_GO;
-				for (auto idx : d.m_JoinIdList) {
-					SendPacket(idx, &p);
+			if (d.m_StartCount > 0) {
+				if (--(d.m_StartCount) == 0) {
+					sc_usercondition_packet p;
+					p.size = sizeof(sc_usercondition_packet);
+					p.type = SC_GO;
+					for (auto idx : d.m_JoinIdList) {
+						SendPacket(idx, &p);
+					}
 				}
 			}
-			else
-				d.m_StartCount--;
-
 			for (int id : d.m_JoinIdList) {
 				PostQueuedCompletionStatus(ghiocp, 1, id, &over.m_over);
 				if (!count) {

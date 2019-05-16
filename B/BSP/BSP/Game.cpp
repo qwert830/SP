@@ -140,6 +140,7 @@ private:
 	void SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3 up);
 	void SetTeam(std::string name, unsigned char team);
 	void SetCurrentHP(std::string name, float hp);
+	void SetCurrentHP(float hp);
 	void TeamCheck();
 	void GameStart();
 
@@ -2171,6 +2172,11 @@ void Game::SetCurrentHP(std::string name, float hp)
 	mPlayer.SetHP(hp);
 }
 
+void Game::SetCurrentHP(float hp)
+{
+	mPlayer.SetHP(hp);
+}
+
 void Game::TeamCheck()
 {
 	mScene = GAME;
@@ -2492,6 +2498,10 @@ void Game::ProcessPacket(char * ptr)
 		SetRotation(idbuff, XMFLOAT3(agp->lookx, agp->looky, agp->lookz), XMFLOAT3(agp->rx, agp->ry, agp->rz), XMFLOAT3(0, 0.1f, 0));
 		break;
 	}
+	case SC_HIT:
+		sc_hit_packet* hp = reinterpret_cast<sc_hit_packet*>(ptr);
+		SetCurrentHP(hp->hp);
+		break;
 	}
 
 }
