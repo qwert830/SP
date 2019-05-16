@@ -68,6 +68,7 @@ public:
 	
 	float IsAttack(int index);
 	void SetTeam(unsigned char team);
+	void SetHP(float hp);
 	const char GetPlayerID();
 	unsigned char GetMoveState();
 	float GetSuperheat();

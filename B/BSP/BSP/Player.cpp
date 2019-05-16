@@ -335,6 +335,11 @@ void Player::SetTeam(unsigned char team)
 	}
 }
 
+void Player::SetHP(float hp)
+{
+	mCurrentHP = hp;
+}
+
 DirectX::XMFLOAT3 Player::GetPlayerLookVector()
 {
 	return mVector[0].mLook;

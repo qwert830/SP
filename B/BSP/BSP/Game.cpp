@@ -139,6 +139,7 @@ private:
 	void SetPosition(std::string name, XMFLOAT3 position);
 	void SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3 up);
 	void SetTeam(std::string name, unsigned char team);
+	void SetCurrentHP(std::string name, float hp);
 	void TeamCheck();
 	void GameStart();
 
@@ -157,9 +158,7 @@ private:
 	bool mIDSearch[10] = { false, };
 	unsigned int mIDNumber = 0;
 
-
 	std::unordered_map<std::string, unsigned int> mUserID;
-
 
 	std::unique_ptr<ShadowMap> mShadowMap;
 	
@@ -710,7 +709,7 @@ void Game::UpdatePlayerData() // 렌더러아이템에 월드행렬을 플레이어에 벡터들을 �
 			XMMatrixTranslation(mPlayer.mVector[i].mPosition.x, mPlayer.mVector[i].mPosition.y+17.5f, mPlayer.mVector[i].mPosition.z)
 		);
 
-		mRenderItems[GAME].renderItems[BILLBOARDITEM][0]->Instances[i].IsDraw = 0.0f;
+		mRenderItems[GAME].renderItems[BILLBOARDITEM][0]->Instances[i].IsDraw = mPlayer.IsAttack(i);
 	}
 
 }
@@ -2165,6 +2164,11 @@ void Game::SetTeam(std::string name, unsigned char team)
 			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = 101;
 		}
 	}
+}
+
+void Game::SetCurrentHP(std::string name, float hp)
+{
+	mPlayer.SetHP(hp);
 }
 
 void Game::TeamCheck()
