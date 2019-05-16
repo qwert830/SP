@@ -154,7 +154,6 @@ struct sc_player_join_packet {
 	unsigned char type;
 	unsigned char readystatus;
 	wchar_t id[10];
-
 };
 
 struct sc_player_quit_packet {
@@ -190,9 +189,6 @@ struct sc_attack_packet {
 	unsigned char size;
 	unsigned char type;
 	wchar_t id[10];
-	float up;
-	float right;
-	float look;
 };
 
 struct sc_hit_packet {

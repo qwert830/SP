@@ -15,6 +15,7 @@
 #include <sqlext.h>  
 #include <locale.h>
 #include "../header/PhysXModule.h"
+#include <atomic>
 
 
 #define MAX(a,b)	((a)>(b))?(a):(b)
@@ -48,12 +49,12 @@ public:
 	float y;
 	float z;
 
-	char hp;
+	atomic<char> hp;
 	char team;
 
-	int m_RoomNumber;
+	atomic<int> m_RoomNumber;
 	char m_Condition;
-	unsigned char m_MoveDirection;
+	atomic<char> m_MoveDirection;
 	PxCapsuleController*	mCapsuleController;
 
 	EXOVER m_rxover;
@@ -146,6 +147,7 @@ public:
 			clients[d].hp = 100;
 			switch (i) {
 			case 0:
+				clients[d].hp = 300;
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 30, 350), 21.5, 2.5, d);
 				clients[d].team = RED_READER;
 				p.type = RED_READER;
@@ -157,6 +159,7 @@ public:
 				clients[d].right.z = 0;
 				break;
 			case 1:
+				clients[d].hp = 300;
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 30, -350), 21.5, 2.5, d);
 				clients[d].team = BLUE_READER;
 				p.type = BLUE_READER;
@@ -1025,6 +1028,8 @@ void Timer_Thread() {
 				}
 			}
 			for (int id : d.m_JoinIdList) {
+				if (!g_clients[id].hp <= 0)
+					continue;
 				PostQueuedCompletionStatus(ghiocp, 1, id, &over.m_over);
 				if (!count) {
 					PostQueuedCompletionStatus(ghiocp, 1, id, &periodic.m_over);
