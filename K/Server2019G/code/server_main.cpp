@@ -216,9 +216,11 @@ public:
 			p.size = sizeof(sc_gameover_packet);
 			if (clients[hituser].team == RED_READER) {
 				p.type = SC_GAMEOVER_BLUEWIN;
+				delete m_PhysXModule;
 			}
 			else if (clients[hituser].team == BLUE_READER) {
 				p.type = SC_GAMEOVER_REDWIN;
+				delete m_PhysXModule;
 			}
 			for(int d : m_JoinIdList)
 				SendPacket(d, &p);
@@ -610,6 +612,7 @@ inline void ProcessPacket(int id, char *packet)
 				&& g_rooms[packet_join->roomnumber].m_RoomStatus != RS_FULL
 				&& g_rooms[packet_join->roomnumber].m_RoomStatus != RS_PLAY) {
 				g_rooms[packet_join->roomnumber].m_mJoinIdList.lock();
+
 				if (g_rooms[packet_join->roomnumber].join(id)) {
 					g_clients[id].m_RoomNumber = packet_join->roomnumber;
 					sc_player_join_packet p;
@@ -632,6 +635,7 @@ inline void ProcessPacket(int id, char *packet)
 							p.readystatus = SC_UNREADY;
 						SendPacket(id, &p);
 					}
+
 				}
 				g_rooms[packet_join->roomnumber].m_mJoinIdList.unlock();
 			}
@@ -649,6 +653,7 @@ inline void ProcessPacket(int id, char *packet)
 						sc_player_join_packet p;
 						p.type = SC_JOIN_PLAYER;
 						p.size = sizeof(sc_player_join_packet);
+						p.readystatus = SC_UNREADY;
 						wcscpy(p.id, g_clients[id].m_ID.c_str());
 						//방 인원 전원에게 해당 아이디가 조인했음을 알림
 						for (int d : g_rooms[i].m_JoinIdList) {
@@ -659,6 +664,10 @@ inline void ProcessPacket(int id, char *packet)
 						for (int d : g_rooms[i].m_JoinIdList) {
 							if (d == id) continue;
 							wcscpy(p.id, g_clients[d].m_ID.c_str());
+							if (g_clients[d].m_Condition == US_READY)
+								p.readystatus = SC_READY;
+							else
+								p.readystatus = SC_UNREADY;
 							SendPacket(id, &p);
 						}
 						break;
@@ -1017,6 +1026,7 @@ void Timer_Thread() {
 		count = (count + 1) % 60;
 		for (Room& d : g_rooms) {
 			if (d.m_RoomStatus != RS_PLAY) continue;
+
 			if (d.m_StartCount > 0) {
 				if (--(d.m_StartCount) == 0) {
 					sc_usercondition_packet p;
@@ -1027,6 +1037,7 @@ void Timer_Thread() {
 					}
 				}
 			}
+
 			for (int id : d.m_JoinIdList) {
 				if (!g_clients[id].hp <= 0)
 					continue;

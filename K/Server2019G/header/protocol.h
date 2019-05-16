@@ -17,8 +17,6 @@ enum room_status { RS_JOINABLE = 1, RS_FULL = 2, RS_EMPTY = 3, RS_PLAY = 4 };
 
 enum user_status { US_WAIT, US_READY, US_PLAY, US_LOBBY};
 
-enum TEAM { RED_TEAM, BLUE_TEAM, RED_READER, BLUE_READER };
-
 enum move_direction {
 	STOP_DR = 100,
 	UP_DR,
@@ -62,7 +60,10 @@ enum SC_PacketKind {
 	SC_GAMEOVER_REDWIN,
 	SC_GAMEOVER_BLUEWIN,
 	SC_HIT,
-
+	RED_TEAM,
+	BLUE_TEAM,
+	RED_READER,
+	BLUE_READER
 };
 #pragma pack (push, 1)
 // 클라이언트 -> 서버------------------------
