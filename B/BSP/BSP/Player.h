@@ -40,6 +40,7 @@ private:
 
 	bool mLButtonDown = false;
 	bool mRButtonDown = false;
+	bool mAttack = false;
 
 	POINT mMousePos;
 
@@ -74,8 +75,13 @@ public:
 	float GetSuperheat();
 	float GetCurrentHP();
 	float GetMaxHP();
+	bool  GetAttackState();
+
 	DirectX::XMFLOAT3 GetPlayerLookVector();
 	DirectX::XMFLOAT3 GetPlayerRightVector();
+	DirectX::XMFLOAT3 GetCameraPosition();
+	DirectX::XMFLOAT3 GetCameraLookVector();
+
 
 	POINT mLastMousePos;
 };

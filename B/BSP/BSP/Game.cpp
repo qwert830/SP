@@ -106,7 +106,7 @@ private:
 	void UpdateShadowTransform(const GameTimer& gt);
 	void UpdateTime(const GameTimer& gt);
 	void UpdateButton();
-
+	void UpdateAttackToServer();
 	void OnKeyboardInput(const GameTimer& gt);
 
 	void LoadTextures();
@@ -141,6 +141,7 @@ private:
 	void SetTeam(std::string name, unsigned char team);
 	void SetCurrentHP(std::string name, float hp);
 	void SetCurrentHP(float hp);
+
 	void TeamCheck();
 	void GameStart();
 
@@ -338,6 +339,7 @@ void Game::Update(const GameTimer& gt)
 	UpdateShadowTransform(gt);
 	UpdateMainPassCB(gt);
 	UpdateShadowPassCB(gt);
+	UpdateAttackToServer();
 }
 
 void Game::Draw(const GameTimer& gt)
@@ -914,6 +916,29 @@ void Game::UpdateButton()
 	for (int i = 3; i < 13; ++i)
 	{
 		mRenderItems[ROOM].renderItems[UI][0]->Instances[i].IsDraw = mButton.readyUI[i-3];
+	}
+}
+
+void Game::UpdateAttackToServer()
+{
+	if (mPlayer.GetAttackState())
+	{
+		XMFLOAT3 position = mPlayer.GetCameraPosition();
+		XMFLOAT3 look = mPlayer.GetCameraLookVector();
+
+		DWORD iobyte;
+		cs_attack_packet* atp = reinterpret_cast<cs_attack_packet*>(send_buffer);
+		send_wsabuf.len = sizeof(cs_attack_packet);
+		atp->size = sizeof(cs_attack_packet);
+		atp->type = CS_ATTACK;
+		atp->cameraPosx = position.x;
+		atp->cameraPosy = position.y;
+		atp->cameraPosz = position.z;
+		atp->lx = look.x;
+		atp->ly = look.y;
+		atp->lz = look.z;
+
+		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
 	}
 }
 

@@ -223,6 +223,7 @@ void Player::AttackUpdate(const float & dt)
 		else if (mRButtonDown)
 			mAttackState = ATTACK::LASER;
 	}
+	
 	switch (mAttackState)
 	{
 	case ATTACK::GUN:
@@ -232,6 +233,7 @@ void Player::AttackUpdate(const float & dt)
 		RotateY(mCamera.ShakeCamera());
 		mAttackState = ATTACK::NOATTACK;
 		mAttackCools[0] = 0;
+		mAttack = true;
 		break;
 	case ATTACK::LASER:
 		mSuperheat += 150 * dt;
@@ -313,6 +315,16 @@ float Player::GetMaxHP()
 	return mMaxHP;
 }
 
+bool Player::GetAttackState()
+{
+	if (mAttack)
+	{
+		mAttack = false;
+		return true;
+	}
+	return false;
+}
+
 float Player::IsAttack(int i)
 {
 	if (mAttackCools[i] < ATTACK_DELAY)
@@ -348,4 +360,14 @@ DirectX::XMFLOAT3 Player::GetPlayerLookVector()
 DirectX::XMFLOAT3 Player::GetPlayerRightVector()
 {
 	return mVector[0].mRight;
+}
+
+DirectX::XMFLOAT3 Player::GetCameraPosition()
+{
+	return mCamera.GetPosition3f();
+}
+
+DirectX::XMFLOAT3 Player::GetCameraLookVector()
+{
+	return mCamera.GetLook3f();
 }
