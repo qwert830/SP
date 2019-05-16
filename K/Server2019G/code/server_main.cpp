@@ -68,6 +68,9 @@ public:
 		moveP.x = 0;
 		moveP.y = 0;
 		moveP.z = 0;
+		x = 0;
+		y = 0;
+		z = 0;
 		hp = 100;
 		m_RoomNumber = LOBBYNUMBER;
 		m_Condition = US_WAIT;
@@ -148,7 +151,7 @@ public:
 			switch (i) {
 			case 0:
 				clients[d].hp = 300;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 30, 350), 21.5, 2.5, d);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 0, 350), 21.5, 2.5, d);
 				clients[d].team = RED_READER;
 				p.type = RED_READER;
 				clients[d].look.x = 0;
@@ -160,7 +163,7 @@ public:
 				break;
 			case 1:
 				clients[d].hp = 300;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 30, -350), 21.5, 2.5, d);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 0, -350), 21.5, 2.5, d);
 				clients[d].team = BLUE_READER;
 				p.type = BLUE_READER;
 				clients[d].look.x = 0;
@@ -225,6 +228,7 @@ public:
 			for(int d : m_JoinIdList)
 				SendPacket(d, &p);
 		}
+
 	}
 };
 
@@ -769,7 +773,8 @@ inline void ProcessPacket(int id, char *packet)
 	case CS_ATTACK:
 	{
 		cs_attack_packet* packet_atk = reinterpret_cast<cs_attack_packet*>(packet);
-		g_rooms[g_clients[id].m_RoomNumber].attack(PxVec3(packet_atk->cameraPosx, packet_atk->cameraPosy, packet_atk->cameraPosz), PxVec3(packet_atk->lx, packet_atk->ly, packet_atk->lz), g_clients);
+		if(g_rooms[g_clients[id].m_RoomNumber].m_RoomStatus == RS_PLAY)
+			g_rooms[g_clients[id].m_RoomNumber].attack(PxVec3(packet_atk->cameraPosx, packet_atk->cameraPosy, packet_atk->cameraPosz), PxVec3(packet_atk->lx, packet_atk->ly, packet_atk->lz), g_clients);
 		break;
 	}
 	case CS_ANGLE:
@@ -1039,7 +1044,7 @@ void Timer_Thread() {
 			}
 
 			for (int id : d.m_JoinIdList) {
-				if (!g_clients[id].hp <= 0)
+				if (g_clients[id].hp <= 0)
 					continue;
 				PostQueuedCompletionStatus(ghiocp, 1, id, &over.m_over);
 				if (!count) {
