@@ -537,7 +537,7 @@ void Game::GameStateDraw(const GameTimer & gt)
 
 void Game::OnMouseDown(WPARAM btnState, int x, int y)
 {
-	if (mScene == GAME && mGameStart)
+	if (mGameStart && mScene == GAME )
 		mPlayer.PlayerMouseDown(btnState, x, y);
 
 	if (mScene == ROOM)
@@ -886,7 +886,8 @@ void Game::UpdateShadowTransform(const GameTimer & gt)
 
 void Game::UpdateTime(const GameTimer & gt)
 {
-	mTime -= gt.DeltaTime();
+	if (mGameStart && mScene == GAME)
+		mTime -= gt.DeltaTime();
 	if (mTime <= 0)
 		mTime = 0;
 	int tempTime = (int)mTime;
