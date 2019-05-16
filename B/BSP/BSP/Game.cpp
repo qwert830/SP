@@ -537,7 +537,7 @@ void Game::GameStateDraw(const GameTimer & gt)
 
 void Game::OnMouseDown(WPARAM btnState, int x, int y)
 {
-	if (mScene == GAME)
+	if (mScene == GAME && mGameStart)
 		mPlayer.PlayerMouseDown(btnState, x, y);
 
 	if (mScene == ROOM)
@@ -921,7 +921,7 @@ void Game::UpdateButton()
 
 void Game::UpdateAttackToServer()
 {
-	if (mPlayer.GetAttackState())
+	if (mGameStart && mPlayer.GetAttackState())
 	{
 		XMFLOAT3 position = mPlayer.GetCameraPosition();
 		XMFLOAT3 look = mPlayer.GetCameraLookVector();
@@ -2163,13 +2163,13 @@ void Game::SetTeam(std::string name, unsigned char team)
 	if (id == 0)
 	{
 		int teamTextureIndex;
-		if (team == TEAM::RED_READER)
+		if (team == RED_READER)
 			teamTextureIndex = 12;
-		else if (team == TEAM::BLUE_READER)
+		else if (team == BLUE_READER)
 			teamTextureIndex = 13;
-		else if (team == TEAM::RED_TEAM)
+		else if (team == RED_TEAM)
 			teamTextureIndex = 14;
-		else if (team == TEAM::BLUE_TEAM)
+		else if (team == BLUE_TEAM)
 			teamTextureIndex = 15;
 
 		mPlayer.SetTeam(team);
@@ -2181,11 +2181,11 @@ void Game::SetTeam(std::string name, unsigned char team)
 	}
 	else
 	{
-		if (team == TEAM::RED_READER)
+		if (team == RED_READER)
 		{
 			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = 11;
 		}
-		if (team == TEAM::BLUE_READER)
+		if (team == BLUE_READER)
 		{
 			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = 101;
 		}
@@ -2493,7 +2493,7 @@ void Game::ProcessPacket(char * ptr)
 		sc_teaminfo_packet* tip = reinterpret_cast<sc_teaminfo_packet*>(ptr);
 		char idbuff[10];
 		wcstombs(idbuff, tip->id, wcslen(tip->id) + 1);
-		SetTeam(idbuff, (TEAM)tip->type);
+		SetTeam(idbuff, tip->type);
 		break;
 	}
 	case SC_GO:

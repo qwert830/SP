@@ -335,7 +335,7 @@ float Player::IsAttack(int i)
 void Player::SetTeam(unsigned char team)
 {
 	mPlayerTeam = team;
-	if (mPlayerTeam == TEAM::RED_READER || mPlayerTeam == TEAM::BLUE_READER)
+	if (mPlayerTeam == RED_READER || mPlayerTeam == BLUE_READER)
 	{
 		mMaxHP = 300.0f;
 		mCurrentHP = 300.0f;
