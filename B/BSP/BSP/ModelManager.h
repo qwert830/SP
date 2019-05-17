@@ -85,7 +85,7 @@ class ModelManager
 public:
 	FbxManager * g_pFbxSdkManager = nullptr;
 	FbxAnimStack * I_animStack = nullptr;
-	std::string mAnimationName;
+	FbxString mAnimationName;
 	int mAnimationLength;
 	std::map<int, int> mControlPoints;
 	Skeleton mSkeleton;
@@ -98,8 +98,9 @@ public:
 
 	void ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxScene* inFbxScene, std::vector<ModelData>* pOutData);
 	FbxAMatrix GetGeometryTransformation(FbxNode* inNode);
-	void ProcessSkeletonHierarchyRecursively(FbxNode* inNode, int inDepth, int myIndex, int inParentIndex);
+	void ProcessSkeletonHierarchyRecursively(FbxNode* inNode, int myIndex, int inParentIndex);
 	unsigned int FindJointIndexUsingName(std::string inNode);
+	void ProcessControlPoints(FbxNode* inNode);
 
 	vec2 ReadUV(FbxMesh* mesh, int controlPointIndex, int vertexCounter);
 	void LoadUV(FbxMesh* mesh, std::vector<ModelData>* data);

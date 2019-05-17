@@ -210,9 +210,10 @@ HRESULT ModelManager::LoadFBX(const char* filename, std::vector<ModelData>* pOut
 	pImporter->Destroy();
 
 	FbxNode* pFbxRootNode = pFbxScene->GetRootNode();
-
+	
 	if (pFbxRootNode)
 	{
+		ProcessSkeletonHierarchyRecursively(pFbxRootNode, 0, 0);
 		for (int i = 0; i < pFbxRootNode->GetChildCount(); i++)
 		{
 			FbxNode* pFbxChildNode = pFbxRootNode->GetChild(i);
@@ -228,7 +229,7 @@ HRESULT ModelManager::LoadFBX(const char* filename, std::vector<ModelData>* pOut
 			FbxMesh* pMesh = (FbxMesh*)pFbxChildNode->GetNodeAttribute();
 
 			FbxVector4* pVertices = pMesh->GetControlPoints();
-
+			
 			for (int j = 0; j < pMesh->GetPolygonCount(); j++)
 			{
 				int iNumVertices = pMesh->GetPolygonSize(j);
@@ -272,6 +273,7 @@ FbxAMatrix ModelManager::GetGeometryTransformation(FbxNode* inNode)
 
 void ModelManager::ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxScene* inFbxScene, std::vector<ModelData>* pOutData)
 {
+	int sum = 0;
 	FbxMesh* currMesh = inMesh;
 	FbxScene* mFBXScene = inFbxScene;
 	unsigned int numOfDeformers = currMesh->GetDeformerCount();
@@ -305,24 +307,26 @@ void ModelManager::ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxSce
 
 			// Associate each joint with the control points it affects
 			unsigned int numOfIndices = currCluster->GetControlPointIndicesCount();
+			sum += numOfIndices;
 			pOutData[0].resize(numOfIndices * 4);
 			for (unsigned int i = 0; i < numOfIndices; ++i)
 			{
 				BlendingIndexWeightPair currBlendingIndexWeightPair;
 				currBlendingIndexWeightPair.mBlendingIndex = currJointIndex;
 				currBlendingIndexWeightPair.mBlendingWeight = currCluster->GetControlPointWeights();
-				pOutData[0][i * 3].weights = currBlendingIndexWeightPair.mBlendingWeight[i * 3];
+				/*pOutData[0][i * 3].weights = currBlendingIndexWeightPair.mBlendingWeight[i * 3];
 				pOutData[0][i * 3 + 1].weights = currBlendingIndexWeightPair.mBlendingWeight[i * 3 + 1];
 				pOutData[0][i * 3 + 2].weights = currBlendingIndexWeightPair.mBlendingWeight[i * 3 + 2];
 				pOutData[0][i * 3 + 3].weights = currBlendingIndexWeightPair.mBlendingWeight[i * 3 + 3];
 				pOutData[0][i * 3].boneids = currBlendingIndexWeightPair.mBlendingIndex;
 				pOutData[0][i * 3 + 1].boneids = currBlendingIndexWeightPair.mBlendingIndex;
 				pOutData[0][i * 3 + 2].boneids = currBlendingIndexWeightPair.mBlendingIndex;
-				pOutData[0][i * 3 + 3].boneids = currBlendingIndexWeightPair.mBlendingIndex;
+				pOutData[0][i * 3 + 3].boneids = currBlendingIndexWeightPair.mBlendingIndex;*/
 //				mControlPoints[currCluster->GetControlPointIndices()[i]]->mBlendingInfo.push_back(currBlendingIndexWeightPair);
 			}
 
 			// Get animation information
+			/*int a = mFBXScene->GetSrcObjectCount();
 			FbxAnimStack* currAnimStack = (FbxAnimStack*)mFBXScene->GetSrcObject(0);
 			FbxString animStackName = currAnimStack->GetName();
 			mAnimationName = animStackName.Buffer();
@@ -342,7 +346,7 @@ void ModelManager::ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxSce
 					(*currAnim)->mGlobalTransform = currentTransformOffset.Inverse() * currCluster->GetLink()->EvaluateGlobalTransform(currTime);
 					currAnim = &((*currAnim)->mNext);
 				}
-				I_animStack = currAnimStack;
+				I_animStack = currAnimStack;*/
 		}
 	}
 
@@ -370,7 +374,7 @@ unsigned int ModelManager::FindJointIndexUsingName(std::string inNode)
 	}
 }
 
-void ModelManager::ProcessSkeletonHierarchyRecursively(FbxNode* inNode, int inDepth, int myIndex, int inParentIndex)
+void ModelManager::ProcessSkeletonHierarchyRecursively(FbxNode* inNode, int myIndex, int inParentIndex)
 {
 	if (inNode->GetNodeAttribute() && inNode->GetNodeAttribute()->GetAttributeType() && inNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton)
 	{
@@ -381,8 +385,24 @@ void ModelManager::ProcessSkeletonHierarchyRecursively(FbxNode* inNode, int inDe
 	}
 	for (int i = 0; i < inNode->GetChildCount(); i++)
 	{
-		ProcessSkeletonHierarchyRecursively(inNode->GetChild(i), inDepth + 1, mSkeleton.mJoints.size(), myIndex);
+		ProcessSkeletonHierarchyRecursively(inNode->GetChild(i), mSkeleton.mJoints.size(), myIndex);
 	}
+}
+
+void ModelManager::ProcessControlPoints(FbxNode* inNode)
+{
+	FbxMesh* currMesh = inNode->GetMesh();
+	/*unsigned int ctrlPointCount = currMesh->GetControlPointsCount();
+	for (unsigned int i = 0; i < ctrlPointCount; ++i)
+	{
+		CtrlPoint* currCtrlPoint = new CtrlPoint();
+		XMFLOAT3 currPosition;
+		currPosition.x = static_cast(currMesh->GetControlPointAt(i).mData[0]);
+		currPosition.y = static_cast(currMesh->GetControlPointAt(i).mData[1]);
+		currPosition.z = static_cast(currMesh->GetControlPointAt(i).mData[2]);
+		currCtrlPoint->mPosition = currPosition;
+		mControlPoints = currCtrlPoint;
+	}*/
 }
 
 HRESULT ModelManager::LoadAnim(const char* filename, std::vector<ModelData>* pOutData)
@@ -397,11 +417,19 @@ HRESULT ModelManager::LoadAnim(const char* filename, std::vector<ModelData>* pOu
 
 	FbxImporter* pImporter = FbxImporter::Create(g_pFbxSdkManager, "");
 	FbxScene* pFbxScene = FbxScene::Create(g_pFbxSdkManager, "");
+	FbxImporter* pImporter2 = FbxImporter::Create(g_pFbxSdkManager, "");
+	FbxScene* pFbxScene2 = FbxScene::Create(g_pFbxSdkManager, "");
 
 	bool bSuccess = pImporter->Initialize(filename, -1, g_pFbxSdkManager->GetIOSettings());
 	if (!bSuccess) return E_FAIL;
 
 	bSuccess = pImporter->Import(pFbxScene);
+	if (!bSuccess) return E_FAIL;
+
+	bSuccess = pImporter2->Initialize("Resource//Walk.FBX", -1, g_pFbxSdkManager->GetIOSettings());
+	if (!bSuccess) return E_FAIL;
+
+	bSuccess = pImporter2->Import(pFbxScene2);
 	if (!bSuccess) return E_FAIL;
 
 	FbxGeometryConverter con(g_pFbxSdkManager);
