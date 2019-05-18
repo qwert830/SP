@@ -75,6 +75,9 @@
     <ClInclude Include="MapLoader.h">
       <Filter>유틸\헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="Particle.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="d3dApp.cpp">
@@ -121,6 +124,9 @@
     </ClCompile>
     <ClCompile Include="FontManager.cpp">
       <Filter>유틸\소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="Particle.cpp">
+      <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -9,9 +9,12 @@
 #include "ShadowMap.h"
 #include "FontManager.h"
 #include "MapLoader.h"
+#include "Particle.h"
 #include <fstream>
 
 const float radian = (float)(3.141572f / 180.0f);
+
+float testTime = 0.0f;
 
 enum SCENENAME
 {
@@ -20,7 +23,7 @@ enum SCENENAME
 
 enum RENDERITEM
 {
-	UI, OPAQUEITEM, PLAYER, DEBUG, TRANSPARENTITEM, DEFERRED, PLAYERGUN, BILLBOARDITEM
+	UI, OPAQUEITEM, PLAYER, DEBUG, TRANSPARENTITEM, DEFERRED, PLAYERGUN, BILLBOARDITEM, PARTICLE
 };
 
 using Microsoft::WRL::ComPtr;
@@ -107,6 +110,7 @@ private:
 	void UpdateTime(const GameTimer& gt);
 	void UpdateButton();
 	void UpdateAttackToServer();
+	void UpdateParticle(const GameTimer& gt);
 	void OnKeyboardInput(const GameTimer& gt);
 
 	void LoadTextures();
@@ -125,6 +129,7 @@ private:
 	void DrawInstancingRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 	void DrawDeferredRenderItems(ID3D12GraphicsCommandList* cmdList);
 	void DrawSceneToShadowMap();
+	void CreateRenderItems(const char* geoName, int instancesCount,SCENENAME sceneName, RENDERITEM itemType, float isDraw, int matIndex);
 
 	void RoomCheckButton(float x, float y);
 	void ButtonClick();
@@ -141,6 +146,7 @@ private:
 	void SetTeam(std::string name, unsigned char team);
 	void SetCurrentHP(std::string name, float hp);
 	void SetCurrentHP(float hp);
+	void SetParticle(XMFLOAT3 pos);
 
 	void TeamCheck();
 	void GameStart();
@@ -148,17 +154,19 @@ private:
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 private:
 
-	SCENENAME	mScene = ROOM;
-	bool		mGameStart = false;
+	SCENENAME	mScene = GAME;
+	bool		mGameStart = true;
 
 	Button			mButton;
 	Player			mPlayer;
 	ModelManager	mModelManager;
 	FontManager		mFontManager;
 	MapLoader		mMapLoader;
-	
+	Particle		mParticle[10];
+
 	bool mIDSearch[10] = { false, };
 	unsigned int mIDNumber = 0;
+	unsigned int mParticleCount = 0;
 
 	std::unordered_map<std::string, unsigned int> mUserID;
 
@@ -329,10 +337,18 @@ void Game::Update(const GameTimer& gt)
 		CloseHandle(eventHandle);
 	}
 
+	testTime += gt.DeltaTime();
+	if (testTime >= 5)
+	{
+		SetParticle(XMFLOAT3(0.0f, 15.0f, 0.0f));
+		testTime = 0;
+	}
+
 	UpdateTime(gt);
 	UpdateObjectCBs(gt);
 	UpdatePlayerData();
 	mPlayer.Update(gt);
+	UpdateParticle(gt);
 	UpdateButton();
 	UpdateInstanceData(gt);
 	UpdateMaterialCBs(gt);
@@ -381,6 +397,7 @@ void Game::DeferredDraw(const GameTimer & gt)
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[OPAQUEITEM]);
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYER]);
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYERGUN]);
+	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PARTICLE]);
 
 	mCommandList->SetPipelineState(mPSOs["DeferredTransparentResource"].Get());
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[BILLBOARDITEM]);
@@ -943,6 +960,26 @@ void Game::UpdateAttackToServer()
 	}
 }
 
+void Game::UpdateParticle(const GameTimer& gt)
+{
+	for (int i = 0; i < 10; ++i)
+	{
+		if (mParticle[i].isDraw())
+		{
+			mParticle[i].Update(gt);
+			for (int k = 0; k < COUNT; ++k)
+			{
+				XMFLOAT3 tempPos = mParticle[i].GetCurrentPosition(k);
+				XMFLOAT3 tempRot = mParticle[i].GetMoveSpeed(k);
+				XMStoreFloat4x4(&mRenderItems[GAME].renderItems[PARTICLE][i]->Instances[k].World,
+					XMMatrixIdentity()*XMMatrixRotationRollPitchYaw(tempRot.x, tempRot.y, tempRot.z)*XMMatrixTranslation(tempPos.x, tempPos.y, tempPos.z));
+
+				mRenderItems[GAME].renderItems[PARTICLE][i]->Instances[k].IsDraw = mParticle[i].GetIsDraw(k);
+			}
+		}
+	}
+}
+
 void Game::LoadTextures()
 {
 	std::vector<std::string> texNames = 
@@ -963,7 +1000,8 @@ void Game::LoadTextures()
 		"BlueReaderTex",
 		"RedTeamTex",
 		"BlueTeamTex",
-		"HPTex"
+		"HPTex",
+		"ParticleTex"
 	};
 
 	std::vector<std::wstring> fileNames =
@@ -978,13 +1016,15 @@ void Game::LoadTextures()
 		L"Resource/PlayerShot.dds",
 		L"Resource/ReadyRoom.dds",
 		L"Resource/ReadyButton.dds",
+		
 		L"Resource/QuitButton.dds",
 		L"Resource/Cube.dds",
 		L"Resource/REDREADER.dds",
 		L"Resource/BLUEREADER.dds",
 		L"Resource/REDTEAM.dds",
 		L"Resource/BLUETEAM.dds",
-		L"Resource/HP.dds"
+		L"Resource/HP.dds",
+		L"Resource/Particle.dds"
 	};
 
 	for (int i = 0; i < texNames.size(); ++i)
@@ -1044,7 +1084,7 @@ void Game::BuildInstancingRootSignature()
 	// 디스크립터 바꿀댄 셰이더 코드를 꼭 바꾸자 젭라..
 	int num = 0;
 
-	int tex = 17;
+	int tex = 18;
 	CD3DX12_DESCRIPTOR_RANGE texTable;
 	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, tex, num, 0);
 	num += tex;
@@ -1105,7 +1145,7 @@ void Game::BuildDescriptorHeaps()
 	//디스크립터 힙에 쉐이더 리소스 뷰를 하나씩 탑재
 
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 22;
+	srvHeapDesc.NumDescriptors = 23;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -1130,7 +1170,8 @@ void Game::BuildDescriptorHeaps()
 		mTextures["BlueReaderTex"]->Resource,
 		mTextures["RedTeamTex"]->Resource,
 		mTextures["BlueTeamTex"]->Resource,
-		mTextures["HPTex"]->Resource
+		mTextures["HPTex"]->Resource,
+		mTextures["ParticleTex"]->Resource
 	};
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -1235,10 +1276,10 @@ void Game::BuildShapeGeometry()
 	std::ifstream fin;
 
 	GeometryGenerator geoGen;
-	GeometryGenerator::MeshData box = geoGen.CreateBox(10.0f, 10.0f, 10.0f, 3);
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 20.0f, 20, 40);
 	GeometryGenerator::MeshData uiGrid = geoGen.CreateGrid(10.0f, 10.0f, 2, 2);
 	GeometryGenerator::MeshData quad = geoGen.CreateQuad(-1.0f, 1.0f, 2.0f, 2.0f, 0.0f);
+	GeometryGenerator::MeshData miniBox = geoGen.CreateBox(0.05f, 0.05f, 0.1f, 0);
 
 	std::vector<ModelData> data;
 	mModelManager.LoadFBX("Resource//PlayerChar.fbx", &data);
@@ -1252,7 +1293,8 @@ void Game::BuildShapeGeometry()
 	mModelManager.LoadFBX("Resource//Cube.fbx", &data3);
 
 	// 모델 데이터 입력
-	auto totalVertexCount = grid.Vertices.size()+ data.size() + uiGrid.Vertices.size() + quad.Vertices.size() + data2.size() + data3.size();
+	auto totalVertexCount = grid.Vertices.size()+ data.size() + uiGrid.Vertices.size() + quad.Vertices.size() + data2.size() + data3.size() 
+							+ miniBox.Vertices.size();
 	
 	std::vector<Vertex> vertices(totalVertexCount);
 	std::vector<uint16_t> indices;
@@ -1310,6 +1352,14 @@ void Game::BuildShapeGeometry()
 	}
 	UINT CubeIndex = (UINT)data3.size();
 
+	for (int i = 0; i < miniBox.Vertices.size(); ++i, ++k)
+	{
+		vertices[k].Pos = XMFLOAT4(miniBox.Vertices[i].Position.x, miniBox.Vertices[i].Position.y, miniBox.Vertices[i].Position.z, 0.0f);
+		vertices[k].Tex = miniBox.Vertices[i].TexC;
+		vertices[k].Normal = miniBox.Vertices[i].Normal;
+	}
+	indices.insert(indices.end(), miniBox.Indices32.begin(), miniBox.Indices32.end());
+
     const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
@@ -1330,6 +1380,9 @@ void Game::BuildShapeGeometry()
 
 	UINT CubeIndexOffset = playerGunIndex + PlayerGunIndexOffset;
 	UINT CubeVertexOffset = (UINT)data2.size() + PlayerGunVertexOffset;
+
+	UINT miniBoxIndexOffset = CubeIndex + CubeIndexOffset;
+	UINT miniBoxVertexOffset = (UINT)data3.size() + CubeVertexOffset;
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = "shapeGeo";
@@ -1384,12 +1437,18 @@ void Game::BuildShapeGeometry()
 	CubeSubmesh.StartIndexLocation = CubeIndexOffset;
 	CubeSubmesh.BaseVertexLocation = CubeVertexOffset;
 
+	SubmeshGeometry MiniBoxSubmesh;
+	MiniBoxSubmesh.IndexCount = (UINT)miniBox.Indices32.size();
+	MiniBoxSubmesh.StartIndexLocation = miniBoxIndexOffset;
+	MiniBoxSubmesh.BaseVertexLocation = miniBoxVertexOffset;
+
 	geo->DrawArgs["grid"] = gridSubmesh;
 	geo->DrawArgs["uiGrid"] = uiGridSubmesh;
 	geo->DrawArgs["PlayerChar"] = PlayerSubmesh;
 	geo->DrawArgs["quad"] = QuadSubmesh;
 	geo->DrawArgs["playerGun"] = PlayerGunSubmesh;
 	geo->DrawArgs["cube"] = CubeSubmesh;
+	geo->DrawArgs["miniBox"] = MiniBoxSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
 }
@@ -1820,6 +1879,9 @@ void Game::BuildRenderItemsGame()
 	mInstanceCount.push_back((unsigned int)CubeRitem->Instances.size());
 	mRenderItems[GAME].renderItems[OPAQUEITEM].push_back(CubeRitem.get());
 	mRenderItems[GAME].allItems.push_back(std::move(CubeRitem));
+	
+	for (int i = 0; i < 10; ++i)
+		CreateRenderItems("miniBox", 100, GAME, PARTICLE, 1, 17);
 }
 
 void Game::BuildRenderItemsRoom()
@@ -1985,6 +2047,33 @@ void Game::DrawSceneToShadowMap()
 	// Change back to GENERIC_READ so we can read the texture in a shader.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
+}
+
+void Game::CreateRenderItems(const char * geoName, int instancesCount, SCENENAME sceneName, RENDERITEM itemType, float isDraw, int matIndex)
+{
+	auto TempRitem = std::make_unique <RenderItem>();
+	TempRitem->World = MathHelper::Identity4x4();
+	TempRitem->TexTransform = MathHelper::Identity4x4();
+	TempRitem->ObjCBIndex = mObjectCount++;
+	TempRitem->Mat = mMaterials["seafloor0"].get();
+	TempRitem->Geo = mGeometries["shapeGeo"].get();
+	TempRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	TempRitem->IndexCount = TempRitem->Geo->DrawArgs[geoName].IndexCount;
+	TempRitem->StartIndexLocation = TempRitem->Geo->DrawArgs[geoName].StartIndexLocation;
+	TempRitem->BaseVertexLocation = TempRitem->Geo->DrawArgs[geoName].BaseVertexLocation;
+
+	TempRitem->Instances.resize(instancesCount);
+	for (int i = 0; i < instancesCount; ++i)
+	{
+		TempRitem->Instances[i].IsDraw = isDraw;
+		TempRitem->Instances[i].World = MathHelper::Identity4x4();
+		TempRitem->Instances[i].TexTransform = MathHelper::Identity4x4();
+		TempRitem->Instances[i].MaterialIndex = matIndex;
+	}
+
+	mInstanceCount.push_back((unsigned int)TempRitem->Instances.size());
+	mRenderItems[sceneName].renderItems[itemType].push_back(TempRitem.get());
+	mRenderItems[sceneName].allItems.push_back(std::move(TempRitem));
 }
 
 void Game::RoomCheckButton(float x, float y)
@@ -2201,6 +2290,12 @@ void Game::SetCurrentHP(std::string name, float hp)
 void Game::SetCurrentHP(float hp)
 {
 	mPlayer.SetHP(hp);
+}
+
+void Game::SetParticle(XMFLOAT3 pos)
+{
+	mParticle[mParticleCount++].SetStartPaticle(pos, mPlayer.GetCameraPosition());
+	mParticleCount = mParticleCount % 10;
 }
 
 void Game::TeamCheck()

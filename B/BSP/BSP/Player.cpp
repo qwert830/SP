@@ -204,11 +204,10 @@ void Player::Update(const GameTimer& gt)
 {
 	const float dt = gt.DeltaTime();
 	AttackUpdate(dt);
-	//MoveUpdate(dt); 
+	MoveUpdate(dt); 
 	mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + mCameraOffsetY, mVector[mPlayerID].mPosition.z);
 	mCamera.UpdateViewMatrix();
 
-	//mCurrentHP -= 10.0*dt;
 }
 
 void Player::AttackUpdate(const float & dt)

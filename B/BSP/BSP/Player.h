@@ -70,18 +70,17 @@ public:
 	float IsAttack(int index);
 	void SetTeam(unsigned char team);
 	void SetHP(float hp);
+	float GetMaxHP();
+	float GetCurrentHP();
+	float GetSuperheat();
+	bool  GetAttackState();
 	const char GetPlayerID();
 	unsigned char GetMoveState();
-	float GetSuperheat();
-	float GetCurrentHP();
-	float GetMaxHP();
-	bool  GetAttackState();
 
 	DirectX::XMFLOAT3 GetPlayerLookVector();
 	DirectX::XMFLOAT3 GetPlayerRightVector();
 	DirectX::XMFLOAT3 GetCameraPosition();
 	DirectX::XMFLOAT3 GetCameraLookVector();
-
 
 	POINT mLastMousePos;
 };

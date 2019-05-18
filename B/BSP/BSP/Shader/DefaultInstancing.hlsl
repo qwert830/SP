@@ -73,10 +73,10 @@ cbuffer cbSkinned : register(b1)
     float4x4 gBoneTransforms[10][96];
 };
 
-Texture2D gDiffuseMap[17] : register(t0);
-Texture2D gShadowMap : register(t17);
-Texture2D gDepthResource : register(t18);
-Texture2D gBufferResource[3] : register(t19);
+Texture2D gDiffuseMap[18] : register(t0);
+Texture2D gShadowMap : register(t18);
+Texture2D gDepthResource : register(t19);
+Texture2D gBufferResource[3] : register(t20);
 
 
 SamplerState gsamPointWrap : register(s0);
@@ -324,9 +324,10 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
     float3 fresnelR0 = matData.FresnelR0;
     float roughness = matData.Roughness;
     uint diffuseTexIndex = matData.DiffuseMapIndex;
+    const float shininess = 1.0f - roughness;
+   
     diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamAnisotropicWrap, pin.TexC);
     pin.NormalW = normalize(pin.NormalW);
-    const float shininess = 1.0f - roughness;
 
     float4 pos = float4(pin.PosW, 0.0f);
     
