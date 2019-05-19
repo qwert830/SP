@@ -244,6 +244,8 @@ HRESULT ModelManager::LoadFBX(const char* filename, std::vector<ModelData>* pOut
 					data.z = (float)pVertices[iControlPointIndex].mData[2];
 					data.w = (float)pVertices[iControlPointIndex].mData[3];
 
+					mControlPoints[iControlPointIndex] = pOutData->size();
+
 					pOutData->push_back(data);
 				}
 			}
@@ -279,6 +281,9 @@ void ModelManager::ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxSce
 	unsigned int numOfDeformers = currMesh->GetDeformerCount();
 	FbxAMatrix geometryTransform = GetGeometryTransformation(inNode);
 
+	FbxImporter* lImporter = FbxImporter::Create(g_pFbxSdkManager, "");
+	const bool lImportStatus = lImporter->Initialize("Resource//Walk.fbx", -1, g_pFbxSdkManager->GetIOSettings());
+
 	for (unsigned int deformerIndex = 0; deformerIndex < numOfDeformers; ++deformerIndex)
 	{
 		FbxSkin* currSkin = reinterpret_cast<FbxSkin*>(inMesh->GetDeformer(deformerIndex, FbxDeformer::eSkin));
@@ -308,34 +313,55 @@ void ModelManager::ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxSce
 			// Associate each joint with the control points it affects
 			unsigned int numOfIndices = currCluster->GetControlPointIndicesCount();
 			sum += numOfIndices;
-			pOutData[0].resize(numOfIndices * 4);
 			for (unsigned int i = 0; i < numOfIndices; ++i)
 			{
+				int vertexid = mControlPoints[currCluster->GetControlPointIndices()[i]];
+				
+				if ((*pOutData)[vertexid].boneids.x == 0) (*pOutData)[vertexid].boneids.x = currJointIndex;
+				if ((*pOutData)[vertexid].boneids.y == 0) (*pOutData)[vertexid].boneids.y = currJointIndex;
+				if ((*pOutData)[vertexid].boneids.z == 0) (*pOutData)[vertexid].boneids.z = currJointIndex;
+				if ((*pOutData)[vertexid].boneids.w == 0) (*pOutData)[vertexid].boneids.w = currJointIndex;
+				if ((*pOutData)[vertexid].weights.x == 0) (*pOutData)[vertexid].weights.x = currCluster->GetControlPointWeights()[i];
+				if ((*pOutData)[vertexid].weights.y == 0) (*pOutData)[vertexid].weights.y = currCluster->GetControlPointWeights()[i];
+				if ((*pOutData)[vertexid].weights.z == 0) (*pOutData)[vertexid].weights.z = currCluster->GetControlPointWeights()[i];
+				if ((*pOutData)[vertexid].weights.w == 0) (*pOutData)[vertexid].weights.w = currCluster->GetControlPointWeights()[i];
+
+
 				BlendingIndexWeightPair currBlendingIndexWeightPair;
 				currBlendingIndexWeightPair.mBlendingIndex = currJointIndex;
 				currBlendingIndexWeightPair.mBlendingWeight = currCluster->GetControlPointWeights();
-				/*pOutData[0][i * 3].weights = currBlendingIndexWeightPair.mBlendingWeight[i * 3];
-				pOutData[0][i * 3 + 1].weights = currBlendingIndexWeightPair.mBlendingWeight[i * 3 + 1];
-				pOutData[0][i * 3 + 2].weights = currBlendingIndexWeightPair.mBlendingWeight[i * 3 + 2];
-				pOutData[0][i * 3 + 3].weights = currBlendingIndexWeightPair.mBlendingWeight[i * 3 + 3];
-				pOutData[0][i * 3].boneids = currBlendingIndexWeightPair.mBlendingIndex;
-				pOutData[0][i * 3 + 1].boneids = currBlendingIndexWeightPair.mBlendingIndex;
-				pOutData[0][i * 3 + 2].boneids = currBlendingIndexWeightPair.mBlendingIndex;
-				pOutData[0][i * 3 + 3].boneids = currBlendingIndexWeightPair.mBlendingIndex;*/
+
 //				mControlPoints[currCluster->GetControlPointIndices()[i]]->mBlendingInfo.push_back(currBlendingIndexWeightPair);
 			}
 
 			// Get animation information
-			/*int a = mFBXScene->GetSrcObjectCount();
+			
 			FbxAnimStack* currAnimStack = (FbxAnimStack*)mFBXScene->GetSrcObject(0);
 			FbxString animStackName = currAnimStack->GetName();
 			mAnimationName = animStackName.Buffer();
-			FbxTakeInfo* takeInfo = mFBXScene->GetTakeInfo(animStackName);
+
+			//FbxTakeInfo* takeInfo = mFBXScene->GetTakeInfo(animStackName);
+			FbxTakeInfo* takeInfo = lImporter->GetTakeInfo(0);
+
 			FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
 			FbxTime end = takeInfo->mLocalTimeSpan.GetStop();
 			mAnimationLength = end.GetFrameCount(FbxTime::eFrames24) - start.GetFrameCount(FbxTime::eFrames24) + 1;
 			Keyframe** currAnim = &mSkeleton.mJoints[currJointIndex].mAnimation;
 
+			std::cout << "Bone No : " << clusterIndex << " , Bone Name : " << currJointName << std::endl;
+			std::cout << "Animation Length : " << end.GetFrameCount(FbxTime::eFrames24) - start.GetFrameCount(FbxTime::eFrames24) + 1 << std::endl;
+			/*std::cout << "  Transform : ";
+			for (int matrix = 0; matrix < 4; ++matrix)
+				std::cout << mSkeleton.mJoints[currJointIndex].mGlobalBindposeInverse.GetT()[matrix] << "   ";
+			std::cout << std::endl;
+			std::cout << "  Scale : ";
+			for (int matrix = 0; matrix < 4; ++matrix)
+				std::cout << mSkeleton.mJoints[currJointIndex].mGlobalBindposeInverse.GetS()[matrix] << "  ";
+			std::cout << std::endl;
+			std::cout << "  Quatanion : ";
+			for (int matrix = 0; matrix < 4; ++matrix)
+				std::cout << mSkeleton.mJoints[currJointIndex].mGlobalBindposeInverse.GetQ()[matrix] << "  ";
+			std::cout << std::endl << std::endl << std::endl;*/
 				for (FbxLongLong i = start.GetFrameCount(FbxTime::eFrames24); i <= end.GetFrameCount(FbxTime::eFrames24); ++i)
 				{
 					FbxTime currTime;
@@ -344,9 +370,22 @@ void ModelManager::ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxSce
 					(*currAnim)->mFrameNum = i;
 					FbxAMatrix currentTransformOffset = inNode->EvaluateGlobalTransform(currTime) * geometryTransform;
 					(*currAnim)->mGlobalTransform = currentTransformOffset.Inverse() * currCluster->GetLink()->EvaluateGlobalTransform(currTime);
+
+					std::cout << "Current Time : " << currTime.GetMilliSeconds() << "ms" << std::endl;
+					std::cout << "  Transform : ";
+					for (int matrix = 0; matrix < 4; ++matrix)
+						std::cout << (*currAnim)->mGlobalTransform.GetT()[matrix] << "   ";
+					std::cout << "  Scale : ";
+					for (int matrix = 0; matrix < 4; ++matrix)
+						std::cout << (*currAnim)->mGlobalTransform.GetS()[matrix] << "  ";
+					std::cout << "  Quatanion : ";
+					for (int matrix = 0; matrix < 4; ++matrix)
+						std::cout << (*currAnim)->mGlobalTransform.GetQ()[matrix] << "  ";
+					std::cout << std::endl  ;
+
 					currAnim = &((*currAnim)->mNext);
 				}
-				I_animStack = currAnimStack;*/
+				I_animStack = currAnimStack;
 		}
 	}
 

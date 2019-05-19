@@ -1,6 +1,7 @@
 #pragma once
 #include "d3dUtil.h"
 #include <fbxsdk.h>
+#include <iostream>
 #include <map>
 #include <set>
 using namespace DirectX;
@@ -24,8 +25,14 @@ struct ModelData
 	float x, y, z, w, tu, tv, nx, ny, nz;
 	int state, frameTime;
 	unsigned int index;
-	unsigned int boneids;
-	double weights;
+	XMFLOAT4 boneids;
+	XMFLOAT4 weights;
+
+	ModelData()
+	{
+		boneids = { 0, 0, 0, 0 };
+		weights = { 0, 0, 0, 0 };
+	}
 };
 
 struct BlendingIndexWeightPair
