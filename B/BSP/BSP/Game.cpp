@@ -5,11 +5,11 @@
 #include "FrameResource.h"
 #include "GeometryGenerator.h"
 #include "Player.h"
-#include "ModelManager.h"
 #include "ShadowMap.h"
 #include "FontManager.h"
 #include "MapLoader.h"
 #include "Particle.h"
+#include "ModelLoader.h"
 #include <fstream>
 
 const float radian = (float)(3.141572f / 180.0f);
@@ -147,6 +147,7 @@ private:
 	void SetCurrentHP(std::string name, float hp);
 	void SetCurrentHP(float hp);
 	void SetParticle(XMFLOAT3 pos);
+	void SetParticle(float x, float y, float z);
 
 	void TeamCheck();
 	void GameStart();
@@ -160,6 +161,7 @@ private:
 	Button			mButton;
 	Player			mPlayer;
 	ModelManager	mModelManager;
+	ModelLoader		mModelLoader;
 	FontManager		mFontManager;
 	MapLoader		mMapLoader;
 	Particle		mParticle[10];
@@ -338,11 +340,11 @@ void Game::Update(const GameTimer& gt)
 	}
 
 	testTime += gt.DeltaTime();
-	if (testTime >= 5)
-	{
-		SetParticle(XMFLOAT3(0.0f, 15.0f, 0.0f));
-		testTime = 0;
-	}
+	//if (testTime >= 5)
+	//{
+	//	SetParticle(XMFLOAT3(0.0f, 15.0f, 0.0f));
+	//	testTime = 0;
+	//}
 
 	UpdateTime(gt);
 	UpdateObjectCBs(gt);
@@ -1279,10 +1281,11 @@ void Game::BuildShapeGeometry()
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 20.0f, 20, 40);
 	GeometryGenerator::MeshData uiGrid = geoGen.CreateGrid(10.0f, 10.0f, 2, 2);
 	GeometryGenerator::MeshData quad = geoGen.CreateQuad(-1.0f, 1.0f, 2.0f, 2.0f, 0.0f);
-	GeometryGenerator::MeshData miniBox = geoGen.CreateBox(0.05f, 0.05f, 0.1f, 0);
+	GeometryGenerator::MeshData miniBox = geoGen.CreateBox(0.2f, 0.2f, 0.4f, 0);
 
 	std::vector<ModelData> data;
-	mModelManager.LoadFBX("Resource//PlayerChar.fbx", &data);
+	mModelLoader.LoadDataFromFile("Resource//PlayerChar.txt", &data);
+	//mModelManager.LoadFBX("Resource//PlayerChar.fbx", &data);
 	//16488개 버텍스
 	//mModelManager.LoadAnim("Resource//PlayerChar.fbx", &data);
 	
@@ -1674,7 +1677,7 @@ void Game::BuildRenderItemsGame()
 			d.tx, d.ty, d.tz, 1.0f);
 		XMStoreFloat4x4(&PlayerRitem->Instances[i].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 		PlayerRitem->Instances[i].MaterialIndex = 3;
-		PlayerRitem->Instances[i].IsDraw = -1;
+		PlayerRitem->Instances[i].IsDraw = 1;
 	}
 	mInstanceCount.push_back((unsigned int)PlayerRitem->Instances.size());
 
@@ -2295,6 +2298,12 @@ void Game::SetCurrentHP(float hp)
 void Game::SetParticle(XMFLOAT3 pos)
 {
 	mParticle[mParticleCount++].SetStartPaticle(pos, mPlayer.GetCameraPosition());
+	mParticleCount = mParticleCount % 10;
+}
+
+void Game::SetParticle(float x, float y, float z)
+{
+	mParticle[mParticleCount++].SetStartPaticle(XMFLOAT3(x,y,z), mPlayer.GetCameraPosition());
 	mParticleCount = mParticleCount % 10;
 }
 

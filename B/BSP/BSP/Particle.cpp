@@ -71,9 +71,9 @@ void Particle::Update(const GameTimer & gt)
 				continue;
 			}
 
-			float x = mStartPosition.x + mMoveSpeed[i].x * mTime[i]*2;
+			float x = mStartPosition.x + mMoveSpeed[i].x * mTime[i]*3;
 			float y = mStartPosition.y + mMoveSpeed[i].y * mTime[i]*2;
-			float z = mStartPosition.z + mMoveSpeed[i].z * mTime[i]*2;
+			float z = mStartPosition.z + mMoveSpeed[i].z * mTime[i]*3;
 
 			mCurrentPosition[i] = XMFLOAT3(x, y, z);
 		}

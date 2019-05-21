@@ -163,6 +163,7 @@
     <ClInclude Include="GeometryGenerator.h" />
     <ClInclude Include="MapLoader.h" />
     <ClInclude Include="MathHelper.h" />
+    <ClInclude Include="ModelLoader.h" />
     <ClInclude Include="ModelManager.h" />
     <ClInclude Include="NetworkModule.h" />
     <ClInclude Include="Particle.h" />
@@ -187,6 +188,7 @@
     <ClCompile Include="GeometryGenerator.cpp" />
     <ClCompile Include="MapLoader.cpp" />
     <ClCompile Include="MathHelper.cpp" />
+    <ClCompile Include="ModelLoader.cpp" />
     <ClCompile Include="ModelManager.cpp" />
     <ClCompile Include="NetworkModule.cpp" />
     <ClCompile Include="Particle.cpp" />
