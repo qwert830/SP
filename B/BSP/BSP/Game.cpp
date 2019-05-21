@@ -129,8 +129,11 @@ private:
 	void DrawInstancingRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 	void DrawDeferredRenderItems(ID3D12GraphicsCommandList* cmdList);
 	void DrawSceneToShadowMap();
-	void CreateRenderItems(const char* geoName, int instancesCount,SCENENAME sceneName, RENDERITEM itemType, float isDraw, int matIndex);
-
+	void CreateUIItemsGame();
+	void CreateRenderItems(const char* geoName, MapLoader mapLoader, int loaderState, SCENENAME sceneName, RENDERITEM itemType, float isDraw, int matIndex);
+	void CreateRenderItems(const char* geoName, int instancesCount, SCENENAME sceneName, RENDERITEM itemType, float isDraw, int matIndex);
+	void CreateRenderItems(const char* geoName, int instancesCount, SCENENAME sceneName, RENDERITEM itemType, float isDraw, int matIndex, 
+		XMFLOAT3 tex, XMFLOAT3 worldScaling = XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3 worldRotation = XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3 worldTrans = XMFLOAT3(0.0f,0.0f,0.0f));
 	void RoomCheckButton(float x, float y);
 	void ButtonClick();
 
@@ -1633,54 +1636,8 @@ void Game::BuildMaterials()
 
 }
 
-void Game::BuildRenderItemsGame()
+void Game::CreateUIItemsGame()
 {
-	auto gridRitem = std::make_unique<RenderItem>();
-
-	gridRitem->ObjCBIndex = mObjectCount++;
-	gridRitem->Mat = mMaterials["tile0"].get();
-	gridRitem->Geo = mGeometries["shapeGeo"].get();
-	gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
-	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
-	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
-
-	gridRitem->Instances.resize(1);
-	XMStoreFloat4x4(&gridRitem->Instances[0].World, XMMatrixScaling(50.0f, 1.0f, 50.0f)*XMMatrixTranslation(0.0f, 0.0f, 0.0f));
-	XMStoreFloat4x4(&gridRitem->Instances[0].TexTransform, XMMatrixScaling(20.0f, 20.0f, 1.0f));
-	gridRitem->Instances[0].MaterialIndex = 1;
-
-	mInstanceCount.push_back((unsigned int)gridRitem->Instances.size());
-
-	mRenderItems[GAME].allItems.push_back(std::move(gridRitem));
-
-	auto PlayerRitem = std::make_unique<RenderItem>();
-	PlayerRitem->World = MathHelper::Identity4x4();
-	PlayerRitem->TexTransform = MathHelper::Identity4x4();
-	PlayerRitem->ObjCBIndex = mObjectCount++;
-	PlayerRitem->Mat = mMaterials["seafloor0"].get();
-	PlayerRitem->Geo = mGeometries["shapeGeo"].get();
-	PlayerRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	PlayerRitem->InstanceCount = 0;
-	PlayerRitem->IndexCount = PlayerRitem->Geo->DrawArgs["PlayerChar"].IndexCount;
-	PlayerRitem->StartIndexLocation = PlayerRitem->Geo->DrawArgs["PlayerChar"].StartIndexLocation;
-	PlayerRitem->BaseVertexLocation = PlayerRitem->Geo->DrawArgs["PlayerChar"].BaseVertexLocation;
-
-	PlayerRitem->Instances.resize(mMapLoader.GetSizeofPlayerData());
-	for (int i = 0; i < PlayerRitem->Instances.size(); ++i)
-	{
-		PlayerData d = mMapLoader.GetPlayerData(i);
-		PlayerRitem->Instances[i].World = XMFLOAT4X4(
-			0.1f, 0.0f, 0.0f, 0.0f,
-			0.0f, 0.1f, 0.0f, 0.0f,
-			0.0f, 0.0f, 0.1f, 0.0f,
-			d.tx, d.ty, d.tz, 1.0f);
-		XMStoreFloat4x4(&PlayerRitem->Instances[i].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-		PlayerRitem->Instances[i].MaterialIndex = 3;
-		PlayerRitem->Instances[i].IsDraw = 1;
-	}
-	mInstanceCount.push_back((unsigned int)PlayerRitem->Instances.size());
-
 	auto UIRitem = std::make_unique<RenderItem>();
 	UIRitem->World = MathHelper::Identity4x4();
 	UIRitem->TexTransform = MathHelper::Identity4x4();
@@ -1695,7 +1652,7 @@ void Game::BuildRenderItemsGame()
 
 	UIRitem->Instances.resize(11);
 	// ui총
-	UIRitem->Instances[0].UIPos = XMFLOAT4(0.40f,-0.725f,0.98f,-1.225f);
+	UIRitem->Instances[0].UIPos = XMFLOAT4(0.40f, -0.725f, 0.98f, -1.225f);
 	UIRitem->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
 	XMStoreFloat4x4(&UIRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	UIRitem->Instances[0].MaterialIndex = 2;
@@ -1706,39 +1663,33 @@ void Game::BuildRenderItemsGame()
 
 	for (int i = 0; i < 4; ++i)
 	{
-		UIRitem->Instances[i+1].UIPos = XMFLOAT4(-0.1f + i*0.05f, 0.95f, -0.05f + i*0.05f, 0.85f); // (x,y) (z,w)
+		UIRitem->Instances[i + 1].UIPos = XMFLOAT4(-0.1f + i * 0.05f, 0.95f, -0.05f + i * 0.05f, 0.85f); // (x,y) (z,w)
 		uv = mFontManager.GetUV(id[i]);
-		UIRitem->Instances[i+1].UIUVPos = XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
-		XMStoreFloat4x4(&UIRitem->Instances[i+1].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-		UIRitem->Instances[i+1].MaterialIndex = 4;
+		UIRitem->Instances[i + 1].UIUVPos = XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
+		XMStoreFloat4x4(&UIRitem->Instances[i + 1].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+		UIRitem->Instances[i + 1].MaterialIndex = 4;
 	}
 
 	for (int i = 0; i < 5; ++i)
 	{
 		UIRitem->Instances[i + 5].UIPos = XMFLOAT4(-0.125f + i * 0.05f, 0.9f, -0.075f + i * 0.05f, 0.75f);
-		uv = mFontManager.GetUV(id[i+4]);
+		uv = mFontManager.GetUV(id[i + 4]);
 		UIRitem->Instances[i + 5].UIUVPos = XMFLOAT4(uv.u, uv.v, uv.w, uv.h);
 		XMStoreFloat4x4(&UIRitem->Instances[i + 5].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 		UIRitem->Instances[i + 5].MaterialIndex = 4;
 	}
 
-	UIRitem->Instances[7].UIPos = XMFLOAT4(-0.0125f , 0.9f, 0.0125f , 0.775f);
-	
+	UIRitem->Instances[7].UIPos = XMFLOAT4(-0.0125f, 0.9f, 0.0125f, 0.775f);
+
 	UIRitem->Instances[10].UIPos = XMFLOAT4(-0.04f, 0.05f, 0.04f, -0.05f);
 	UIRitem->Instances[10].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
 	XMStoreFloat4x4(&UIRitem->Instances[10].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	UIRitem->Instances[10].MaterialIndex = 5;
-	
+
 	mInstanceCount.push_back((unsigned int)UIRitem->Instances.size());
-
-	for (auto& e : mRenderItems[GAME].allItems)
-		mRenderItems[GAME].renderItems[OPAQUEITEM].push_back(e.get());
-
-	mRenderItems[GAME].allItems.push_back(std::move(PlayerRitem));
-	mRenderItems[GAME].renderItems[PLAYER].push_back(mRenderItems[GAME].allItems[mRenderItems[GAME].allItems.size() - 1].get());
-
+	mRenderItems[GAME].renderItems[UI].push_back(UIRitem.get());
 	mRenderItems[GAME].allItems.push_back(std::move(UIRitem));
-	mRenderItems[GAME].renderItems[UI].push_back(mRenderItems[GAME].allItems[mRenderItems[GAME].allItems.size() - 1].get());
+
 
 	auto UIRitem2 = std::make_unique<RenderItem>();
 	UIRitem2->World = MathHelper::Identity4x4();
@@ -1751,7 +1702,7 @@ void Game::BuildRenderItemsGame()
 	UIRitem2->IndexCount = UIRitem2->Geo->DrawArgs["uiGrid"].IndexCount;
 	UIRitem2->StartIndexLocation = UIRitem2->Geo->DrawArgs["uiGrid"].StartIndexLocation;
 	UIRitem2->BaseVertexLocation = UIRitem2->Geo->DrawArgs["uiGrid"].BaseVertexLocation;
-	
+
 	UIRitem2->Instances.resize(2); // 팀표시, HP바표시
 
 	UIRitem2->Instances[0].UIPos = XMFLOAT4(-0.2f, -0.78f, 0.2f, -0.88f);
@@ -1765,126 +1716,40 @@ void Game::BuildRenderItemsGame()
 	UIRitem2->Instances[1].MaterialIndex = 16;
 
 	mInstanceCount.push_back((unsigned int)UIRitem2->Instances.size());
-
+	mRenderItems[GAME].renderItems[UI].push_back(UIRitem2.get());
 	mRenderItems[GAME].allItems.push_back(std::move(UIRitem2));
-	mRenderItems[GAME].renderItems[UI].push_back(mRenderItems[GAME].allItems[mRenderItems[GAME].allItems.size() - 1].get());
 
-	auto quadRitem = std::make_unique<RenderItem>();
-	quadRitem->World = MathHelper::Identity4x4();
-	quadRitem->TexTransform = MathHelper::Identity4x4();
-	quadRitem->ObjCBIndex = mObjectCount++;
-	quadRitem->Mat = mMaterials["seafloor0"].get();
-	quadRitem->Geo = mGeometries["shapeGeo"].get();
-	quadRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	quadRitem->IndexCount = quadRitem->Geo->DrawArgs["quad"].IndexCount;
-	quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
-	quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
+}
 
-	quadRitem->Instances.resize(1);
-	quadRitem->Instances[0].World = MathHelper::Identity4x4();
-	quadRitem->Instances[0].TexTransform = MathHelper::Identity4x4();
-	quadRitem->Instances[0].MaterialIndex = 0;
-	mInstanceCount.push_back((unsigned int)quadRitem->Instances.size());
+void Game::BuildRenderItemsGame()
+{
+	// 맵 바닥
+	CreateRenderItems("grid", 1, GAME, OPAQUEITEM, 1, 1, XMFLOAT3(20.0f, 20.0f, 1.0f), XMFLOAT3(50.0f, 1.0f, 50.0f));
 
-	mRenderItems[GAME].renderItems[DEBUG].push_back(quadRitem.get());
-	mRenderItems[GAME].allItems.push_back(std::move(quadRitem));
+	// 플레이어 캐릭터
+	CreateRenderItems("PlayerChar", mMapLoader, PLAYERINFO, GAME, PLAYER, 1, 3);
 
-	auto deferredRitem = std::make_unique <RenderItem>();
-	deferredRitem->World = MathHelper::Identity4x4();
-	deferredRitem->TexTransform = MathHelper::Identity4x4();
-	deferredRitem->ObjCBIndex = mObjectCount++;
-	deferredRitem->Mat = mMaterials["seafloor0"].get();
-	deferredRitem->Geo = mGeometries["shapeGeo"].get();
-	deferredRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	deferredRitem->IndexCount = deferredRitem->Geo->DrawArgs["quad"].IndexCount;
-	deferredRitem->StartIndexLocation = deferredRitem->Geo->DrawArgs["quad"].StartIndexLocation;
-	deferredRitem->BaseVertexLocation = deferredRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
+	//UI 아이템
+	CreateUIItemsGame();
 
-	deferredRitem->Instances.resize(1);
-	deferredRitem->Instances[0].World = MathHelper::Identity4x4();
-	deferredRitem->Instances[0].TexTransform = MathHelper::Identity4x4();
-	deferredRitem->Instances[0].MaterialIndex = 0;
-	mInstanceCount.push_back((unsigned int)deferredRitem->Instances.size());
+	//디버그용 렌더아이템
+	CreateRenderItems("quad", 1, GAME, DEBUG, 1, 0);
 
-	mRenderItems[GAME].renderItems[DEFERRED].push_back(deferredRitem.get());
-	mRenderItems[GAME].allItems.push_back(std::move(deferredRitem));
+	//디퍼드 드로우용 렌더아이템
+	CreateRenderItems("quad", 1, GAME, DEFERRED, 1, 0);
 
-	auto playerGunRitem = std::make_unique <RenderItem>();
-	playerGunRitem->World = MathHelper::Identity4x4();
-	playerGunRitem->TexTransform = MathHelper::Identity4x4();
-	playerGunRitem->ObjCBIndex = mObjectCount++;
-	playerGunRitem->Mat = mMaterials["seafloor0"].get();
-	playerGunRitem->Geo = mGeometries["shapeGeo"].get();
-	playerGunRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	playerGunRitem->IndexCount = playerGunRitem->Geo->DrawArgs["playerGun"].IndexCount;
-	playerGunRitem->StartIndexLocation = playerGunRitem->Geo->DrawArgs["playerGun"].StartIndexLocation;
-	playerGunRitem->BaseVertexLocation = playerGunRitem->Geo->DrawArgs["playerGun"].BaseVertexLocation;
+	//플레이어 총
+	CreateRenderItems("playerGun", 1, GAME, PLAYERGUN, 1, 6, XMFLOAT3(1.0f, 1.0f, 1.0f),XMFLOAT3(0.1f,0.1f,0.1f));
 
-	playerGunRitem->Instances.resize(1);
-	playerGunRitem->Instances[0].MaterialIndex = 6;
-	XMStoreFloat4x4(&playerGunRitem->Instances[0].World, XMMatrixScaling(0.1f, 0.1f, 0.1f));
-	XMStoreFloat4x4(&playerGunRitem->Instances[0].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-
-	mInstanceCount.push_back((unsigned int)playerGunRitem->Instances.size());
-
-	mRenderItems[GAME].renderItems[PLAYERGUN].push_back(playerGunRitem.get());
-	mRenderItems[GAME].allItems.push_back(std::move(playerGunRitem));
-
-	auto playerShotRitem = std::make_unique <RenderItem>();
-	playerShotRitem->World = MathHelper::Identity4x4();
-	playerShotRitem->TexTransform = MathHelper::Identity4x4();
-	playerShotRitem->ObjCBIndex = mObjectCount++;
-	playerShotRitem->Mat = mMaterials["seafloor0"].get();
-	playerShotRitem->Geo = mGeometries["shapeGeo"].get();
-	playerShotRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	playerShotRitem->IndexCount = playerShotRitem->Geo->DrawArgs["quad"].IndexCount;
-	playerShotRitem->StartIndexLocation = playerShotRitem->Geo->DrawArgs["quad"].StartIndexLocation;
-	playerShotRitem->BaseVertexLocation = playerShotRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
-
-	playerShotRitem->Instances.resize(10);
-	for (int i = 0; i < 10; ++i)
-	{
-		playerShotRitem->Instances[i].MaterialIndex = 7;
-		XMStoreFloat4x4(&playerShotRitem->Instances[i].TexTransform, XMMatrixScaling(0.5f, 0.5f, 1.0f));
-		XMStoreFloat4x4(&playerShotRitem->Instances[i].World, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-		playerShotRitem->Instances[i].IsDraw = -1;
-	}
-
-	mInstanceCount.push_back((unsigned int)playerShotRitem->Instances.size());
-	mRenderItems[GAME].renderItems[BILLBOARDITEM].push_back(playerShotRitem.get());
-	mRenderItems[GAME].allItems.push_back(std::move(playerShotRitem));
-
-	auto CubeRitem = std::make_unique <RenderItem>();
-	CubeRitem->World = MathHelper::Identity4x4();
-	CubeRitem->TexTransform = MathHelper::Identity4x4();
-	CubeRitem->ObjCBIndex = mObjectCount++;
-	CubeRitem->Mat = mMaterials["seafloor0"].get();
-	CubeRitem->Geo = mGeometries["shapeGeo"].get();
-	CubeRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	CubeRitem->IndexCount = CubeRitem->Geo->DrawArgs["cube"].IndexCount;
-	CubeRitem->StartIndexLocation = CubeRitem->Geo->DrawArgs["cube"].StartIndexLocation;
-	CubeRitem->BaseVertexLocation = CubeRitem->Geo->DrawArgs["cube"].BaseVertexLocation;
-
-	CubeRitem->Instances.resize(mMapLoader.GetSizeofMapData());
-
-	for (int i = 0; i < CubeRitem->Instances.size(); ++i)
-	{
-		MapData d = mMapLoader.GetMapData(i);
-		CubeRitem->Instances[i].MaterialIndex = 11;
-		XMStoreFloat4x4(&CubeRitem->Instances[i].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-		XMStoreFloat4x4(&CubeRitem->Instances[i].World, 
-			XMMatrixScaling(d.scalingX, d.scalingY, d.scalingZ)*
-			XMMatrixRotationY(d.rotationY*radian)*
-			XMMatrixTranslation(d.offsetX, d.offsetY, d.offsetZ));
-		CubeRitem->Instances[i].IsDraw = 1;
-	}
-
-	mInstanceCount.push_back((unsigned int)CubeRitem->Instances.size());
-	mRenderItems[GAME].renderItems[OPAQUEITEM].push_back(CubeRitem.get());
-	mRenderItems[GAME].allItems.push_back(std::move(CubeRitem));
+	//총 발사 이펙트
+	CreateRenderItems("quad", 10, GAME, BILLBOARDITEM, -1, 7, XMFLOAT3(0.5f, 0.5f, 1.0f));
 	
+	//맵
+	CreateRenderItems("cube", mMapLoader,MAPINFO, GAME, OPAQUEITEM, 1, 11);
+
+	//파티클
 	for (int i = 0; i < 10; ++i)
-		CreateRenderItems("miniBox", 100, GAME, PARTICLE, 1, 17);
+		CreateRenderItems("miniBox", COUNT, GAME, PARTICLE, 1, 17);
 }
 
 void Game::BuildRenderItemsRoom()
@@ -2052,6 +1917,54 @@ void Game::DrawSceneToShadowMap()
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
 }
 
+void Game::CreateRenderItems(const char * geoName, MapLoader mapLoader, int loaderState, SCENENAME sceneName, RENDERITEM itemType, float isDraw, int matIndex)
+{
+	auto TempRitem = std::make_unique <RenderItem>();
+	TempRitem->World = MathHelper::Identity4x4();
+	TempRitem->TexTransform = MathHelper::Identity4x4();
+	TempRitem->ObjCBIndex = mObjectCount++;
+	TempRitem->Mat = mMaterials["seafloor0"].get();
+	TempRitem->Geo = mGeometries["shapeGeo"].get();
+	TempRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	TempRitem->IndexCount = TempRitem->Geo->DrawArgs[geoName].IndexCount;
+	TempRitem->StartIndexLocation = TempRitem->Geo->DrawArgs[geoName].StartIndexLocation;
+	TempRitem->BaseVertexLocation = TempRitem->Geo->DrawArgs[geoName].BaseVertexLocation;
+
+	if (loaderState == MAPINFO)
+		TempRitem->Instances.resize(mMapLoader.GetSizeofMapData());
+	else if (loaderState == PLAYERINFO)
+		TempRitem->Instances.resize(mMapLoader.GetSizeofPlayerData());
+
+	for (int i = 0; i < TempRitem->Instances.size(); ++i)
+	{
+		if (loaderState == MAPINFO)
+		{
+			MapData d = mMapLoader.GetMapData(i);
+			TempRitem->Instances[i].MaterialIndex = matIndex;
+			XMStoreFloat4x4(&TempRitem->Instances[i].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+			XMStoreFloat4x4(&TempRitem->Instances[i].World,
+				XMMatrixScaling(d.scalingX, d.scalingY, d.scalingZ)*
+				XMMatrixRotationY(d.rotationY*radian)*
+				XMMatrixTranslation(d.offsetX, d.offsetY, d.offsetZ));
+			TempRitem->Instances[i].IsDraw = isDraw;
+		}
+		else if (loaderState == PLAYERINFO)
+		{
+			PlayerData d = mMapLoader.GetPlayerData(i);
+			TempRitem->Instances[i].MaterialIndex = matIndex;
+			XMStoreFloat4x4(&TempRitem->Instances[i].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+			XMStoreFloat4x4(&TempRitem->Instances[i].World,
+				XMMatrixScaling(0.1f,0.1f,0.1f)*
+				XMMatrixTranslation(d.tx, d.ty, d.tz));
+			TempRitem->Instances[i].IsDraw = isDraw;
+		}
+	}
+
+	mInstanceCount.push_back((unsigned int)TempRitem->Instances.size());
+	mRenderItems[sceneName].renderItems[itemType].push_back(TempRitem.get());
+	mRenderItems[sceneName].allItems.push_back(std::move(TempRitem));
+}
+
 void Game::CreateRenderItems(const char * geoName, int instancesCount, SCENENAME sceneName, RENDERITEM itemType, float isDraw, int matIndex)
 {
 	auto TempRitem = std::make_unique <RenderItem>();
@@ -2071,6 +1984,36 @@ void Game::CreateRenderItems(const char * geoName, int instancesCount, SCENENAME
 		TempRitem->Instances[i].IsDraw = isDraw;
 		TempRitem->Instances[i].World = MathHelper::Identity4x4();
 		TempRitem->Instances[i].TexTransform = MathHelper::Identity4x4();
+		TempRitem->Instances[i].MaterialIndex = matIndex;
+	}
+
+	mInstanceCount.push_back((unsigned int)TempRitem->Instances.size());
+	mRenderItems[sceneName].renderItems[itemType].push_back(TempRitem.get());
+	mRenderItems[sceneName].allItems.push_back(std::move(TempRitem));
+}
+
+void Game::CreateRenderItems(const char* geoName, int instancesCount, SCENENAME sceneName, RENDERITEM itemType, float isDraw, int matIndex,
+	XMFLOAT3 tex, XMFLOAT3 worldScaling, XMFLOAT3 worldRotation, XMFLOAT3 worldTrans )
+{
+	auto TempRitem = std::make_unique <RenderItem>();
+	TempRitem->World = MathHelper::Identity4x4();
+	TempRitem->TexTransform = MathHelper::Identity4x4();
+	TempRitem->ObjCBIndex = mObjectCount++;
+	TempRitem->Mat = mMaterials["seafloor0"].get();
+	TempRitem->Geo = mGeometries["shapeGeo"].get();
+	TempRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	TempRitem->IndexCount = TempRitem->Geo->DrawArgs[geoName].IndexCount;
+	TempRitem->StartIndexLocation = TempRitem->Geo->DrawArgs[geoName].StartIndexLocation;
+	TempRitem->BaseVertexLocation = TempRitem->Geo->DrawArgs[geoName].BaseVertexLocation;
+
+	TempRitem->Instances.resize(instancesCount);
+	for (int i = 0; i < instancesCount; ++i)
+	{
+		TempRitem->Instances[i].IsDraw = isDraw;
+		XMStoreFloat4x4(&TempRitem->Instances[i].World, 
+			XMMatrixScaling(worldScaling.x, worldScaling.y, worldScaling.z)*
+			XMMatrixTranslation(worldTrans.x, worldTrans.y, worldTrans.z));
+		XMStoreFloat4x4(&TempRitem->Instances[i].TexTransform, XMMatrixScaling(tex.x, tex.y, tex.z));
 		TempRitem->Instances[i].MaterialIndex = matIndex;
 	}
 

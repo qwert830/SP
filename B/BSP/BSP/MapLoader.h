@@ -1,6 +1,10 @@
 #pragma once
 #include "d3dUtil.h"
 
+enum MAPLOADERSTATE
+{
+	MAPINFO, PLAYERINFO
+};
 struct MapData
 {
 	MapData() {}
