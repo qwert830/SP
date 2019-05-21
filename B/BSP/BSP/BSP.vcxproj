@@ -153,6 +153,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AnimationManager.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="d3dApp.h" />
     <ClInclude Include="d3dUtil.h" />
@@ -172,6 +173,7 @@
     <ClInclude Include="UploadBuffer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AnimationManager.cpp" />
     <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="FontManager.cpp" />
     <ClCompile Include="FrameResource.cpp" />

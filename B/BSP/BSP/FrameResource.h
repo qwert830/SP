@@ -60,6 +60,10 @@ struct PassConstants
 	Light Lights[MaxLights];
 };
 
+struct AnimationData
+{
+	XMFLOAT4X4 gBoneTransforms[10][46];
+};
 
 struct FrameResource
 {
@@ -75,6 +79,7 @@ public:
     std::unique_ptr<UploadBuffer<PassConstants>> PassCB = nullptr;
 	std::unique_ptr<UploadBuffer<MaterialConstants>> MaterialCB = nullptr;
     std::unique_ptr<UploadBuffer<ObjectConstants>> ObjectCB = nullptr;
+	std::unique_ptr<UploadBuffer<AnimationData>> AnimationCB = nullptr;
 
 	std::vector<std::unique_ptr<UploadBuffer<InstanceData>>>InstanceBufferVector;
 

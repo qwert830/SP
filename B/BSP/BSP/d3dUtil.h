@@ -14,6 +14,7 @@
 #include <memory>
 #include <algorithm>
 #include <vector>
+#include <map>
 #include <array>
 #include <unordered_map>
 #include <cstdint>
@@ -27,6 +28,9 @@
 #include "../BSP/include/fbxsdk.h"
 
 #pragma comment(lib, "libfbxsdk.lib")
+
+using namespace std;
+using namespace DirectX;
 
 extern const int gNumFrameResources;
 

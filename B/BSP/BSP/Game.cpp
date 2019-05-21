@@ -10,6 +10,7 @@
 #include "MapLoader.h"
 #include "Particle.h"
 #include "ModelLoader.h"
+#include "AnimationManager.h"
 #include <fstream>
 
 const float radian = (float)(3.141572f / 180.0f);
@@ -105,6 +106,7 @@ private:
 	void UpdateInstanceData(const GameTimer& gt);
 	void UpdateMaterialCBs(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
+	void UpdateAnimation(const GameTimer& gt);
 	void UpdateShadowPassCB(const GameTimer& gt);
 	void UpdateShadowTransform(const GameTimer& gt);
 	void UpdateTime(const GameTimer& gt);
@@ -161,13 +163,14 @@ private:
 	SCENENAME	mScene = GAME;
 	bool		mGameStart = true;
 
-	Button			mButton;
-	Player			mPlayer;
-	ModelManager	mModelManager;
-	ModelLoader		mModelLoader;
-	FontManager		mFontManager;
-	MapLoader		mMapLoader;
-	Particle		mParticle[10];
+	Button				mButton;
+	Player				mPlayer;
+	ModelManager		mModelManager;
+	ModelLoader			mModelLoader;
+	AnimationManager	mAnimationManager;
+	FontManager			mFontManager;
+	MapLoader			mMapLoader;
+	Particle			mParticle[10];
 
 	bool mIDSearch[10] = { false, };
 	unsigned int mIDNumber = 0;
@@ -218,6 +221,7 @@ private:
 
 	PassConstants mMainPassCB;
 	PassConstants mShadowPassCB;
+	AnimationData mAnimationData;
     XMFLOAT4X4 mWorld = MathHelper::Identity4x4();
 
     float mTheta = 1.5f*XM_PI;
@@ -288,6 +292,7 @@ bool Game::Initialize()
 	bool h;
 	h = mFontManager.InitFont();
 	mMapLoader.LoadData();
+	mAnimationManager.Init();
 
 	LoadTextures();
 	BuildDescriptorHeaps();
@@ -342,13 +347,6 @@ void Game::Update(const GameTimer& gt)
 		CloseHandle(eventHandle);
 	}
 
-	testTime += gt.DeltaTime();
-	//if (testTime >= 5)
-	//{
-	//	SetParticle(XMFLOAT3(0.0f, 15.0f, 0.0f));
-	//	testTime = 0;
-	//}
-
 	UpdateTime(gt);
 	UpdateObjectCBs(gt);
 	UpdatePlayerData();
@@ -360,6 +358,7 @@ void Game::Update(const GameTimer& gt)
 	UpdateShadowTransform(gt);
 	UpdateMainPassCB(gt);
 	UpdateShadowPassCB(gt);
+	UpdateAnimation(gt);
 	UpdateAttackToServer();
 }
 
@@ -396,13 +395,18 @@ void Game::DeferredDraw(const GameTimer & gt)
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
+	auto aniData = mCurrFrameResource->AnimationCB->Resource();
+	mCommandList->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress());
+
 	//인스턴싱으로 리소스 생성 : ui / 반투명은 따로 그리기
 	mCommandList->SetPipelineState(mPSOs["DeferredResource"].Get()); // 파이프라인 설정
 
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[OPAQUEITEM]);
-	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYER]);
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYERGUN]);
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PARTICLE]);
+
+	mCommandList->SetPipelineState(mPSOs["DeferredPlayerResource"].Get());
+	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYER]);
 
 	mCommandList->SetPipelineState(mPSOs["DeferredTransparentResource"].Get());
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[BILLBOARDITEM]);
@@ -837,6 +841,17 @@ void Game::UpdateMainPassCB(const GameTimer& gt)
 	currPassCB->CopyData(0, mMainPassCB);
 }
 
+void Game::UpdateAnimation(const GameTimer & gt)
+{
+	for (int i = 0; i < 10; ++i)
+	{
+		for (int k = 0; k < mAnimationManager.GetSize("Walk"); ++k)
+			mAnimationData.gBoneTransforms[0][k] = mAnimationManager.GetData("Walk", k);
+	}
+	auto currAniData = mCurrFrameResource->AnimationCB.get();
+	currAniData->CopyData(0, mAnimationData);
+}
+
 void Game::UpdateShadowPassCB(const GameTimer & gt)
 {
 	XMMATRIX view = XMLoadFloat4x4(&mLightView);
@@ -1259,6 +1274,8 @@ void Game::BuildShadersAndInputLayout()
 	mShaders["dVS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "DVS", "vs_5_1");
 	mShaders["dPS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "DPS", "ps_5_1");
 
+	mShaders["PVS"] = d3dUtil::CompileShader(L"Shader\\DefaultInstancing.hlsl", nullptr, "PlayerVS", "vs_5_1");
+
     mInputLayout =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -1274,7 +1291,6 @@ void Game::BuildShadersAndInputLayout()
 		{ "SIZE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 }
-
 //메쉬 데이터 생성
 void Game::BuildShapeGeometry()
 {
@@ -1458,7 +1474,6 @@ void Game::BuildShapeGeometry()
 
 	mGeometries[geo->Name] = std::move(geo);
 }
-
 //파이프라인 생성
 void Game::BuildPSOs()
 {
@@ -1566,6 +1581,15 @@ void Game::BuildPSOs()
 	};
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&deferredPsoDesc, IID_PPV_ARGS(&mPSOs["DeferredResource"])));
 
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC deferredPlayerPsoDesc = deferredPsoDesc;
+	deferredPlayerPsoDesc.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["PVS"]->GetBufferPointer()),
+		mShaders["PVS"]->GetBufferSize()
+	};
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&deferredPlayerPsoDesc, IID_PPV_ARGS(&mPSOs["DeferredPlayerResource"])));
+
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC deferredTransparentPsoDesc = deferredPsoDesc;
 	deferredTransparentPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&deferredTransparentPsoDesc, IID_PPV_ARGS(&mPSOs["DeferredTransparentResource"])));
@@ -1593,7 +1617,6 @@ void Game::BuildFrameResources()
 			2, (UINT)mRenderItems[GAME].allItems.size() + (UINT)mRenderItems[ROOM].allItems.size(), (UINT)mMaterials.size(), &mInstanceCount[0]));
 	}
 }
-
 //재질 데이터 생성
 void Game::BuildMaterials()
 {

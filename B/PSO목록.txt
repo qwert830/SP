@@ -6,3 +6,4 @@ PSO
 5. sDebug
 6. DeferredResource
 7. DeferredDraw
+8. DeferredPlayerResource
