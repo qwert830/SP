@@ -21,6 +21,7 @@ PhysXModule::PhysXModule()
 	mDispatcher = PxDefaultCpuDispatcherCreate(2);
 	sceneDesc.cpuDispatcher = mDispatcher;
 	sceneDesc.filterShader = PxDefaultSimulationFilterShader;
+//	sceneDesc.flags |= PxSceneFlag::eREQUIRE_RW_LOCK;
 	mScene = mPhysics->createScene(sceneDesc);
 
 	mMaterial = mPhysics->createMaterial(0.5f, 0.5f, 0.6f);
@@ -53,17 +54,27 @@ PhysXModule::~PhysXModule()
 
 void PhysXModule::stepPhysics(const PxReal& frame)
 {
+	mScene->lockWrite();
+	mScene->lockRead();
 	mScene->simulate(frame);
 	mScene->fetchResults(true);
+	mScene->unlockRead();
+	mScene->unlockWrite();
+
 }
 
 void PhysXModule::setGravity(const PxVec3& gravityP)
 {
+	mScene->lockWrite();
+	mScene->lockRead();
 	mScene->setGravity(gravityP);
+	mScene->unlockRead();
+	mScene->unlockWrite();
 }
 
-int PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange)
+pair<int,PxVec3> PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange)
 {
+
 	//레이가 관통하여 여러번 체크하고싶다면 히트버퍼를 배열로 선언할 것
 	PxRaycastHit buffer;
 	//왼쪽은 버퍼, 오른쪽은 버퍼크기
@@ -72,15 +83,19 @@ int PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirect
 	PxQueryFilterData PxQFData;
 	PxQFData.flags |= PxQueryFlag::eANY_HIT;
 	//레이캐스트 함수
+	mScene->lockWrite();
+	mScene->lockRead();
 	bool status = mScene->raycast(cameraPosition, rayDirection, rayRange, hit, PxHitFlags(PxHitFlag::eDEFAULT), PxQFData);
+	mScene->unlockRead();
+	mScene->unlockWrite();
 	//밑의 조건문에 레이캐스트 성공시 행동을 추가, 실패할 경우까지 체크하려면 else문까지 추가
 	if (status) {
 		//hit이아니라 buffer를 이용할 것
 		//예) buffer.actor->release();
-		if(buffer.actor->userData)
-			return reinterpret_cast<int*>(buffer.actor->userData)[0];
+		if (buffer.actor->userData)
+			return pair<int, PxVec3>(reinterpret_cast<int*>(buffer.actor->userData)[0], buffer.position);
 	}
-	return -1;
+	return pair<int, PxVec3>(-1, PxVec3(0, 0, 0));
 }
 
 
@@ -104,8 +119,9 @@ PxCapsuleController* PhysXModule::setCapsuleController(PxExtendedVec3 pos, float
 
 	capsuleDesc.reportCallback = &collisionCallback;
 	
-
+	mScene->lockWrite();
 	PxCapsuleController* PC = static_cast<PxCapsuleController*>(mControllerManager->createController(capsuleDesc));
+	mScene->unlockWrite();
 	//캡슐 컨트롤러에 유저정보 부여
 	PC->getActor()->userData = (new int(key));
 	//불러올때 쓰는 방법

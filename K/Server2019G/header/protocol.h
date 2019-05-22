@@ -17,6 +17,13 @@ enum room_status { RS_JOINABLE = 1, RS_FULL = 2, RS_EMPTY = 3, RS_PLAY = 4 };
 
 enum user_status { US_WAIT, US_READY, US_PLAY, US_LOBBY};
 
+enum team_kind{
+	RED_TEAM = 1,
+	BLUE_TEAM,
+	RED_READER,
+	BLUE_READER
+};
+
 enum move_direction {
 	STOP_DR = 100,
 	UP_DR,
@@ -28,6 +35,8 @@ enum move_direction {
 	DLEFT_DR,
 	DRIGHT_DR
 };
+
+//무브디렉션이랑 겹치면 안됨. 패킷종류가 50개 넘으면 무브디렉션 시작점이든 패킷종류 시작점이든 둘중하날 바꿔야함.
 
 enum CS_PacketKind { 
 	CS_REFRESH = 50,
@@ -60,10 +69,7 @@ enum SC_PacketKind {
 	SC_GAMEOVER_REDWIN,
 	SC_GAMEOVER_BLUEWIN,
 	SC_HIT,
-	RED_TEAM,
-	BLUE_TEAM,
-	RED_READER,
-	BLUE_READER
+	SC_DEAD,
 };
 #pragma pack (push, 1)
 // 클라이언트 -> 서버------------------------
@@ -167,9 +173,7 @@ struct sc_movestatus_packet {
 	unsigned char size;
 	unsigned char type;
 	wchar_t id[10];
-	float x;
-	float y;
-	float z;
+	float x, y, z;
 };
 
 struct sc_timer_packet {
@@ -196,6 +200,7 @@ struct sc_hit_packet {
 	unsigned char size;
 	unsigned char type;
 	unsigned int hp;
+	float x, y, z;
 };
 
 struct sc_gameover_packet {
