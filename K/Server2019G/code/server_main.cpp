@@ -42,19 +42,20 @@ public:
 	int m_Score;
 
 	//피직스 이동함수에 쓸 변수
-	PxVec3 moveP;
+	atomic<char> m_MoveDirection;
+	PxVec3 moveVec;
 	PxVec3 look;
 	PxVec3 right;
 	float x;
 	float y;
 	float z;
+	atomic<char> attakChk;
 
 	atomic<char> hp;
 	char team;
 
 	atomic<int> m_RoomNumber;
 	char m_Condition;
-	atomic<char> m_MoveDirection;
 	PxCapsuleController*	mCapsuleController;
 
 	EXOVER m_rxover;
@@ -65,9 +66,9 @@ public:
 		m_ID = L"Temp";
 		m_Score = 0;
 		m_IsConnected = false;
-		moveP.x = 0;
-		moveP.y = 0;
-		moveP.z = 0;
+		moveVec.x = 0;
+		moveVec.y = 0;
+		moveVec.z = 0;
 		x = 0;
 		y = 0;
 		z = 0;
@@ -145,13 +146,12 @@ public:
 		
 		sc_teaminfo_packet p;
 		p.size = sizeof(sc_teaminfo_packet);
-
 		for (int d : m_JoinIdList) {
 			clients[d].hp = 100;
 			switch (i) {
 			case 0:
 				clients[d].hp = 300;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 0, 350), 21.5, 2.5, d);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 12, 350), 21.5, 2.5, d);
 				clients[d].team = RED_READER;
 				p.type = RED_READER;
 				clients[d].look.x = 0;
@@ -163,7 +163,7 @@ public:
 				break;
 			case 1:
 				clients[d].hp = 300;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 0, -350), 21.5, 2.5, d);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 12, -350), 21.5, 2.5, d);
 				clients[d].team = BLUE_READER;
 				p.type = BLUE_READER;
 				clients[d].look.x = 0;
@@ -211,24 +211,38 @@ public:
 	}
 
 	void attack(PxVec3 pos, PxVec3 rayDir, array <Client, MAX_USER>& clients) {
-		int hituser = m_PhysXModule->doRaycast(pos, rayDir, 1000.0f);
-		if (hituser != -1)
-			clients[hituser].hp -= 10;
-		if (clients[hituser].hp <= 0) {
+		pair<int, PxVec3> hituser = m_PhysXModule->doRaycast(pos, rayDir, 1000.0f);
+		if (hituser.first == -1)
+			return;
+		clients[hituser.first].hp -= 10;
+
+		if (clients[hituser.first].hp <= 0) {
 			sc_gameover_packet p;
 			p.size = sizeof(sc_gameover_packet);
-			if (clients[hituser].team == RED_READER) {
+			if (clients[hituser.first].team == RED_READER) {
 				p.type = SC_GAMEOVER_BLUEWIN;
-				delete m_PhysXModule;
+				//delete m_PhysXModule;
 			}
-			else if (clients[hituser].team == BLUE_READER) {
+			else if (clients[hituser.first].team == BLUE_READER) {
 				p.type = SC_GAMEOVER_REDWIN;
-				delete m_PhysXModule;
+				//delete m_PhysXModule;
+			}
+			else {
+
 			}
 			for(int d : m_JoinIdList)
 				SendPacket(d, &p);
 		}
-
+		else {
+			sc_hit_packet hitp;
+			hitp.type = SC_HIT;
+			hitp.size = sizeof(sc_hit_packet);
+			hitp.hp = clients[hituser.first].hp;
+			hitp.x = hituser.second.x;
+			hitp.y = hituser.second.y;
+			hitp.z = hituser.second.z;
+			SendPacket(hituser.first, &hitp);
+		}
 	}
 };
 
@@ -887,48 +901,48 @@ void worker_thread()
 		}
 		else if (GAMEACTION == p_over->work)
 		{
-			PxVec3 speedl = g_clients[key].look * 600.0f / 60.0f;
-			PxVec3 speedr = g_clients[key].right * 600.0f / 60.0f;
+			PxVec3 spdL = g_clients[key].look * 600.0f / 60.0f;
+			PxVec3 spdR = g_clients[key].right * 600.0f / 60.0f;
 
 			switch (g_clients[key].m_MoveDirection) {
 			case LEFT_DR:
-				g_clients[key].moveP.x = -speedr.x;
-				g_clients[key].moveP.z = -speedr.z;
+				g_clients[key].moveVec.x = -spdR.x;
+				g_clients[key].moveVec.z = -spdR.z;
 				break;
 			case RIGHT_DR:
-				g_clients[key].moveP.x = speedr.x;
-				g_clients[key].moveP.z = speedr.z;
+				g_clients[key].moveVec.x = spdR.x;
+				g_clients[key].moveVec.z = spdR.z;
 				break;
 			case UP_DR:
-				g_clients[key].moveP.x = speedl.x;
-				g_clients[key].moveP.z = speedl.z;
+				g_clients[key].moveVec.x = spdL.x;
+				g_clients[key].moveVec.z = spdL.z;
 				break;
 			case DOWN_DR:
-				g_clients[key].moveP.x = -speedl.x;
-				g_clients[key].moveP.z = -speedl.z;
+				g_clients[key].moveVec.x = -spdL.x;
+				g_clients[key].moveVec.z = -spdL.z;
 				break;
 			case ULEFT_DR:
-				g_clients[key].moveP.x = speedl.x - speedr.x;
-				g_clients[key].moveP.z = speedl.z - speedr.z;
+				g_clients[key].moveVec.x = spdL.x - spdR.x;
+				g_clients[key].moveVec.z = spdL.z - spdR.z;
 				break;
 			case URIGHT_DR:
-				g_clients[key].moveP.x = speedl.x + speedr.x;
-				g_clients[key].moveP.z = speedl.z + speedr.z;
+				g_clients[key].moveVec.x = spdL.x + spdR.x;
+				g_clients[key].moveVec.z = spdL.z + spdR.z;
 				break;
 			case DLEFT_DR:
-				g_clients[key].moveP.x = -speedl.x - speedr.x;
-				g_clients[key].moveP.z = -speedl.z - speedr.z;
+				g_clients[key].moveVec.x = -spdL.x - spdR.x;
+				g_clients[key].moveVec.z = -spdL.z - spdR.z;
 				break;
 			case DRIGHT_DR:
-				g_clients[key].moveP.x = -speedl.x + speedr.x;
-				g_clients[key].moveP.z = -speedl.z + speedr.z;
+				g_clients[key].moveVec.x = -spdL.x + spdR.x;
+				g_clients[key].moveVec.z = -spdL.z + spdR.z;
 				break;
 			case STOP_DR:
-				g_clients[key].moveP.x = 0;
-				g_clients[key].moveP.z = 0;
+				g_clients[key].moveVec.x = 0;
+				g_clients[key].moveVec.z = 0;
 				break;
 			}
-			g_clients[key].moveP.y = 0;
+			g_clients[key].moveVec.y = 0;
 		}
 		else if (PERIODICACTION == p_over->work) {
 			sc_movestatus_packet p;
@@ -1021,11 +1035,6 @@ void Timer_Thread() {
 	periodic.m_wsabuf.len = sizeof(periodic.m_wsabuf.buf);
 	periodic.work = PERIODICACTION;
 
-	ZeroMemory(&periodic.m_over, sizeof(WSAOVERLAPPED));
-	periodic.m_wsabuf.buf = periodic.m_iobuf;
-	periodic.m_wsabuf.len = sizeof(periodic.m_wsabuf.buf);
-	periodic.work = PERIODICACTION;
-
 	while (true) {
 		chrono::system_clock::time_point t1 = chrono::system_clock::now();
 		count = (count + 1) % 60;
@@ -1042,7 +1051,6 @@ void Timer_Thread() {
 					}
 				}
 			}
-
 			for (int id : d.m_JoinIdList) {
 				if (g_clients[id].hp <= 0)
 					continue;
@@ -1051,11 +1059,11 @@ void Timer_Thread() {
 					PostQueuedCompletionStatus(ghiocp, 1, id, &periodic.m_over);
 				}
 				PxControllerFilters filter;
-				g_clients[id].mCapsuleController->move(PxVec3(g_clients[id].moveP.x, g_clients[id].moveP.y, g_clients[id].moveP.z), 0.001f, FRAME_PER_SEC, filter);
+				g_clients[id].mCapsuleController->move(PxVec3(g_clients[id].moveVec.x, g_clients[id].moveVec.y, g_clients[id].moveVec.z), 0.001f, FRAME_PER_SEC, filter);
 				g_clients[id].x = g_clients[id].mCapsuleController->getPosition().x;
-				g_clients[id].y = g_clients[id].mCapsuleController->getPosition().y;
 				g_clients[id].z = g_clients[id].mCapsuleController->getPosition().z;
 			}
+			
 			d.m_PhysXModule->stepPhysics(FRAME_PER_SEC);
 		}
 		chrono::system_clock::time_point t2 = chrono::system_clock::now();
@@ -1069,7 +1077,7 @@ int main()
 {
 	vector <thread> w_threads;
 	Initialize();
-	for (int i = 0; i < 4; ++i)
+	for (int i = 0; i < 2; ++i)
 		w_threads.push_back(thread{ worker_thread });
 
 	thread a_thread{ Accept_Threads };

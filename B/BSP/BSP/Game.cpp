@@ -405,7 +405,7 @@ void Game::DeferredDraw(const GameTimer & gt)
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYERGUN]);
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PARTICLE]);
 
-	mCommandList->SetPipelineState(mPSOs["DeferredPlayerResource"].Get());
+	//mCommandList->SetPipelineState(mPSOs["DeferredPlayerResource"].Get());
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYER]);
 
 	mCommandList->SetPipelineState(mPSOs["DeferredTransparentResource"].Get());
