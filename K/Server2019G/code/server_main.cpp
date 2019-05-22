@@ -24,7 +24,7 @@
 using namespace std;
 inline void SendPacket(int id, void * ptr);
 
-enum kind_of_work { RECV = 1, GAMEACTION, PERIODICACTION };
+enum kind_of_work { RECV = 1, GAMEACTION, PERIODICACTION, PXACTION };
 
 struct EXOVER {
 	WSAOVERLAPPED m_over;
@@ -51,7 +51,7 @@ public:
 	float z;
 	atomic<char> attakChk;
 
-	atomic<char> hp;
+	atomic<int> hp;
 	char team;
 
 	atomic<int> m_RoomNumber;
@@ -210,25 +210,31 @@ public:
 		delete m_PhysXModule;
 	}
 
-	void attack(PxVec3 pos, PxVec3 rayDir, array <Client, MAX_USER>& clients) {
-		pair<int, PxVec3> hituser = m_PhysXModule->doRaycast(pos, rayDir, 1000.0f);
-		if (hituser.first == -1)
+	void attack(const PxVec3& pos, const PxVec3& rayDir, array <Client, MAX_USER>& clients, int id) {
+		pair<int, PxVec3> hitTarget = m_PhysXModule->doRaycast(pos, rayDir, 1000.0f, id);
+		//아무것도 체크되지 않았을 경우
+		if (hitTarget.first == -1)
 			return;
-		clients[hituser.first].hp -= 10;
+		if (hitTarget.first == -2) {
+		//유저 캐릭터가 체크되지 않은 경우. 현재 맵이 구현되지 않아 수행불가
+			return;
+		}
+		clients[hitTarget.first].hp -= 10;
 
-		if (clients[hituser.first].hp <= 0) {
+		//죽었을때 캡슐을 릴리즈하든 캡슐액터를 릴리즈하든 할 것.
+		if (clients[hitTarget.first].hp <= 0) {
 			sc_gameover_packet p;
 			p.size = sizeof(sc_gameover_packet);
-			if (clients[hituser.first].team == RED_READER) {
+			if (clients[hitTarget.first].team == RED_READER) {
 				p.type = SC_GAMEOVER_BLUEWIN;
 				//delete m_PhysXModule;
 			}
-			else if (clients[hituser.first].team == BLUE_READER) {
+			else if (clients[hitTarget.first].team == BLUE_READER) {
 				p.type = SC_GAMEOVER_REDWIN;
 				//delete m_PhysXModule;
 			}
 			else {
-
+				p.type = SC_DEAD;
 			}
 			for(int d : m_JoinIdList)
 				SendPacket(d, &p);
@@ -237,11 +243,20 @@ public:
 			sc_hit_packet hitp;
 			hitp.type = SC_HIT;
 			hitp.size = sizeof(sc_hit_packet);
-			hitp.hp = clients[hituser.first].hp;
-			hitp.x = hituser.second.x;
-			hitp.y = hituser.second.y;
-			hitp.z = hituser.second.z;
-			SendPacket(hituser.first, &hitp);
+			hitp.hp = clients[hitTarget.first].hp;
+			SendPacket(hitTarget.first, &hitp);
+		}
+		sc_particleposition_packet ppp;
+		ppp.type = SC_PARTICLEPOS;
+		ppp.size = sizeof(sc_particleposition_packet);
+		ppp.cx = pos.x;
+		ppp.cy = pos.y;
+		ppp.cz = pos.z;
+		ppp.px = hitTarget.second.x;
+		ppp.py = hitTarget.second.y;
+		ppp.pz = hitTarget.second.z;
+		for (int d : m_JoinIdList) {
+			SendPacket(d, &ppp);
 		}
 	}
 };
@@ -724,8 +739,8 @@ inline void ProcessPacket(int id, char *packet)
 			//sc_usercondition_packet p;
 			//p.size = sizeof(sc_usercondition_packet);
 			//p.type = SC_GO;
-			//for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
-			//	SendPacket(d, &p);
+			//for (int g_rooms : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
+			//	SendPacket(g_rooms, &p);
 			//}
 		}
 		else {
@@ -788,7 +803,7 @@ inline void ProcessPacket(int id, char *packet)
 	{
 		cs_attack_packet* packet_atk = reinterpret_cast<cs_attack_packet*>(packet);
 		if(g_rooms[g_clients[id].m_RoomNumber].m_RoomStatus == RS_PLAY)
-			g_rooms[g_clients[id].m_RoomNumber].attack(PxVec3(packet_atk->cameraPosx, packet_atk->cameraPosy, packet_atk->cameraPosz), PxVec3(packet_atk->lx, packet_atk->ly, packet_atk->lz), g_clients);
+			g_rooms[g_clients[id].m_RoomNumber].attack(PxVec3(packet_atk->cameraPosx, packet_atk->cameraPosy, packet_atk->cameraPosz), PxVec3(packet_atk->lx, packet_atk->ly, packet_atk->lz), g_clients, id);
 		break;
 	}
 	case CS_ANGLE:
@@ -943,16 +958,72 @@ void worker_thread()
 				break;
 			}
 			g_clients[key].moveVec.y = 0;
+			PxControllerFilters filter;
+			g_clients[key].mCapsuleController->move(PxVec3(g_clients[key].moveVec.x, g_clients[key].moveVec.y, g_clients[key].moveVec.z), 0.001f, FRAME_PER_SEC, filter);
+			g_clients[key].x = g_clients[key].mCapsuleController->getPosition().x;
+			g_clients[key].z = g_clients[key].mCapsuleController->getPosition().z;
 		}
-		else if (PERIODICACTION == p_over->work) {
-			sc_movestatus_packet p;
-			p.size = sizeof(sc_movestatus_packet);
-			p.type = g_clients[key].m_MoveDirection;
-			wcscpy(p.id, g_clients[key].m_ID.c_str());
-			p.x = g_clients[key].x;
-			p.y = 0;
-			p.z = g_clients[key].z;
-			SendPacket(key, &p);
+		//else if (PERIODICACTION == p_over->work) {
+		//	sc_movestatus_packet p;
+		//	p.size = sizeof(sc_movestatus_packet);
+		//	p.type = g_clients[key].m_MoveDirection;
+		//	wcscpy(p.id, g_clients[key].m_ID.c_str());
+		//	p.x = g_clients[key].x;
+		//	p.y = 0;
+		//	p.z = g_clients[key].z;
+		//	SendPacket(key, &p);
+		//}
+		else if (PXACTION == p_over->work) {
+			for (int id : g_rooms[key].m_JoinIdList) {
+				if (g_clients[id].hp <= 0)
+					continue;
+				PxVec3 spdL = g_clients[id].look * 600.0f / 60.0f;
+				PxVec3 spdR = g_clients[id].right * 600.0f / 60.0f;
+				switch (g_clients[id].m_MoveDirection) {
+				case LEFT_DR:
+					g_clients[id].moveVec.x = -spdR.x;
+					g_clients[id].moveVec.z = -spdR.z;
+					break;
+				case RIGHT_DR:
+					g_clients[id].moveVec.x = spdR.x;
+					g_clients[id].moveVec.z = spdR.z;
+					break;
+				case UP_DR:
+					g_clients[id].moveVec.x = spdL.x;
+					g_clients[id].moveVec.z = spdL.z;
+					break;
+				case DOWN_DR:
+					g_clients[id].moveVec.x = -spdL.x;
+					g_clients[id].moveVec.z = -spdL.z;
+					break;
+				case ULEFT_DR:
+					g_clients[id].moveVec.x = spdL.x - spdR.x;
+					g_clients[id].moveVec.z = spdL.z - spdR.z;
+					break;
+				case URIGHT_DR:
+					g_clients[id].moveVec.x = spdL.x + spdR.x;
+					g_clients[id].moveVec.z = spdL.z + spdR.z;
+					break;
+				case DLEFT_DR:
+					g_clients[id].moveVec.x = -spdL.x - spdR.x;
+					g_clients[id].moveVec.z = -spdL.z - spdR.z;
+					break;
+				case DRIGHT_DR:
+					g_clients[id].moveVec.x = -spdL.x + spdR.x;
+					g_clients[id].moveVec.z = -spdL.z + spdR.z;
+					break;
+				case STOP_DR:
+					g_clients[id].moveVec.x = 0;
+					g_clients[id].moveVec.z = 0;
+					break;
+				}
+				g_clients[id].moveVec.y = 0;
+				PxControllerFilters filter;
+				g_clients[id].mCapsuleController->move(PxVec3(g_clients[id].moveVec.x, g_clients[id].moveVec.y, g_clients[id].moveVec.z), 0.001f, FRAME_PER_SEC, filter);
+				g_clients[id].x = g_clients[id].mCapsuleController->getPosition().x;
+				g_clients[id].z = g_clients[id].mCapsuleController->getPosition().z;
+			}
+			g_rooms[key].m_PhysXModule->stepPhysics(FRAME_PER_SEC);
 		}
 		else
 		{
@@ -1024,7 +1095,7 @@ void Accept_Threads()
 void Timer_Thread() {
 	double delay;
 	int count = 0;
-	EXOVER over, periodic;
+	EXOVER over, periodic, pxact;
 	ZeroMemory(&over.m_over, sizeof(WSAOVERLAPPED));
 	over.m_wsabuf.buf = over.m_iobuf;
 	over.m_wsabuf.len = sizeof(over.m_wsabuf.buf);
@@ -1035,36 +1106,36 @@ void Timer_Thread() {
 	periodic.m_wsabuf.len = sizeof(periodic.m_wsabuf.buf);
 	periodic.work = PERIODICACTION;
 
+	ZeroMemory(&pxact.m_over, sizeof(WSAOVERLAPPED));
+	pxact.m_wsabuf.buf = pxact.m_iobuf;
+	pxact.m_wsabuf.len = sizeof(pxact.m_wsabuf.buf);
+	pxact.work = PXACTION;
+
 	while (true) {
 		chrono::system_clock::time_point t1 = chrono::system_clock::now();
 		count = (count + 1) % 60;
-		for (Room& d : g_rooms) {
-			if (d.m_RoomStatus != RS_PLAY) continue;
-
-			if (d.m_StartCount > 0) {
-				if (--(d.m_StartCount) == 0) {
+		for (int roomidx = 0; roomidx < MAX_ROOMNUMBER; ++roomidx) {
+			if (g_rooms[roomidx].m_RoomStatus != RS_PLAY) continue;
+			if (g_rooms[roomidx].m_StartCount > 0) {
+				if (--(g_rooms[roomidx].m_StartCount) == 0) {
 					sc_usercondition_packet p;
 					p.size = sizeof(sc_usercondition_packet);
 					p.type = SC_GO;
-					for (auto idx : d.m_JoinIdList) {
+					for (auto idx : g_rooms[roomidx].m_JoinIdList) {
 						SendPacket(idx, &p);
 					}
 				}
 			}
-			for (int id : d.m_JoinIdList) {
-				if (g_clients[id].hp <= 0)
-					continue;
-				PostQueuedCompletionStatus(ghiocp, 1, id, &over.m_over);
-				if (!count) {
-					PostQueuedCompletionStatus(ghiocp, 1, id, &periodic.m_over);
-				}
-				PxControllerFilters filter;
-				g_clients[id].mCapsuleController->move(PxVec3(g_clients[id].moveVec.x, g_clients[id].moveVec.y, g_clients[id].moveVec.z), 0.001f, FRAME_PER_SEC, filter);
-				g_clients[id].x = g_clients[id].mCapsuleController->getPosition().x;
-				g_clients[id].z = g_clients[id].mCapsuleController->getPosition().z;
-			}
-			
-			d.m_PhysXModule->stepPhysics(FRAME_PER_SEC);
+
+			PostQueuedCompletionStatus(ghiocp, 1, roomidx, &pxact.m_over);
+			//for (int id : g_rooms[roomidx].m_JoinIdList) {
+			//	if (g_clients[id].hp <= 0)
+			//		continue;
+			//	PostQueuedCompletionStatus(ghiocp, 1, id, &over.m_over);
+			//	if (!count) {
+			//		PostQueuedCompletionStatus(ghiocp, 1, id, &periodic.m_over);
+			//	}
+			//}
 		}
 		chrono::system_clock::time_point t2 = chrono::system_clock::now();
 		chrono::duration<double> sptime = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
@@ -1077,7 +1148,7 @@ int main()
 {
 	vector <thread> w_threads;
 	Initialize();
-	for (int i = 0; i < 2; ++i)
+	for (int i = 0; i < 4; ++i)
 		w_threads.push_back(thread{ worker_thread });
 
 	thread a_thread{ Accept_Threads };

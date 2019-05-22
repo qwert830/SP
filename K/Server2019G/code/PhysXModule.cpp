@@ -72,28 +72,36 @@ void PhysXModule::setGravity(const PxVec3& gravityP)
 	mScene->unlockWrite();
 }
 
-pair<int,PxVec3> PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange)
+pair<int,PxVec3> PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange, int id)
 {
 
 	//레이가 관통하여 여러번 체크하고싶다면 히트버퍼를 배열로 선언할 것
-	PxRaycastHit buffer;
-	//왼쪽은 버퍼, 오른쪽은 버퍼크기
-	PxRaycastBuffer hit(&buffer, 1);
-	//첫 히트시 바로 종료하는 옵션이 밑의설정이므로 여러번 히트시키고 싶다면 문서를 참고하여 설정을 변경해야 할 것
-	PxQueryFilterData PxQFData;
-	PxQFData.flags |= PxQueryFlag::eANY_HIT;
+	PxRaycastHit hits[30];
+	//왼쪽은 버퍼, 오른쪽은 버퍼갯수
+	PxRaycastBuffer buf(hits, 2);
 	//레이캐스트 함수
 	mScene->lockWrite();
 	mScene->lockRead();
-	bool status = mScene->raycast(cameraPosition, rayDirection, rayRange, hit, PxHitFlags(PxHitFlag::eDEFAULT), PxQFData);
+	bool status = mScene->raycast(cameraPosition, rayDirection, rayRange, buf);
 	mScene->unlockRead();
 	mScene->unlockWrite();
 	//밑의 조건문에 레이캐스트 성공시 행동을 추가, 실패할 경우까지 체크하려면 else문까지 추가
 	if (status) {
-		//hit이아니라 buffer를 이용할 것
-		//예) buffer.actor->release();
-		if (buffer.actor->userData)
-			return pair<int, PxVec3>(reinterpret_cast<int*>(buffer.actor->userData)[0], buffer.position);
+		//buf이아니라 hits를 이용할 것
+		//예) hits.actor->release();
+		
+		for (int i = 0; i < buf.nbTouches; ++i) {
+			if (buf.touches[i].actor->userData) {
+				if (id != reinterpret_cast<int*>(buf.touches[i].actor->userData)[0]) {
+					return pair<int, PxVec3>
+						(reinterpret_cast<int*>(buf.touches[i].actor->userData)[0],
+							buf.touches[i].position);
+				}
+			}	
+			else {
+				return pair<int, PxVec3>(-2, buf.touches[i].position);
+			}
+		}
 	}
 	return pair<int, PxVec3>(-1, PxVec3(0, 0, 0));
 }

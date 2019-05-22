@@ -14,10 +14,10 @@ public:
 	void onShapeHit(const PxControllerShapeHit &hit) {
 
 	}
-	void 	onControllerHit(const PxControllersHit &hit) {
+	void onControllerHit(const PxControllersHit &hit) {
 
 	}
-	void 	onObstacleHit(const PxControllerObstacleHit &hit) {
+	void onObstacleHit(const PxControllerObstacleHit &hit) {
 	}
 };
 
@@ -48,6 +48,6 @@ public:
 	//void setCapsuleController(PxCapsuleController* mCapsuleController, PxExtendedVec3 pos, float height, float radius, PxUserControllerHitReport * collisionCallback);
 	PxCapsuleController* setCapsuleController(PxExtendedVec3 pos, float height, float radius, int key);
 	
-	virtual pair<int, PxVec3> doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange);
+	virtual pair<int, PxVec3> doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange, int id);
 };
 
