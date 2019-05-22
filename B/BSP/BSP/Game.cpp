@@ -160,8 +160,8 @@ private:
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 private:
 
-	SCENENAME	mScene = GAME;
-	bool		mGameStart = true;
+	SCENENAME	mScene = ROOM;
+	bool		mGameStart = false;
 
 	Button				mButton;
 	Player				mPlayer;
@@ -405,7 +405,7 @@ void Game::DeferredDraw(const GameTimer & gt)
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYERGUN]);
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PARTICLE]);
 
-	mCommandList->SetPipelineState(mPSOs["DeferredPlayerResource"].Get());
+	//mCommandList->SetPipelineState(mPSOs["DeferredPlayerResource"].Get());
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYER]);
 
 	mCommandList->SetPipelineState(mPSOs["DeferredTransparentResource"].Get());
@@ -1291,6 +1291,7 @@ void Game::BuildShadersAndInputLayout()
 		{ "SIZE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 }
+
 //메쉬 데이터 생성
 void Game::BuildShapeGeometry()
 {
@@ -1474,6 +1475,7 @@ void Game::BuildShapeGeometry()
 
 	mGeometries[geo->Name] = std::move(geo);
 }
+
 //파이프라인 생성
 void Game::BuildPSOs()
 {
@@ -1617,6 +1619,7 @@ void Game::BuildFrameResources()
 			2, (UINT)mRenderItems[GAME].allItems.size() + (UINT)mRenderItems[ROOM].allItems.size(), (UINT)mMaterials.size(), &mInstanceCount[0]));
 	}
 }
+
 //재질 데이터 생성
 void Game::BuildMaterials()
 {
