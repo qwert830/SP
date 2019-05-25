@@ -41,6 +41,8 @@ private:
 	bool mLButtonDown = false;
 	bool mRButtonDown = false;
 	bool mAttack = false;
+	
+	bool mTestMode = false;
 
 	POINT mMousePos;
 
@@ -68,6 +70,7 @@ public:
 	void MoveUpdate(const float& dt);
 	
 	float IsAttack(int index);
+	void SetTestMode(const bool test);
 	void SetTeam(unsigned char team);
 	void SetHP(float hp);
 	float GetMaxHP();

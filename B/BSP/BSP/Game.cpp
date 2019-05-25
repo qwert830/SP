@@ -15,6 +15,8 @@
 
 const float radian = (float)(3.141572f / 180.0f);
 
+const bool testMode = true;
+
 float testTime = 0.0f;
 
 enum SCENENAME
@@ -151,8 +153,8 @@ private:
 	void SetTeam(std::string name, unsigned char team);
 	void SetCurrentHP(std::string name, float hp);
 	void SetCurrentHP(float hp);
-	void SetParticle(XMFLOAT3 pos);
-	void SetParticle(float x, float y, float z);
+	void SetParticle(XMFLOAT3 pos, XMFLOAT3 charPos);
+	void SetParticle(float x, float y, float z, float charX, float charY, float charZ);
 
 	void TeamCheck();
 	void GameStart();
@@ -274,6 +276,11 @@ Game::Game(HINSTANCE hInstance)
 {
 	mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	mSceneBounds.Radius = sqrtf(350.0f*350.0f + 350.0f*350.0f);
+	if (testMode)
+	{
+		mScene = GAME;
+		mGameStart = true;
+	}
 }
 
 Game::~Game()
@@ -306,7 +313,8 @@ bool Game::Initialize()
 	BuildFrameResources();
 	BuildPlayerData();
     BuildPSOs();
-
+	
+	mPlayer.SetTestMode(testMode);
 	mPlayer.mCamera.SetPosition(0.0f, 5.0f, -15.0f);
 	SelectID(0);
 
@@ -976,6 +984,8 @@ void Game::UpdateAttackToServer()
 		atp->ly = look.y;
 		atp->lz = look.z;
 
+		//SetParticle(0, 15, 0);
+
 		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
 	}
 }
@@ -1301,7 +1311,7 @@ void Game::BuildShapeGeometry()
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 20.0f, 20, 40);
 	GeometryGenerator::MeshData uiGrid = geoGen.CreateGrid(10.0f, 10.0f, 2, 2);
 	GeometryGenerator::MeshData quad = geoGen.CreateQuad(-1.0f, 1.0f, 2.0f, 2.0f, 0.0f);
-	GeometryGenerator::MeshData miniBox = geoGen.CreateBox(0.2f, 0.2f, 0.4f, 0);
+	GeometryGenerator::MeshData miniBox = geoGen.CreateBox(0.5f, 0.5f, 1.0f, 0);
 
 	std::vector<ModelData> data;
 	mModelLoader.LoadDataFromFile("Resource//PlayerChar.txt", &data);
@@ -1774,7 +1784,7 @@ void Game::BuildRenderItemsGame()
 	CreateRenderItems("cube", mMapLoader,MAPINFO, GAME, OPAQUEITEM, 1, 11);
 
 	//ÆÄÆ¼Å¬
-	for (int i = 0; i < 10; ++i)
+	for (int i = 0; i < 80; ++i)
 		CreateRenderItems("miniBox", COUNT, GAME, PARTICLE, 1, 17);
 }
 
@@ -2009,6 +2019,14 @@ void Game::CreateRenderItems(const char * geoName, int instancesCount, SCENENAME
 	{
 		TempRitem->Instances[i].IsDraw = isDraw;
 		TempRitem->Instances[i].World = MathHelper::Identity4x4();
+		if (itemType == PARTICLE)
+		{
+			float sx = (float)(rand() % 40 + 1) / 5.0f;
+			float sy = (float)(rand() % 40 + 1) / 5.0f;
+			float sz = (float)(rand() % 40 + 1) / 5.0f;
+			XMStoreFloat4x4(&TempRitem->Instances[i].World,
+				XMMatrixScaling(sx, sy, sz));
+		}
 		TempRitem->Instances[i].TexTransform = MathHelper::Identity4x4();
 		TempRitem->Instances[i].MaterialIndex = matIndex;
 	}
@@ -2264,13 +2282,13 @@ void Game::SetCurrentHP(float hp)
 	mPlayer.SetHP(hp);
 }
 
-void Game::SetParticle(XMFLOAT3 pos)
+void Game::SetParticle(XMFLOAT3 pos, XMFLOAT3 charPos)
 {
-	mParticle[mParticleCount++].SetStartPaticle(pos, mPlayer.GetCameraPosition());
+	mParticle[mParticleCount++].SetStartPaticle(pos, charPos);
 	mParticleCount = mParticleCount % 10;
 }
 
-void Game::SetParticle(float x, float y, float z)
+void Game::SetParticle(float x, float y, float z, float charX, float charY, float charZ)
 {
 	mParticle[mParticleCount++].SetStartPaticle(XMFLOAT3(x,y,z), mPlayer.GetCameraPosition());
 	mParticleCount = mParticleCount % 10;

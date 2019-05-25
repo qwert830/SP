@@ -18,10 +18,10 @@ void Particle::SetPosition(XMFLOAT3 pos)
 		d = pos;
 }
 
-void Particle::SetMoveSpeed(XMFLOAT3 pos, XMFLOAT3 cameraPos)
+void Particle::SetMoveSpeed(XMFLOAT3 pos, XMFLOAT3 charPos)
 {
 	XMFLOAT3 look;
-	XMStoreFloat3(&look, XMVector3Normalize( (XMLoadFloat3(&cameraPos) - XMLoadFloat3(&pos))));
+	XMStoreFloat3(&look, XMVector3Normalize( (XMLoadFloat3(&charPos) - XMLoadFloat3(&pos))));
 	for (int i = 0; i < COUNT; ++i)
 	{
 		float dx = (float)(rand() % 1000) / 150.0f;
@@ -45,10 +45,10 @@ void Particle::SetDraw()
 	}
 }
 
-void Particle::SetStartPaticle(XMFLOAT3 pos, XMFLOAT3 cameraPos)
+void Particle::SetStartPaticle(XMFLOAT3 pos, XMFLOAT3 charPos)
 {
 	SetPosition(pos);
-	SetMoveSpeed(pos, cameraPos);
+	SetMoveSpeed(pos, charPos);
 	SetDraw();
 	mIsDrawParticle = true;
 }
@@ -61,7 +61,7 @@ void Particle::Update(const GameTimer & gt)
 		auto t = gt.DeltaTime();
 		for (int i = 0; i < COUNT; ++i)
 		{
-			mTime[i] += (2 + 0.1f*(fabsf(mMoveSpeed[i].x) + fabsf(mMoveSpeed[i].y) + fabsf(mMoveSpeed[i].z))) * t;
+			mTime[i] += (3 + 0.1f*(fabsf(mMoveSpeed[i].x) + fabsf(mMoveSpeed[i].y) + fabsf(mMoveSpeed[i].z))) * t;
 			if (mTime[i] > 1)
 			{
 				mIsDraw[i] = -1;
@@ -73,7 +73,7 @@ void Particle::Update(const GameTimer & gt)
 
 			float x = mStartPosition.x + mMoveSpeed[i].x * mTime[i]*3;
 			float y = mStartPosition.y + mMoveSpeed[i].y * mTime[i]*2;
-			float z = mStartPosition.z + mMoveSpeed[i].z * mTime[i]*3;
+			float z = mStartPosition.z + mMoveSpeed[i].z * mTime[i]*2;
 
 			mCurrentPosition[i] = XMFLOAT3(x, y, z);
 		}

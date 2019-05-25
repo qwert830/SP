@@ -1,5 +1,5 @@
 #pragma once
-#define COUNT 100
+#define COUNT 20
 #include"d3dUtil.h"
 #include"GameTimer.h"
 using namespace DirectX;
@@ -22,7 +22,7 @@ public:
 	void SetPosition(XMFLOAT3 pos);
 	void SetMoveSpeed(XMFLOAT3 pos, XMFLOAT3 cameraPos);
 	void SetDraw();
-	void SetStartPaticle(XMFLOAT3 pos, XMFLOAT3 cameraPos);
+	void SetStartPaticle(XMFLOAT3 pos, XMFLOAT3 charPos);
 	void Update(const GameTimer& gt);
 	XMFLOAT3 GetCurrentPosition(int index);
 	XMFLOAT3 GetMoveSpeed(int index);

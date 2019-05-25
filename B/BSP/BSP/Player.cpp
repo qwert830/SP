@@ -204,7 +204,8 @@ void Player::Update(const GameTimer& gt)
 {
 	const float dt = gt.DeltaTime();
 	AttackUpdate(dt);
-	//MoveUpdate(dt); 
+	if (mTestMode)
+		MoveUpdate(dt);
 	mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + mCameraOffsetY, mVector[mPlayerID].mPosition.z);
 	mCamera.UpdateViewMatrix();
 
@@ -329,6 +330,11 @@ float Player::IsAttack(int i)
 	if (mAttackCools[i] < ATTACK_DELAY)
 		return mAttackCools[i]*2;
 	return -1.0f;
+}
+
+void Player::SetTestMode(const bool test)
+{
+	mTestMode = test;
 }
 
 void Player::SetTeam(unsigned char team)
