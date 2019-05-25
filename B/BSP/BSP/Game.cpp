@@ -15,7 +15,7 @@
 
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = true;
+const bool testMode = false;
 
 float testTime = 0.0f;
 
@@ -2617,7 +2617,7 @@ void Game::ProcessPacket(char * ptr)
 	}
 	case SC_HIT:
 		sc_hit_packet* hp = reinterpret_cast<sc_hit_packet*>(ptr);
-		SetCurrentHP(hp->hp);
+		SetCurrentHP((float)hp->hp);
 		break;
 	}
 

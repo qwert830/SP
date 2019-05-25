@@ -144,12 +144,12 @@ void MapLoader::LoadPlayerData()
 
 int MapLoader::GetSizeofMapData()
 {
-	return mMapInfo.size();
+	return (int)mMapInfo.size();
 }
 
 int MapLoader::GetSizeofPlayerData()
 {
-	return mPlayerInfo.size();
+	return (int)mPlayerInfo.size();
 }
 
 MapData MapLoader::GetMapData(int index)

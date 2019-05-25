@@ -19,7 +19,6 @@ void AnimationManager::Init()
 void AnimationManager::LoadDataFromFile(const char* name, const char* aniName)
 {
 	string arr;
-	XMFLOAT4X4 m;
 	char temp[100];
 	fstream f(name);
 	float tx, ty, tz, tw, sx, sy, sz, sw, qx, qy, qz, qw;
@@ -130,7 +129,7 @@ void AnimationManager::LoadDataFromFile(const char* name, const char* aniName)
 
 int AnimationManager::GetSize(const char* aniName)
 {
-	return data[aniName].size();
+	return (int)data[aniName].size();
 }
 
 XMFLOAT4X4 AnimationManager::GetData(const char * aniName, int index)

@@ -13,7 +13,6 @@ ModelLoader::~ModelLoader()
 
 void ModelLoader::LoadDataFromFile(const char * name, std::vector<ModelData>* out)
 {
-	float x, y, z, u, v, nx, ny, nz, b1, b2, b3, b4, w1, w2, w3, w4;
 	char temp[100];
 	std::string arr;
 	std::fstream f(name);

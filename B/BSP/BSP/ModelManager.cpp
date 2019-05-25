@@ -244,7 +244,7 @@ HRESULT ModelManager::LoadFBX(const char* filename, std::vector<ModelData>* pOut
 					data.z = (float)pVertices[iControlPointIndex].mData[2];
 					data.w = (float)pVertices[iControlPointIndex].mData[3];
 
-					mControlPoints[iControlPointIndex] = pOutData->size();
+					mControlPoints[iControlPointIndex] = (int)pOutData->size();
 
 					pOutData->push_back(data);
 				}
@@ -317,14 +317,14 @@ void ModelManager::ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxSce
 			{
 				int vertexid = mControlPoints[currCluster->GetControlPointIndices()[i]];
 				
-				if ((*pOutData)[vertexid].boneids.x == 0) (*pOutData)[vertexid].boneids.x = currJointIndex;
-				if ((*pOutData)[vertexid].boneids.y == 0) (*pOutData)[vertexid].boneids.y = currJointIndex;
-				if ((*pOutData)[vertexid].boneids.z == 0) (*pOutData)[vertexid].boneids.z = currJointIndex;
-				if ((*pOutData)[vertexid].boneids.w == 0) (*pOutData)[vertexid].boneids.w = currJointIndex;
-				if ((*pOutData)[vertexid].weights.x == 0) (*pOutData)[vertexid].weights.x = currCluster->GetControlPointWeights()[i];
-				if ((*pOutData)[vertexid].weights.y == 0) (*pOutData)[vertexid].weights.y = currCluster->GetControlPointWeights()[i];
-				if ((*pOutData)[vertexid].weights.z == 0) (*pOutData)[vertexid].weights.z = currCluster->GetControlPointWeights()[i];
-				if ((*pOutData)[vertexid].weights.w == 0) (*pOutData)[vertexid].weights.w = currCluster->GetControlPointWeights()[i];
+				if ((*pOutData)[vertexid].boneids.x == 0) (*pOutData)[vertexid].boneids.x = (float)currJointIndex;
+				if ((*pOutData)[vertexid].boneids.y == 0) (*pOutData)[vertexid].boneids.y = (float)currJointIndex;
+				if ((*pOutData)[vertexid].boneids.z == 0) (*pOutData)[vertexid].boneids.z = (float)currJointIndex;
+				if ((*pOutData)[vertexid].boneids.w == 0) (*pOutData)[vertexid].boneids.w = (float)currJointIndex;
+				if ((*pOutData)[vertexid].weights.x == 0) (*pOutData)[vertexid].weights.x = (float)currCluster->GetControlPointWeights()[i];
+				if ((*pOutData)[vertexid].weights.y == 0) (*pOutData)[vertexid].weights.y = (float)currCluster->GetControlPointWeights()[i];
+				if ((*pOutData)[vertexid].weights.z == 0) (*pOutData)[vertexid].weights.z = (float)currCluster->GetControlPointWeights()[i];
+				if ((*pOutData)[vertexid].weights.w == 0) (*pOutData)[vertexid].weights.w = (float)currCluster->GetControlPointWeights()[i];
 
 
 				BlendingIndexWeightPair currBlendingIndexWeightPair;
@@ -345,7 +345,7 @@ void ModelManager::ProcessJointsAndAnim(FbxNode* inNode, FbxMesh* inMesh, FbxSce
 
 			FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
 			FbxTime end = takeInfo->mLocalTimeSpan.GetStop();
-			mAnimationLength = end.GetFrameCount(FbxTime::eFrames24) - start.GetFrameCount(FbxTime::eFrames24) + 1;
+			mAnimationLength = (int)(end.GetFrameCount(FbxTime::eFrames24) - start.GetFrameCount(FbxTime::eFrames24) + 1);
 			Keyframe** currAnim = &mSkeleton.mJoints[currJointIndex].mAnimation;
 
 			std::cout << "Bone No : " << clusterIndex << " , Bone Name : " << currJointName << std::endl;
@@ -411,6 +411,7 @@ unsigned int ModelManager::FindJointIndexUsingName(std::string inNode)
 			return i;
 		}
 	}
+	return 0;
 }
 
 void ModelManager::ProcessSkeletonHierarchyRecursively(FbxNode* inNode, int myIndex, int inParentIndex)
@@ -424,7 +425,7 @@ void ModelManager::ProcessSkeletonHierarchyRecursively(FbxNode* inNode, int myIn
 	}
 	for (int i = 0; i < inNode->GetChildCount(); i++)
 	{
-		ProcessSkeletonHierarchyRecursively(inNode->GetChild(i), mSkeleton.mJoints.size(), myIndex);
+		ProcessSkeletonHierarchyRecursively(inNode->GetChild(i), (int)mSkeleton.mJoints.size(), myIndex);
 	}
 }
 
