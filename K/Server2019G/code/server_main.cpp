@@ -333,7 +333,7 @@ public:
 			}
 			else {
 				p.type = SC_DEAD;
-				wcscpy(p.id, clients[id].m_ID.c_str());
+				wcscpy(p.id, clients[hitTarget.first].m_ID.c_str());
 			}
 			for(int d : m_JoinIdList)
 				SendPacket(d, &p);
