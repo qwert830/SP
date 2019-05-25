@@ -77,7 +77,7 @@ public:
 	void	SetTeam(unsigned char team);
 	void	SetAttack(int index);
 	void	SetTestMode(const bool test);
-	void	SetSurvival(const bool survival);
+	void	SetSurvival(int index, const bool survival);
 
 	bool	GetAttackState();
 	float	IsAttack(int index);
@@ -87,6 +87,7 @@ public:
 	float	GetSurvival();
 	const char	GetPlayerID();
 	unsigned char GetMoveState();
+	unsigned char GetPlayerTeam();
 
 	DirectX::XMFLOAT3 GetPlayerLookVector();
 	DirectX::XMFLOAT3 GetPlayerRightVector();

@@ -986,8 +986,6 @@ void Game::UpdateAttackToServer()
 		atp->ly = look.y;
 		atp->lz = look.z;
 
-		//SetParticle(0, 15, 0);
-
 		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
 	}
 }
@@ -1033,7 +1031,9 @@ void Game::LoadTextures()
 		"RedTeamTex",
 		"BlueTeamTex",
 		"HPTex",
-		"ParticleTex"
+		"ParticleTex",
+		"WinTex",
+		"LoseTex"
 	};
 
 	std::vector<std::wstring> fileNames =
@@ -1056,7 +1056,9 @@ void Game::LoadTextures()
 		L"Resource/REDTEAM.dds",
 		L"Resource/BLUETEAM.dds",
 		L"Resource/HP.dds",
-		L"Resource/Particle.dds"
+		L"Resource/Particle.dds",
+		L"Resource/Win.dds",
+		L"Resource/Lose.dds",
 	};
 
 	for (int i = 0; i < texNames.size(); ++i)
@@ -1116,7 +1118,7 @@ void Game::BuildInstancingRootSignature()
 	// µð½ºÅ©¸³ÅÍ ¹Ù²Ü´í ¼ÎÀÌ´õ ÄÚµå¸¦ ²À ¹Ù²ÙÀÚ Á«¶ó..
 	int num = 0;
 
-	int tex = 18;
+	int tex = 20;
 	CD3DX12_DESCRIPTOR_RANGE texTable;
 	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, tex, num, 0);
 	num += tex;
@@ -1203,7 +1205,9 @@ void Game::BuildDescriptorHeaps()
 		mTextures["RedTeamTex"]->Resource,
 		mTextures["BlueTeamTex"]->Resource,
 		mTextures["HPTex"]->Resource,
-		mTextures["ParticleTex"]->Resource
+		mTextures["ParticleTex"]->Resource,
+		mTextures["WinTex"]->Resource,
+		mTextures["LoseTex"]->Resource
 	};
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -1757,6 +1761,26 @@ void Game::CreateUIItemsGame()
 	mRenderItems[GAME].renderItems[UI].push_back(UIRitem2.get());
 	mRenderItems[GAME].allItems.push_back(std::move(UIRitem2));
 
+	auto UIRitem3 = std::make_unique<RenderItem>();
+	UIRitem3->World = MathHelper::Identity4x4();
+	UIRitem3->TexTransform = MathHelper::Identity4x4();
+	UIRitem3->ObjCBIndex = mObjectCount++;
+	UIRitem3->Mat = mMaterials["seafloor0"].get();
+	UIRitem3->Geo = mGeometries["shapeGeo"].get();
+	UIRitem3->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	UIRitem3->InstanceCount = 0;
+	UIRitem3->IndexCount = UIRitem3->Geo->DrawArgs["uiGrid"].IndexCount;
+	UIRitem3->StartIndexLocation = UIRitem3->Geo->DrawArgs["uiGrid"].StartIndexLocation;
+	UIRitem3->BaseVertexLocation = UIRitem3->Geo->DrawArgs["uiGrid"].BaseVertexLocation;
+
+	UIRitem3->Instances.resize(1);
+	UIRitem3->Instances[0].UIPos = XMFLOAT4(-0.5f, 0.75f, 0.5f, 0.25f);
+	UIRitem3->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	UIRitem3->Instances[0].MaterialIndex = 18;
+
+	mInstanceCount.push_back((unsigned int)UIRitem3->Instances.size());
+	mRenderItems[GAME].renderItems[UI].push_back(UIRitem3.get());
+	mRenderItems[GAME].allItems.push_back(std::move(UIRitem3));
 }
 
 void Game::BuildRenderItemsGame()
@@ -2315,7 +2339,7 @@ void Game::GameStart()
 {
 	mTime = 600.0f;
 	mRenderItems[GAME].renderItems[UI][1]->Instances[0].UIPos = XMFLOAT4(-0.2f, -0.78f, 0.2f, -0.88f);
-	mPlayer.SetSurvival(true);
+	mPlayer.SetSurvival(0, true);
 
 	mGameStart = true;
 }
@@ -2642,8 +2666,42 @@ void Game::ProcessPacket(char * ptr)
 	}
 	case SC_DEAD:
 	{
-		
-		mPlayer.SetSurvival(false);
+		sc_gameover_packet* dp = reinterpret_cast<sc_gameover_packet*>(ptr);
+		char idbuff[10];
+		wcstombs(idbuff, dp->id, wcslen(dp->id) + 1);
+		int id = mUserID[idbuff];
+		mPlayer.SetSurvival(id, false);
+		break;
+	}
+	case SC_GAMEOVER_REDWIN:
+	{
+		unsigned char t = mPlayer.GetPlayerTeam();
+		if (t == RED_TEAM || t == RED_READER)
+		{
+			mRenderItems[GAME].renderItems[UI][2]->Instances[0].MaterialIndex = 18;
+			mRenderItems[GAME].renderItems[UI][2]->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+		}
+		else
+		{
+			mRenderItems[GAME].renderItems[UI][2]->Instances[0].MaterialIndex = 19;
+			mRenderItems[GAME].renderItems[UI][2]->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+		}
+
+		break;
+	}
+	case SC_GAMEOVER_BLUEWIN:
+	{
+		unsigned char t = mPlayer.GetPlayerTeam();
+		if (t == BLUE_TEAM || t == BLUE_READER)
+		{
+			mRenderItems[GAME].renderItems[UI][2]->Instances[0].MaterialIndex = 18;
+			mRenderItems[GAME].renderItems[UI][2]->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+		}
+		else
+		{
+			mRenderItems[GAME].renderItems[UI][2]->Instances[0].MaterialIndex = 19;
+			mRenderItems[GAME].renderItems[UI][2]->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+		}
 		break;
 	}
 	}

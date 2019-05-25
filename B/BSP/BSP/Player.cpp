@@ -302,6 +302,11 @@ unsigned char Player::GetMoveState()
 	return mMoveState;
 }
 
+unsigned char Player::GetPlayerTeam()
+{
+	return mPlayerTeam;
+}
+
 float Player::GetSuperheat()
 {
 	return mSuperheat;
@@ -349,9 +354,9 @@ void Player::SetTestMode(const bool test)
 	mTestMode = test;
 }
 
-void Player::SetSurvival(const bool survival)
+void Player::SetSurvival(int index, const bool survival)
 {
-	mSurvival[0] = survival;
+	mSurvival[index] = survival;
 }
 
 void Player::SetTeam(unsigned char team)
