@@ -213,8 +213,22 @@ public:
 	void attack(const PxVec3& pos, const PxVec3& rayDir, array <Client, MAX_USER>& clients, int id) {
 		pair<int, PxVec3> hitTarget = m_PhysXModule->doRaycast(pos, rayDir, 1000.0f, id);
 		//아무것도 체크되지 않았을 경우
-		if (hitTarget.first == -1)
+		if (hitTarget.first == -1) {
+			sc_attack_packet atkp;
+			atkp.type = SC_ATTACK;
+			atkp.size = sizeof(sc_attack_packet);
+			wcscpy(atkp.id, clients[id].m_ID.c_str());
+			atkp.cx = 0;
+			atkp.cy = 0;
+			atkp.cz = 0;
+			atkp.px = 0;
+			atkp.py = -10000;
+			atkp.pz = 0;
+			for (int d : m_JoinIdList) {
+				SendPacket(d, &atkp);
+			}
 			return;
+		}
 		if (hitTarget.first == -2) {
 		//유저 캐릭터가 체크되지 않은 경우. 현재 맵이 구현되지 않아 수행불가
 			return;
@@ -227,11 +241,9 @@ public:
 			p.size = sizeof(sc_gameover_packet);
 			if (clients[hitTarget.first].team == RED_READER) {
 				p.type = SC_GAMEOVER_BLUEWIN;
-				//delete m_PhysXModule;
 			}
 			else if (clients[hitTarget.first].team == BLUE_READER) {
 				p.type = SC_GAMEOVER_REDWIN;
-				//delete m_PhysXModule;
 			}
 			else {
 				p.type = SC_DEAD;
@@ -246,17 +258,18 @@ public:
 			hitp.hp = clients[hitTarget.first].hp;
 			SendPacket(hitTarget.first, &hitp);
 		}
-		sc_particleposition_packet ppp;
-		ppp.type = SC_PARTICLEPOS;
-		ppp.size = sizeof(sc_particleposition_packet);
-		ppp.cx = pos.x;
-		ppp.cy = pos.y;
-		ppp.cz = pos.z;
-		ppp.px = hitTarget.second.x;
-		ppp.py = hitTarget.second.y;
-		ppp.pz = hitTarget.second.z;
+		sc_attack_packet atkp;
+		atkp.type = SC_ATTACK;
+		atkp.size = sizeof(sc_attack_packet);
+		wcscpy(atkp.id, clients[id].m_ID.c_str());
+		atkp.cx = pos.x;
+		atkp.cy = pos.y;
+		atkp.cz = pos.z;
+		atkp.px = hitTarget.second.x;
+		atkp.py = hitTarget.second.y;
+		atkp.pz = hitTarget.second.z;
 		for (int d : m_JoinIdList) {
-			SendPacket(d, &ppp);
+			SendPacket(d, &atkp);
 		}
 	}
 };

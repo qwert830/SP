@@ -70,7 +70,7 @@ enum SC_PacketKind {
 	SC_GAMEOVER_BLUEWIN,
 	SC_HIT,
 	SC_DEAD,
-	SC_PARTICLEPOS
+	SC_ATTACK
 };
 #pragma pack (push, 1)
 // 클라이언트 -> 서버------------------------
@@ -195,19 +195,14 @@ struct sc_attack_packet {
 	unsigned char size;
 	unsigned char type;
 	wchar_t id[10];
+	float cx, cy, cz;
+	float px, py, pz;
 };
 
 struct sc_hit_packet {
 	unsigned char size;
 	unsigned char type;
 	unsigned int hp;
-};
-
-struct sc_particleposition_packet {
-	unsigned char size;
-	unsigned char type;
-	float cx, cy, cz;
-	float px, py, pz;
 };
 
 struct sc_gameover_packet {

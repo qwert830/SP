@@ -93,8 +93,7 @@ pair<int,PxVec3> PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVe
 		for (int i = 0; i < buf.nbTouches; ++i) {
 			if (buf.touches[i].actor->userData) {
 				if (id != reinterpret_cast<int*>(buf.touches[i].actor->userData)[0]) {
-					return pair<int, PxVec3>
-						(reinterpret_cast<int*>(buf.touches[i].actor->userData)[0],
+					return pair<int, PxVec3> (reinterpret_cast<int*>(buf.touches[i].actor->userData)[0],
 							buf.touches[i].position);
 				}
 			}	
