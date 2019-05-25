@@ -69,6 +69,12 @@ public:
 		moveVec.x = 0;
 		moveVec.y = 0;
 		moveVec.z = 0;
+		look.x = 0;
+		look.y = 0;
+		look.z = 0;
+		right.x = 0;
+		right.y = 0;
+		right.z = 0;
 		x = 0;
 		y = 0;
 		z = 0;
@@ -174,20 +180,100 @@ public:
 				clients[d].right.z = 0;
 				break;
 			case 2:
+				clients[d].hp = 100;
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(-50, 12, 0), 21.5, 2.5, d);
+				clients[d].team = BLUE_TEAM;
+				p.type = BLUE_TEAM;
+				clients[d].look.x = 0;
+				clients[d].look.y = 0;
+				clients[d].look.z = 1;
+				clients[d].right.x = 1;
+				clients[d].right.y = 0;
+				clients[d].right.z = 0;
 				break;
 			case 3:
+				clients[d].hp = 100;
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(50, 12, 0), 21.5, 2.5, d);
+				clients[d].team = RED_TEAM;
+				p.type = RED_TEAM;
+				clients[d].look.x = 0;
+				clients[d].look.y = 0;
+				clients[d].look.z = 1;
+				clients[d].right.x = 1;
+				clients[d].right.y = 0;
+				clients[d].right.z = 0;
 				break;
 			case 4:
+				clients[d].hp = 100;
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(160, 12, -230), 21.5, 2.5, d);
+				clients[d].team = BLUE_TEAM;
+				p.type = BLUE_TEAM;
+				clients[d].look.x = 0;
+				clients[d].look.y = 0;
+				clients[d].look.z = 1;
+				clients[d].right.x = 1;
+				clients[d].right.y = 0;
+				clients[d].right.z = 0;
 				break;
 			case 5:
+				clients[d].hp = 100;
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(160, 12, 230), 21.5, 2.5, d);
+				clients[d].team = RED_TEAM;
+				p.type = RED_TEAM;
+				clients[d].look.x = 0;
+				clients[d].look.y = 0;
+				clients[d].look.z = 1;
+				clients[d].right.x = 1;
+				clients[d].right.y = 0;
+				clients[d].right.z = 0;
 				break;
 			case 6:
+				clients[d].hp = 100;
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(-90, 12, -230), 21.5, 2.5, d);
+				clients[d].team = BLUE_TEAM;
+				p.type = BLUE_TEAM;
+				clients[d].look.x = 0;
+				clients[d].look.y = 0;
+				clients[d].look.z = 1;
+				clients[d].right.x = 1;
+				clients[d].right.y = 0;
+				clients[d].right.z = 0;
 				break;
 			case 7:
+				clients[d].hp = 100;
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(90, 12, 230), 21.5, 2.5, d);
+				clients[d].team = RED_TEAM;
+				p.type = RED_TEAM;
+				clients[d].look.x = 0;
+				clients[d].look.y = 0;
+				clients[d].look.z = 1;
+				clients[d].right.x = 1;
+				clients[d].right.y = 0;
+				clients[d].right.z = 0;
 				break;
 			case 8:
+				clients[d].hp = 100;
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(190, 12, -50), 21.5, 2.5, d);
+				clients[d].team = BLUE_TEAM;
+				p.type = BLUE_TEAM;
+				clients[d].look.x = 0;
+				clients[d].look.y = 0;
+				clients[d].look.z = 1;
+				clients[d].right.x = 1;
+				clients[d].right.y = 0;
+				clients[d].right.z = 0;
 				break;
 			case 9:
+				clients[d].hp = 100;
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(190, 12, -50), 21.5, 2.5, d);
+				clients[d].team = RED_TEAM;
+				p.type = RED_TEAM;
+				clients[d].look.x = 0;
+				clients[d].look.y = 0;
+				clients[d].look.z = 1;
+				clients[d].right.x = 1;
+				clients[d].right.y = 0;
+				clients[d].right.z = 0;
 				break;
 			}
 			clients[d].m_Condition = US_PLAY;
@@ -247,6 +333,7 @@ public:
 			}
 			else {
 				p.type = SC_DEAD;
+				wcscpy(p.id, clients[id].m_ID.c_str());
 			}
 			for(int d : m_JoinIdList)
 				SendPacket(d, &p);
@@ -776,17 +863,17 @@ inline void ProcessPacket(int id, char *packet)
 			SendPacket(d, &p);
 		}
 		break;
-	case CS_GAMERESULT:
-	{
-		cs_gameresult_packet* packet_gs = reinterpret_cast<cs_gameresult_packet*>(packet);
-		//DBCall_SetData(id, g_clients[id].m_Score + packet_gs->score);
+	//case CS_GAMERESULT:
+	//{
+	//	cs_gameresult_packet* packet_gs = reinterpret_cast<cs_gameresult_packet*>(packet);
+	//	//DBCall_SetData(id, g_clients[id].m_Score + packet_gs->score);
 
-		g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.lock();
-		g_rooms[g_clients[id].m_RoomNumber].quit(id);
-		g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.unlock();
-		g_clients[id].m_RoomNumber = LOBBYNUMBER;
-		break;
-	}
+	//	g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.lock();
+	//	g_rooms[g_clients[id].m_RoomNumber].quit(id);
+	//	g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.unlock();
+	//	g_clients[id].m_RoomNumber = LOBBYNUMBER;
+	//	break;
+	//}
 	case STOP_DR:
 	case LEFT_DR:
 	case RIGHT_DR:

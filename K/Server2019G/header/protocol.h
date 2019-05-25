@@ -75,12 +75,6 @@ enum SC_PacketKind {
 #pragma pack (push, 1)
 // 클라이언트 -> 서버------------------------
 
-struct cs_gameresult_packet {
-	unsigned char size;
-	unsigned char type;
-	int score;
-};
-
 struct cs_userinfo_packet {
 	unsigned char size;
 	unsigned char type;
@@ -208,6 +202,7 @@ struct sc_hit_packet {
 struct sc_gameover_packet {
 	unsigned char size;
 	unsigned char type;
+	wchar_t id[10];
 };
 
 struct sc_teaminfo_packet {
