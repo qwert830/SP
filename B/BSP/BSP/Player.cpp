@@ -329,7 +329,7 @@ bool Player::GetAttackState()
 
 float Player::GetSurvival()
 {
-	if (mSurvival)
+	if (mSurvival[0])
 	{
 		return 1.0f;
 	}
@@ -351,7 +351,7 @@ void Player::SetTestMode(const bool test)
 
 void Player::SetSurvival(const bool survival)
 {
-	mSurvival = survival;
+	mSurvival[0] = survival;
 }
 
 void Player::SetTeam(unsigned char team)

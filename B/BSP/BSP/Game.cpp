@@ -173,7 +173,7 @@ private:
 	AnimationManager	mAnimationManager;
 	FontManager			mFontManager;
 	MapLoader			mMapLoader;
-	Particle			mParticle[10];
+	Particle			mParticle[PARTICLEOBJECT];
 
 	bool mIDSearch[10] = { false, };
 	unsigned int mIDNumber = 0;
@@ -572,7 +572,7 @@ void Game::GameStateDraw(const GameTimer & gt)
 
 void Game::OnMouseDown(WPARAM btnState, int x, int y)
 {
-	if (mGameStart && mScene == GAME )
+	if (mGameStart && mScene == GAME && mPlayer.GetSurvival() >= 1.0f )
 		mPlayer.PlayerMouseDown(btnState, x, y);
 
 	if (mScene == ROOM)
@@ -596,7 +596,7 @@ void Game::OnMouseMove(WPARAM btnState, int x, int y)
 	pos.x = x;
 	pos.y = y;
 	ClientToScreen(mhMainWnd, &pos);
-	if (mScene == GAME && mGameStart)
+	if (mScene == GAME && mGameStart && mPlayer.GetSurvival() >= 1.0f)
 	{
 		mPlayer.PlayerMouseMove(btnState, pos.x, pos.y);
 		DWORD iobyte;
@@ -626,7 +626,7 @@ void Game::OnMouseMove(WPARAM btnState, int x, int y)
 
 void Game::OnKeyboardInput(const GameTimer& gt)
 {
-	if (mScene == GAME && mGameStart)
+	if (mScene == GAME && mGameStart && mPlayer.GetSurvival() >= 1.0f)
 	{
 		mPlayer.PlayerKeyBoardInput(gt);
 		DWORD iobyte;
@@ -994,7 +994,7 @@ void Game::UpdateAttackToServer()
 
 void Game::UpdateParticle(const GameTimer& gt)
 {
-	for (int i = 0; i < 80; ++i)
+	for (int i = 0; i < PARTICLEOBJECT; ++i)
 	{
 		if (mParticle[i].isDraw())
 		{
@@ -1786,7 +1786,7 @@ void Game::BuildRenderItemsGame()
 	CreateRenderItems("cube", mMapLoader,MAPINFO, GAME, OPAQUEITEM, 1, 11);
 
 	//ÆÄÆ¼Å¬
-	for (int i = 0; i < 80; ++i)
+	for (int i = 0; i < PARTICLEOBJECT; ++i)
 		CreateRenderItems("miniBox", COUNT, GAME, PARTICLE, 1, 17);
 }
 
@@ -2642,6 +2642,7 @@ void Game::ProcessPacket(char * ptr)
 	}
 	case SC_DEAD:
 	{
+		
 		mPlayer.SetSurvival(false);
 		break;
 	}

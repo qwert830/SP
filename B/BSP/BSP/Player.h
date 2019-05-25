@@ -41,7 +41,7 @@ private:
 	bool mLButtonDown = false;
 	bool mRButtonDown = false;
 	bool mAttack = false;
-	bool mSurvival = true;
+	bool mSurvival[10] = { true, };
 
 	bool mTestMode = false;
 

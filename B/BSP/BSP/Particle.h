@@ -1,5 +1,6 @@
 #pragma once
 #define COUNT 20
+#define PARTICLEOBJECT 80
 #include"d3dUtil.h"
 #include"GameTimer.h"
 using namespace DirectX;
