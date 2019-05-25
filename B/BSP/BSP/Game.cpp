@@ -150,12 +150,13 @@ private:
 	void Ready(std::string name, int state);
 	void SetPosition(std::string name, XMFLOAT3 position);
 	void SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3 up);
+	void SetAttack(std::string name, XMFLOAT3 particlePos, XMFLOAT3 charPos);
 	void SetTeam(std::string name, unsigned char team);
 	void SetCurrentHP(std::string name, float hp);
 	void SetCurrentHP(float hp);
 	void SetParticle(XMFLOAT3 pos, XMFLOAT3 charPos);
 	void SetParticle(float x, float y, float z, float charX, float charY, float charZ);
-
+	
 	void TeamCheck();
 	void GameStart();
 
@@ -837,6 +838,7 @@ void Game::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.DeltaTime = gt.DeltaTime();
 	mMainPassCB.MaxHP = mPlayer.GetMaxHP();
 	mMainPassCB.CurrentHP = mPlayer.GetCurrentHP();
+	mMainPassCB.Survival = mPlayer.GetSurvival();
 	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
 	mMainPassCB.Lights[0].Direction = mBaseLightDirections[0];
 	mMainPassCB.Lights[0].Strength = { 0.8f, 0.8f, 0.8f };
@@ -992,7 +994,7 @@ void Game::UpdateAttackToServer()
 
 void Game::UpdateParticle(const GameTimer& gt)
 {
-	for (int i = 0; i < 10; ++i)
+	for (int i = 0; i < 80; ++i)
 	{
 		if (mParticle[i].isDraw())
 		{
@@ -2237,6 +2239,13 @@ void Game::SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3
 	};
 }
 
+void Game::SetAttack(std::string name, XMFLOAT3 particlePos, XMFLOAT3 charPos)
+{
+	int id = mUserID[name];
+	mPlayer.SetAttack(id);
+	SetParticle(particlePos, charPos);
+}
+
 void Game::SetTeam(std::string name, unsigned char team)
 {
 	int id = mUserID[name];
@@ -2306,6 +2315,7 @@ void Game::GameStart()
 {
 	mTime = 600.0f;
 	mRenderItems[GAME].renderItems[UI][1]->Instances[0].UIPos = XMFLOAT4(-0.2f, -0.78f, 0.2f, -0.88f);
+	mPlayer.SetSurvival(true);
 
 	mGameStart = true;
 }
@@ -2535,7 +2545,8 @@ LRESULT Game::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 void Game::ProcessPacket(char * ptr)
 {
-	switch (ptr[1]) {
+	switch (ptr[1])
+	{
 	case SC_LOGINSUCCESS:
 	{
 		DWORD iobyte;
@@ -2604,8 +2615,8 @@ void Game::ProcessPacket(char * ptr)
 		sc_movestatus_packet* msp = reinterpret_cast<sc_movestatus_packet*>(ptr);
 		char idbuff[10];
 		wcstombs(idbuff, msp->id, wcslen(msp->id) + 1);
-		SetPosition(idbuff, XMFLOAT3(msp->x,msp->y,msp->z));
- 		break;
+		SetPosition(idbuff, XMFLOAT3(msp->x, msp->y, msp->z));
+		break;
 	}
 	case SC_ANGLE:
 	{
@@ -2616,9 +2627,23 @@ void Game::ProcessPacket(char * ptr)
 		break;
 	}
 	case SC_HIT:
+	{
 		sc_hit_packet* hp = reinterpret_cast<sc_hit_packet*>(ptr);
 		SetCurrentHP((float)hp->hp);
 		break;
 	}
-
+	case SC_ATTACK:
+	{
+		sc_attack_packet* atp = reinterpret_cast<sc_attack_packet*>(ptr);
+		char idbuff[10];
+		wcstombs(idbuff, atp->id, wcslen(atp->id) + 1);
+		SetAttack(idbuff, XMFLOAT3(atp->px, atp->py, atp->pz), XMFLOAT3(atp->cx, atp->cy, atp->cz));
+		break;
+	}
+	case SC_DEAD:
+	{
+		mPlayer.SetSurvival(false);
+		break;
+	}
+	}
 }

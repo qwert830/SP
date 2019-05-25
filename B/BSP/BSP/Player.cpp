@@ -17,7 +17,6 @@ void Player::SelectPlayer(const int i)
 {
 	mPlayerID = i;
 	mCamera.SetCamera(mVector[mPlayerID].mPosition, mVector[mPlayerID].mRight, mVector[mPlayerID].mLook, mVector[mPlayerID].mUp);
-	
 }
 
 void Player::PlayerKeyBoardInput(const GameTimer & gt)
@@ -202,12 +201,15 @@ void Player::RotateY(float angle)
 
 void Player::Update(const GameTimer& gt)
 {
-	const float dt = gt.DeltaTime();
-	AttackUpdate(dt);
-	if (mTestMode)
-		MoveUpdate(dt);
-	mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + mCameraOffsetY, mVector[mPlayerID].mPosition.z);
-	mCamera.UpdateViewMatrix();
+	if (mSurvival)
+	{
+		const float dt = gt.DeltaTime();
+		AttackUpdate(dt);
+		if (mTestMode)
+			MoveUpdate(dt);
+		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + mCameraOffsetY, mVector[mPlayerID].mPosition.z);
+		mCamera.UpdateViewMatrix();
+	}
 
 }
 
@@ -325,6 +327,16 @@ bool Player::GetAttackState()
 	return false;
 }
 
+float Player::GetSurvival()
+{
+	if (mSurvival)
+	{
+		return 1.0f;
+	}
+	else
+		return -1.0f;
+}
+
 float Player::IsAttack(int i)
 {
 	if (mAttackCools[i] < ATTACK_DELAY)
@@ -335,6 +347,11 @@ float Player::IsAttack(int i)
 void Player::SetTestMode(const bool test)
 {
 	mTestMode = test;
+}
+
+void Player::SetSurvival(const bool survival)
+{
+	mSurvival = survival;
 }
 
 void Player::SetTeam(unsigned char team)
@@ -355,6 +372,11 @@ void Player::SetTeam(unsigned char team)
 void Player::SetHP(float hp)
 {
 	mCurrentHP = hp;
+}
+
+void Player::SetAttack(int index)
+{
+	mAttackCools[index] = 0.0f;
 }
 
 DirectX::XMFLOAT3 Player::GetPlayerLookVector()

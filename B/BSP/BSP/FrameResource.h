@@ -53,7 +53,7 @@ struct PassConstants
     float DeltaTime = 0.0f;
 	float MaxHP = 0.0f;
 	float CurrentHP = 0.0f;
-	float pad1;
+	float Survival = 0.0f;
 	float pad2;
 	DirectX::XMFLOAT4 AmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
 

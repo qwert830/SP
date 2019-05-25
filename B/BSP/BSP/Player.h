@@ -41,7 +41,8 @@ private:
 	bool mLButtonDown = false;
 	bool mRButtonDown = false;
 	bool mAttack = false;
-	
+	bool mSurvival = true;
+
 	bool mTestMode = false;
 
 	POINT mMousePos;
@@ -56,28 +57,35 @@ public:
 	DirectX::XMFLOAT3 offset;
 
 	void SelectPlayer(const int i);
+	
 	void PlayerKeyBoardInput(const GameTimer& gt);
 	void PlayerMouseMove(WPARAM btnState, int x, int y);
 	void PlayerMouseDown(WPARAM btnState, int x, int y);
 	void PlayerMouseUp(WPARAM btnState, int x, int y);
 	void SetMousePos(int x, int y);
+
 	void Forward(float d);
 	void Strafe(float d);
 	void Pitch(float angle);
 	void RotateY(float angle);
+	
 	void Update(const GameTimer& gt);
 	void AttackUpdate(const float& dt);
 	void MoveUpdate(const float& dt);
 	
-	float IsAttack(int index);
-	void SetTestMode(const bool test);
-	void SetTeam(unsigned char team);
-	void SetHP(float hp);
-	float GetMaxHP();
-	float GetCurrentHP();
-	float GetSuperheat();
-	bool  GetAttackState();
-	const char GetPlayerID();
+	void	SetHP(float hp);
+	void	SetTeam(unsigned char team);
+	void	SetAttack(int index);
+	void	SetTestMode(const bool test);
+	void	SetSurvival(const bool survival);
+
+	bool	GetAttackState();
+	float	IsAttack(int index);
+	float	GetMaxHP();
+	float	GetCurrentHP();
+	float	GetSuperheat();
+	float	GetSurvival();
+	const char	GetPlayerID();
 	unsigned char GetMoveState();
 
 	DirectX::XMFLOAT3 GetPlayerLookVector();
