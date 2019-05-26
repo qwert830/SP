@@ -550,7 +550,7 @@ float4 UI_PS(VertexOut pin) : SV_Target
     else if (pin.MatIndex == 16)
     {
         float hp = CurrentHP / MaxHP;
-        hp = clamp(hp * 0.80 + 0.20, 0, 1);
+        hp = clamp(hp * 0.82 + 0.18, 0, 1);
         if(diffuseAlbedo.x >= 0.96f && diffuseAlbedo.z >= 0.96f && diffuseAlbedo.y != 1.0f )
         {
             if (pin.TexC.x <= hp)

@@ -73,11 +73,10 @@ cbuffer cbSkinned : register(b1)
     float4x4 gBoneTransforms[10][46];
 };
 
-Texture2D gDiffuseMap[18] : register(t0);
-Texture2D gShadowMap : register(t18);
-Texture2D gDepthResource : register(t19);
-Texture2D gBufferResource[3] : register(t20);
-
+Texture2D gDiffuseMap[20] : register(t0);
+Texture2D gShadowMap : register(t20);
+Texture2D gDepthResource : register(t21);
+Texture2D gBufferResource[3] : register(t22);
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
@@ -526,7 +525,7 @@ float4 UI_PS(VertexOut pin) : SV_Target
         else
             return float4(0.0f, 0.0, pin.TexC.x, 1.0f);
     }
-    if (pin.MatIndex == 5)
+    else if (pin.MatIndex == 5)
     {
         float varX = cos(gTotalTime * 2);
         
@@ -536,24 +535,22 @@ float4 UI_PS(VertexOut pin) : SV_Target
         color = 1 - abs(varX - pin.TexC.x + varY - pin.TexC.y);
         return float4(diffuseAlbedo.r * 0.8, color, color, 1.0f);
     }
-    if (pin.MatIndex == 9)
+    else if (pin.MatIndex == 9)
     {
         if (pin.IsDraw >= 10)
             return float4(1.0f, 0.1f, 0.1f, 1.0f);
         if (pin.IsDraw > 1)
             return float4(1.0f, 1.0f, 1.0f, 1.0f);
     }
-
-    if (pin.MatIndex == 10)
+    else if (pin.MatIndex == 10)
     {
         if (pin.IsDraw > 1)
             return float4(1.0f, 1.0f, 1.0f, 1.0f);
     }
-
-    if (pin.MatIndex == 16)
+    else if (pin.MatIndex == 16)
     {
         float hp = CurrentHP / MaxHP;
-        hp = clamp(hp * 0.78 + 0.22, 0, 1);
+        hp = clamp(hp * 0.80 + 0.20, 0, 1);
         if(diffuseAlbedo.x >= 0.96f && diffuseAlbedo.z >= 0.96f && diffuseAlbedo.y != 1.0f )
         {
             if (pin.TexC.x <= hp)
@@ -561,6 +558,14 @@ float4 UI_PS(VertexOut pin) : SV_Target
             else
                 discard;
         }
+    }
+    else if (pin.MatIndex == 18)
+    {
+        diffuseAlbedo = float4(0.1f, 0.1f, 0.9f, 1.0f);
+    }
+    else if (pin.MatIndex == 19)
+    {
+        diffuseAlbedo = float4(0.9f, 0.1f, 0.1f, 1.0f);
     }
 
     return diffuseAlbedo;

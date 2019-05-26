@@ -13,11 +13,13 @@
 #include "AnimationManager.h"
 #include <fstream>
 
+const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = false;
+const bool testMode = true;
 
 float testTime = 0.0f;
+float testR = 0.0f;
 
 enum SCENENAME
 {
@@ -156,7 +158,9 @@ private:
 	void SetCurrentHP(float hp);
 	void SetParticle(XMFLOAT3 pos, XMFLOAT3 charPos);
 	void SetParticle(float x, float y, float z, float charX, float charY, float charZ);
-	
+	void SetGameResult(bool win);
+	void SetRoom();
+
 	void TeamCheck();
 	void GameStart();
 
@@ -165,6 +169,7 @@ private:
 
 	SCENENAME	mScene = ROOM;
 	bool		mGameStart = false;
+	bool		mGameQuit = false;
 
 	Button				mButton;
 	Player				mPlayer;
@@ -178,6 +183,7 @@ private:
 	bool mIDSearch[10] = { false, };
 	unsigned int mIDNumber = 0;
 	unsigned int mParticleCount = 0;
+	float mGameQuitCount = 0;
 
 	std::unordered_map<std::string, unsigned int> mUserID;
 
@@ -369,6 +375,16 @@ void Game::Update(const GameTimer& gt)
 	UpdateShadowPassCB(gt);
 	UpdateAnimation(gt);
 	UpdateAttackToServer();
+
+	if (mGameQuit)
+	{
+		mGameQuitCount -= gt.DeltaTime();
+		if (mGameQuitCount <= 0)
+		{
+			SetRoom();
+		}
+	}
+
 }
 
 void Game::Draw(const GameTimer& gt)
@@ -1058,7 +1074,7 @@ void Game::LoadTextures()
 		L"Resource/HP.dds",
 		L"Resource/Particle.dds",
 		L"Resource/Win.dds",
-		L"Resource/Lose.dds",
+		L"Resource/Lose.dds"
 	};
 
 	for (int i = 0; i < texNames.size(); ++i)
@@ -1179,7 +1195,7 @@ void Game::BuildDescriptorHeaps()
 	//디스크립터 힙에 쉐이더 리소스 뷰를 하나씩 탑재
 
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 23;
+	srvHeapDesc.NumDescriptors = 25;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -2051,7 +2067,8 @@ void Game::CreateRenderItems(const char * geoName, int instancesCount, SCENENAME
 			float sy = (float)(rand() % 40 + 1) / 5.0f;
 			float sz = (float)(rand() % 40 + 1) / 5.0f;
 			XMStoreFloat4x4(&TempRitem->Instances[i].World,
-				XMMatrixScaling(sx, sy, sz));
+				XMMatrixScaling(sx, sy, sz)*
+				XMMatrixTranslation(0,-10000,0));
 		}
 		TempRitem->Instances[i].TexTransform = MathHelper::Identity4x4();
 		TempRitem->Instances[i].MaterialIndex = matIndex;
@@ -2325,6 +2342,31 @@ void Game::SetParticle(float x, float y, float z, float charX, float charY, floa
 {
 	mParticle[mParticleCount++].SetStartPaticle(XMFLOAT3(x,y,z), mPlayer.GetCameraPosition());
 	mParticleCount = mParticleCount % 10;
+}
+
+void Game::SetGameResult(bool win)
+{
+	if (win)
+	{
+		mRenderItems[GAME].renderItems[UI][2]->Instances[0].MaterialIndex = 18;
+		mRenderItems[GAME].renderItems[UI][2]->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+	}
+	else
+	{
+		mRenderItems[GAME].renderItems[UI][2]->Instances[0].MaterialIndex = 19;
+		mRenderItems[GAME].renderItems[UI][2]->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+	}
+	mGameStart = false;
+	mGameQuit = true;
+	mGameQuitCount = gameQuit;
+
+}
+
+void Game::SetRoom()
+{
+	mScene = ROOM;
+	mTime = 600.0f;
+	mRenderItems[GAME].renderItems[UI][2]->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 void Game::TeamCheck()
@@ -2674,33 +2716,30 @@ void Game::ProcessPacket(char * ptr)
 		break;
 	}
 	case SC_GAMEOVER_REDWIN:
-	{
-		unsigned char t = mPlayer.GetPlayerTeam();
-		if (t == RED_TEAM || t == RED_READER)
-		{
-			mRenderItems[GAME].renderItems[UI][2]->Instances[0].MaterialIndex = 18;
-			mRenderItems[GAME].renderItems[UI][2]->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
-		}
-		else
-		{
-			mRenderItems[GAME].renderItems[UI][2]->Instances[0].MaterialIndex = 19;
-			mRenderItems[GAME].renderItems[UI][2]->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
-		}
-
-		break;
-	}
 	case SC_GAMEOVER_BLUEWIN:
 	{
 		unsigned char t = mPlayer.GetPlayerTeam();
-		if (t == BLUE_TEAM || t == BLUE_READER)
+		if (ptr[1] == SC_GAMEOVER_REDWIN)
 		{
-			mRenderItems[GAME].renderItems[UI][2]->Instances[0].MaterialIndex = 18;
-			mRenderItems[GAME].renderItems[UI][2]->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+			if (t == RED_TEAM || t == RED_READER)
+			{
+				SetGameResult(true);
+			}
+			else
+			{
+				SetGameResult(false);
+			}
 		}
 		else
 		{
-			mRenderItems[GAME].renderItems[UI][2]->Instances[0].MaterialIndex = 19;
-			mRenderItems[GAME].renderItems[UI][2]->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+			if (t == BLUE_TEAM || t == BLUE_READER)
+			{
+				SetGameResult(true);
+			}
+			else
+			{
+				SetGameResult(false);
+			}
 		}
 		break;
 	}
