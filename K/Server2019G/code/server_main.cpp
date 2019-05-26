@@ -322,6 +322,7 @@ public:
 		clients[hitTarget.first].hp -= 10;
 
 		//죽었을때 캡슐을 릴리즈하든 캡슐액터를 릴리즈하든 할 것.
+		//게임끝나면 피직스모듈을 릴리즈하자.
 		if (clients[hitTarget.first].hp <= 0) {
 			sc_gameover_packet p;
 			p.size = sizeof(sc_gameover_packet);

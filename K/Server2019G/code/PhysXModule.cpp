@@ -81,9 +81,7 @@ pair<int,PxVec3> PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVe
 	PxRaycastBuffer buf(hits, 2);
 	//레이캐스트 함수
 	mScene->lockWrite();
-	mScene->lockRead();
 	bool status = mScene->raycast(cameraPosition, rayDirection, rayRange, buf);
-	mScene->unlockRead();
 	mScene->unlockWrite();
 	//밑의 조건문에 레이캐스트 성공시 행동을 추가, 실패할 경우까지 체크하려면 else문까지 추가
 	if (status) {
@@ -125,10 +123,9 @@ PxCapsuleController* PhysXModule::setCapsuleController(PxExtendedVec3 pos, float
 	//capsuleDesc.reportCallback = collisionCallback; //충돌함수로 지면과 닿았을때 중력가속을 0으로?
 
 	capsuleDesc.reportCallback = &collisionCallback;
-	
-	mScene->lockWrite();
+
 	PxCapsuleController* PC = static_cast<PxCapsuleController*>(mControllerManager->createController(capsuleDesc));
-	mScene->unlockWrite();
+
 	//캡슐 컨트롤러에 유저정보 부여
 	PC->getActor()->userData = (new int(key));
 	//불러올때 쓰는 방법
@@ -138,4 +135,22 @@ PxCapsuleController* PhysXModule::setCapsuleController(PxExtendedVec3 pos, float
 	//캡슐 컨트롤러 생성
 	return PC;
 	
+}
+
+void PhysXModule::createBoxObj(const PxVec3& pos, PxReal rotateDeg, const PxVec3& sizeofBox)
+{
+	PxBoxGeometry a(sizeofBox.x / 2, sizeofBox.y / 2, sizeofBox.z / 2);
+
+	PxShape* shape = mPhysics->createShape(PxBoxGeometry(sizeofBox.x / 2, sizeofBox.y / 2, sizeofBox.z / 2), *mMaterial);
+
+	PxMat33 rot = PxMat33(PxIdentity);
+	rot[0][0] = rot[2][2] = cosf(rotateDeg * (3.141572f / 180.0f));
+	rot[0][2] = -sinf(rotateDeg * (3.141572f / 180.0f));
+	rot[2][0] = sinf(rotateDeg * (3.141572f / 180.0f));
+	const PxQuat rotation(rot);
+	PxTransform tmp(pos, rotation);
+	PxRigidStatic* obj = mPhysics->createRigidStatic(tmp);
+	obj->attachShape(*shape);
+	mScene->addActor(*obj);
+	shape->release();
 }
