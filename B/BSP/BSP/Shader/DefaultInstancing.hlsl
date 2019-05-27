@@ -61,7 +61,7 @@ cbuffer cbPass : register(b0)
     float gDeltaTime;
     float MaxHP;
     float CurrentHP;
-    float pad1;
+    float Survival;
     float pad2;
     float4 gAmbientLight;
 
@@ -422,7 +422,7 @@ DeferredVSOut DVS(ShadowVertexIn vin, uint vertexID : SV_VertexID)
 };
 
 float4 DPS(DeferredVSOut pin) : SV_Target
-{  
+{
     float depth = gDepthResource.Load(float3(pin.Pos.xy, 0)).x;
 
     float lineardepth = ConvertDepthToLinear(depth);
@@ -458,6 +458,12 @@ float4 DPS(DeferredVSOut pin) : SV_Target
     float4 litcolor = ambient + directLight - fog;
 
     litcolor = lerp(litcolor, fogColor, saturate((distToEye - 5.0f) / 350.0f));
+
+    if (Survival < 0)
+    {
+        float a = (litcolor.r + litcolor.g + litcolor.b) / 3 * 0.5f;
+        litcolor = float4(a, a, a, 1.0f);
+    }
 
     return litcolor;
 }

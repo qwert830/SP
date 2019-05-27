@@ -150,6 +150,7 @@ private:
 	void JoinUserID(std::string name); // 스트링을 키값으로 ID값을 배정함
 	void QuitUserID(std::string name); // 스트링으로 ID제거
 	void Ready(std::string name, int state);
+	void Ready(int index, int state);
 	void SetPosition(std::string name, XMFLOAT3 position);
 	void SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3 up);
 	void SetAttack(std::string name, XMFLOAT3 particlePos, XMFLOAT3 charPos);
@@ -2243,6 +2244,14 @@ void Game::Ready(std::string name, int state)
 		mButton.readyUI[mUserID[name]] = 10;
 }
 
+void Game::Ready(int index, int state)
+{
+	if (state == SC_UNREADY)
+		mButton.readyUI[index] = -1;
+	if (state == SC_READY)
+		mButton.readyUI[index] = 10;
+}
+
 void Game::SetPosition(std::string name, XMFLOAT3 position)
 {
 	int id = mUserID[name];
@@ -2364,9 +2373,12 @@ void Game::SetGameResult(bool win)
 
 void Game::SetRoom()
 {
-	mScene = ROOM;
 	mTime = 600.0f;
 	mRenderItems[GAME].renderItems[UI][2]->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	for (int i = 0; i < 10; ++i)
+		Ready(i, SC_UNREADY);
+
+	mScene = ROOM;
 }
 
 void Game::TeamCheck()
@@ -2719,6 +2731,7 @@ void Game::ProcessPacket(char * ptr)
 	case SC_GAMEOVER_BLUEWIN:
 	{
 		unsigned char t = mPlayer.GetPlayerTeam();
+		mPlayer.SetSurvival(0, false);
 		if (ptr[1] == SC_GAMEOVER_REDWIN)
 		{
 			if (t == RED_TEAM || t == RED_READER)

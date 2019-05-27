@@ -61,7 +61,7 @@ cbuffer cbPass : register(b0)
     float gDeltaTime;
     float MaxHP;
     float CurrentHP;
-    float pad1;
+    float Survival;
     float pad2;
     float4 gAmbientLight;
 
@@ -422,7 +422,7 @@ DeferredVSOut DVS(ShadowVertexIn vin, uint vertexID : SV_VertexID)
 };
 
 float4 DPS(DeferredVSOut pin) : SV_Target
-{  
+{
     float depth = gDepthResource.Load(float3(pin.Pos.xy, 0)).x;
 
     float lineardepth = ConvertDepthToLinear(depth);
@@ -458,6 +458,12 @@ float4 DPS(DeferredVSOut pin) : SV_Target
     float4 litcolor = ambient + directLight - fog;
 
     litcolor = lerp(litcolor, fogColor, saturate((distToEye - 5.0f) / 350.0f));
+
+    if (Survival < 0)
+    {
+        float a = (litcolor.r + litcolor.g + litcolor.b) / 3 * 0.5f;
+        litcolor = float4(a, a, a, 1.0f);
+    }
 
     return litcolor;
 }
@@ -550,7 +556,7 @@ float4 UI_PS(VertexOut pin) : SV_Target
     else if (pin.MatIndex == 16)
     {
         float hp = CurrentHP / MaxHP;
-        hp = clamp(hp * 0.80 + 0.20, 0, 1);
+        hp = clamp(hp * 0.82 + 0.18, 0, 1);
         if(diffuseAlbedo.x >= 0.96f && diffuseAlbedo.z >= 0.96f && diffuseAlbedo.y != 1.0f )
         {
             if (pin.TexC.x <= hp)
