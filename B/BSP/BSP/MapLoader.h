@@ -1,5 +1,8 @@
 #pragma once
-#include "d3dUtil.h"
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
 
 enum MAPLOADERSTATE
 {

@@ -19,13 +19,7 @@ void MapLoader::LoadMapData()
 {
 	std::string arr;
 	char temp[100];
-	float offsetX[100];
-	float offsetY[100];
-	float offsetZ[100];
-	float scalingX[100];
-	float scalingY[100];
-	float scalingZ[100];
-	float rotationY[100];
+	MapData d;
 
 	std::fstream f;
 	f.open("Resource/Map.txt");
@@ -43,19 +37,19 @@ void MapLoader::LoadMapData()
 			{
 				arr = f.get();
 				f.getline(temp, 100, ' ');
-				offsetX[i] = (float)atof(temp);
+				d.offsetX = (float)atof(temp);
 			}
 			else if (arr == "y")
 			{
 				arr = f.get();
 				f.getline(temp, 100, ' ');
-				offsetY[i] = (float)atof(temp);
+				d.offsetY = (float)atof(temp);
 			}
 			else if (arr == "z")
 			{
 				arr = f.get();
 				f.getline(temp, 100, ' ');
-				offsetZ[i] = (float)atof(temp);
+				d.offsetZ = (float)atof(temp);
 			}
 		}
 		else if (arr == "s")
@@ -65,19 +59,19 @@ void MapLoader::LoadMapData()
 			{
 				arr = f.get();
 				f.getline(temp, 100, ' ');
-				scalingX[i] = (float)atof(temp);
+				d.scalingX = (float)atof(temp);
 			}
 			else if (arr == "y")
 			{
 				arr = f.get();
 				f.getline(temp, 100, ' ');
-				scalingY[i] = (float)atof(temp);
+				d.scalingY = (float)atof(temp);
 			}
 			else if (arr == "z")
 			{
 				arr = f.get();
 				f.getline(temp, 100, ' ');
-				scalingZ[i] = (float)atof(temp);
+				d.scalingZ = (float)atof(temp);
 			}
 		}
 		else if (arr == "r")
@@ -85,8 +79,8 @@ void MapLoader::LoadMapData()
 			arr = f.get();
 			arr = f.get();
 			f.getline(temp, 100, ' ');
-			rotationY[i] = (float)atof(temp);
-			mMapInfo.push_back(MapData(offsetX[i], offsetY[i], offsetZ[i], scalingX[i], scalingY[i], scalingZ[i], rotationY[i]));
+			d.rotationY = (float)atof(temp);
+			mMapInfo.push_back(d);
 			i++;
 		}
 		
@@ -100,9 +94,7 @@ void MapLoader::LoadPlayerData()
 {
 	std::string arr;
 	char temp[100];
-	float tX[100];
-	float tY[100];
-	float tZ[100];
+	PlayerData d;
 
 	std::fstream f;
 	f.open("Resource/PlayerMap.txt");
@@ -120,20 +112,20 @@ void MapLoader::LoadPlayerData()
 			{
 				arr = f.get();
 				f.getline(temp, 100, ' ');
-				tX[i] = (float)atof(temp);
+				d.tx = (float)atof(temp);
 			}
 			else if (arr == "y")
 			{
 				arr = f.get();
 				f.getline(temp, 100, ' ');
-				tY[i] = (float)atof(temp);
+				d.ty = (float)atof(temp);
 			}
 			else if (arr == "z")
 			{
 				arr = f.get();
 				f.getline(temp, 100, ' ');
-				tZ[i] = (float)atof(temp);
-				mPlayerInfo.push_back(PlayerData(tX[i], tY[i], tZ[i]));
+				d.tz = (float)atof(temp);
+				mPlayerInfo.push_back(d);
 				i++;
 			}
 		}
