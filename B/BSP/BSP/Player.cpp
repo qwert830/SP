@@ -96,14 +96,17 @@ void Player::PlayerKeyBoardInput(const GameTimer & gt)
 
 	// test¿ë ÄÚµå
 	// --------------------------------
-	if (GetAsyncKeyState('1') & 0x8000)
-		SelectPlayer(1);
-	if (GetAsyncKeyState('2') & 0x8000)
-		SelectPlayer(2);
-	if (GetAsyncKeyState('3') & 0x8000)
-		SelectPlayer(3);
-	if (GetAsyncKeyState('4') & 0x8000)
-		SelectPlayer(4);
+	if (mTestMode)
+	{
+		if (GetAsyncKeyState('1') & 0x8000)
+			SelectPlayer(1);
+		if (GetAsyncKeyState('2') & 0x8000)
+			SelectPlayer(2);
+		if (GetAsyncKeyState('3') & 0x8000)
+			SelectPlayer(3);
+		if (GetAsyncKeyState('4') & 0x8000)
+			SelectPlayer(4);
+	}
 	// --------------------------------
 
 }

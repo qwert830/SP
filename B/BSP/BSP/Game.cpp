@@ -16,7 +16,7 @@
 const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = true;
+const bool testMode = false;
 
 float testTime = 0.0f;
 float testR = 0.0f;
