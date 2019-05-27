@@ -1,0 +1,10 @@
+tx=0 ty=0 tz=350 
+tx=0 ty=0 tz=-350 
+tx=-50 ty=0 tz=0 
+tx=50 ty=0 tz=0 
+tx=-160 ty=0 tz=-230 
+tx=160 ty=0 tz=230 
+tx=-90 ty=0 tz=-230 
+tx=90 ty=0 tz=230 
+tx=190 ty=0 tz=-50 
+tx=-190 ty=0 tz=50 

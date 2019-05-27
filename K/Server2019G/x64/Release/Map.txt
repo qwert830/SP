@@ -1,0 +1,51 @@
+tx=100 ty=0 tz=20 sx=0.8 sy=0.15 sz=0.1 ry=10.0 
+
+tx=-160 ty=0 tz=30 sx=0.39 sy=0.15 sz=0.1 ry=0.0 
+tx=-130 ty=0 tz=80 sx=0.59 sy=0.15 sz=0.1 ry=90.0 
+tx=-80 ty=0 tz=130 sx=0.59 sy=0.15 sz=0.1 ry=0.0 
+
+tx=-190 ty=0 tz=200 sx=0.5 sy=0.15 sz=0.1 ry=0.0 
+
+tx=-100 ty=0 tz=250 sx=0.59 sy=0.15 sz=0.1 ry=90.0 
+tx=-120 ty=0 tz=300 sx=0.29 sy=0.15 sz=0.1 ry=0.0 
+
+tx=50 ty=0 tz=250 sx=0.5 sy=0.15 sz=0.1 ry=-20.0 
+tx=81 ty=0 tz=285 sx=0.3 sy=0.15 sz=0.1 ry=70.0 
+
+tx=190 ty=0 tz=340 sx=0.5 sy=0.15 sz=0.1 ry=90.0 
+
+tx=180 ty=0 tz=250 sx=0.3 sy=0.15 sz=0.1 ry=0.0 
+tx=140 ty=0 tz=180 sx=0.8 sy=0.15 sz=0.1 ry=90.0 
+
+tx=210 ty=0 tz=190 sx=0.3 sy=0.08 sz=0.2 ry=0.0 
+tx=70 ty=0 tz=180 sx=0.2 sy=0.08 sz=0.2 ry=0.0 
+/////////////////////////////////////////////////////////////
+tx=-100 ty=0 tz=-20 sx=0.8 sy=0.15 sz=0.1 ry=190.0 
+
+tx=160 ty=0 tz=-30 sx=0.39 sy=0.15 sz=0.1 ry=0.0 
+tx=130 ty=0 tz=-80 sx=0.59 sy=0.15 sz=0.1 ry=270.0 
+tx=80 ty=0 tz=-130 sx=0.59 sy=0.15 sz=0.1 ry=0.0 
+
+tx=190 ty=0 tz=-200 sx=0.5 sy=0.15 sz=0.1 ry=0.0 
+
+tx=100 ty=0 tz=-250 sx=0.59 sy=0.15 sz=0.1 ry=270.0 
+tx=120 ty=0 tz=-300 sx=0.29 sy=0.15 sz=0.1 ry=0.0 
+
+tx=-50 ty=0 tz=-250 sx=0.5 sy=0.15 sz=0.1 ry=160.0 
+tx=-81 ty=0 tz=-285 sx=0.3 sy=0.15 sz=0.1 ry=250.0 
+
+tx=-190 ty=0 tz=-340 sx=0.5 sy=0.15 sz=0.1 ry=270.0 
+
+tx=-180 ty=0 tz=-250 sx=0.3 sy=0.15 sz=0.1 ry=0.0 
+tx=-140 ty=0 tz=-180 sx=0.8 sy=0.15 sz=0.1 ry=270.0 
+
+tx=-210 ty=0 tz=-190 sx=0.3 sy=0.08 sz=0.2 ry=0.0 
+tx=-70 ty=0 tz=-180 sx=0.2 sy=0.08 sz=0.2 ry=0.0 
+
+
+
+
+tx=-250 ty=0 tz=0 sx=6.0 sy=0.3 sz=0.1 ry=90.0 
+tx=250 ty=0 tz=0 sx=6.0 sy=0.3 sz=0.1 ry=270.0 
+tx=0 ty=0 tz=400.0 sx=6.0 sy=0.3 sz=0.1 ry=0.0 
+tx=0 ty=0 tz=-400.0 sx=6.0 sy=0.3 sz=0.1 ry=180.0 

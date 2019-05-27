@@ -1,10 +1,17 @@
 #pragma once
 #include "PxPhysicsAPI.h"
 #include <string>
+#include <vector>
 using namespace physx;
 using namespace std;
 
 #define PVD_HOST "127.0.0.1"
+
+
+struct ModelData
+{
+	float tx, ty, tz, sx, sy, sz, ry;
+};
 
 class CharacterCollisionCallback : public PxUserControllerHitReport
 {
@@ -43,12 +50,15 @@ public:
 	~PhysXModule();
 
 	void stepPhysics(const PxReal& frame);
-	void setGravity(const PxVec3& gravityP);
 
 	//void setCapsuleController(PxCapsuleController* mCapsuleController, PxExtendedVec3 pos, float height, float radius, PxUserControllerHitReport * collisionCallback);
 	PxCapsuleController* setCapsuleController(PxExtendedVec3 pos, float height, float radius, int key);
 
 	void createBoxObj(const PxVec3& t, PxReal rotateDeg, const PxVec3& sizeofBox);
+
+	void wlock();
+
+	void wunlock();
 	
 	virtual pair<int, PxVec3> doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange, int id);
 };

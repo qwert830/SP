@@ -9,7 +9,7 @@ PhysXModule::PhysXModule()
 #ifdef _DEBUG
 	mPvd = PxCreatePvd(*mFoundation);
 	PxPvdTransport* transport = PxDefaultPvdSocketTransportCreate(PVD_HOST, 5425, 10);
-	mPvd->connect(*transport, PxPvdInstrumentationFlag::eALL);
+	mPvd->connect(*transport, PxPvdInstrumentationFlag::eDEBUG);
 
 	mPhysics = PxCreatePhysics(PX_PHYSICS_VERSION, *mFoundation, PxTolerancesScale(), true, mPvd);
 #else
@@ -28,7 +28,7 @@ PhysXModule::PhysXModule()
 	mCooking = PxCreateCooking(PX_PHYSICS_VERSION, *mFoundation, PxCookingParams(PxTolerancesScale()));
 
 	mControllerManager = PxCreateControllerManager(*mScene);
-	mControllerManager->setOverlapRecoveryModule(true);
+	//mControllerManager->setOverlapRecoveryModule(true);
 
 	//PxRigidStatic* groundPlane = PxCreatePlane(*mPhysics, PxPlane(0, 1, 0, 0), *mMaterial);
 	//mScene->addActor(*groundPlane);
@@ -55,21 +55,10 @@ PhysXModule::~PhysXModule()
 void PhysXModule::stepPhysics(const PxReal& frame)
 {
 	mScene->lockWrite();
-	mScene->lockRead();
 	mScene->simulate(frame);
 	mScene->fetchResults(true);
-	mScene->unlockRead();
 	mScene->unlockWrite();
 
-}
-
-void PhysXModule::setGravity(const PxVec3& gravityP)
-{
-	mScene->lockWrite();
-	mScene->lockRead();
-	mScene->setGravity(gravityP);
-	mScene->unlockRead();
-	mScene->unlockWrite();
 }
 
 pair<int,PxVec3> PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange, int id)
@@ -112,16 +101,14 @@ PxCapsuleController* PhysXModule::setCapsuleController(PxExtendedVec3 pos, float
 	capsuleDesc.position = pos; //Initial position of capsule
 	capsuleDesc.material = mPhysics->createMaterial(1.0f, 1.0f, 1.0f); //캡슐 셰이프 재질
 	capsuleDesc.density = 1.0f; //캡슐 셰이프 밀도?
-	capsuleDesc.contactOffset = 0.001f; //콘택트판정 거리
-	capsuleDesc.slopeLimit = 1.0f; //경사를 올라가는 이동 제한, 낮을수록 경사이동 불가능
-	capsuleDesc.stepOffset = 1.0f;	//계단 이동가능 높이, 이보다 높은 오브젝트나 지형에 막히면 멈춤
+	capsuleDesc.contactOffset = 1.0f; //콘택트판정 거리
+	capsuleDesc.slopeLimit = 0.1f; //경사를 올라가는 이동 제한, 낮을수록 경사이동 불가능
+	capsuleDesc.stepOffset = 0.1f;	//계단 이동가능 높이, 이보다 높은 오브젝트나 지형에 막히면 멈춤
 	//capsuleDesc.maxJumpHeight = 2.0f; //최대 점프 높이
 	capsuleDesc.climbingMode = PxCapsuleClimbingMode::eCONSTRAINED;
 	//capsuleDesc.invisibleWallHeight = 0.0f;
 
 	//충돌 콜백 함수
-	//capsuleDesc.reportCallback = collisionCallback; //충돌함수로 지면과 닿았을때 중력가속을 0으로?
-
 	capsuleDesc.reportCallback = &collisionCallback;
 
 	PxCapsuleController* PC = static_cast<PxCapsuleController*>(mControllerManager->createController(capsuleDesc));
@@ -139,18 +126,24 @@ PxCapsuleController* PhysXModule::setCapsuleController(PxExtendedVec3 pos, float
 
 void PhysXModule::createBoxObj(const PxVec3& pos, PxReal rotateDeg, const PxVec3& sizeofBox)
 {
-	PxBoxGeometry a(sizeofBox.x / 2, sizeofBox.y / 2, sizeofBox.z / 2);
-
-	PxShape* shape = mPhysics->createShape(PxBoxGeometry(sizeofBox.x / 2, sizeofBox.y / 2, sizeofBox.z / 2), *mMaterial);
+	PxShape* shape = mPhysics->createShape(PxBoxGeometry(sizeofBox.x, sizeofBox.y, sizeofBox.z), *mMaterial);
 
 	PxMat33 rot = PxMat33(PxIdentity);
-	rot[0][0] = rot[2][2] = cosf(rotateDeg * (3.141572f / 180.0f));
-	rot[0][2] = -sinf(rotateDeg * (3.141572f / 180.0f));
-	rot[2][0] = sinf(rotateDeg * (3.141572f / 180.0f));
+	rot[0][0] = rot[2][2] = cosf(rotateDeg * (3.141592f / 180.0f));
+	rot[0][2] = -sinf(rotateDeg * (3.141592f / 180.0f));
+	rot[2][0] = sinf(rotateDeg * (3.141592f / 180.0f));
 	const PxQuat rotation(rot);
 	PxTransform tmp(pos, rotation);
 	PxRigidStatic* obj = mPhysics->createRigidStatic(tmp);
 	obj->attachShape(*shape);
 	mScene->addActor(*obj);
 	shape->release();
+}
+
+void PhysXModule::wlock() {
+	mScene->lockWrite();
+}
+
+void PhysXModule::wunlock() {
+	mScene->unlockWrite();
 }

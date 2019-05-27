@@ -16,6 +16,7 @@
 #include <locale.h>
 #include "../header/PhysXModule.h"
 #include <atomic>
+#include "MapLoader.h"
 
 
 #define MAX(a,b)	((a)>(b))?(a):(b)
@@ -33,6 +34,7 @@ struct EXOVER {
 	char work;
 };
 
+MapLoader map;
 
 class Client {
 public:
@@ -49,7 +51,6 @@ public:
 	float x;
 	float y;
 	float z;
-	atomic<char> attakChk;
 
 	atomic<int> hp;
 	char team;
@@ -90,7 +91,6 @@ public:
 		m_prev_packet_size = 0;
 	}
 	~Client() {
-		mCapsuleController->release();
 	}
 };
 
@@ -150,6 +150,10 @@ public:
 		m_PhysXModule = new PhysXModule;
 		int i = 0;
 		
+		for (MapData& d : map.mMapInfo) {
+			m_PhysXModule->createBoxObj(PxVec3(-d.offsetX, d.offsetY + (100 * d.scalingY), -d.offsetZ), d.rotationY+180, PxVec3(100 * d.scalingX, 100 * d.scalingY, 100 * d.scalingZ));
+		}
+
 		sc_teaminfo_packet p;
 		p.size = sizeof(sc_teaminfo_packet);
 		for (int d : m_JoinIdList) {
@@ -157,121 +161,121 @@ public:
 			switch (i) {
 			case 0:
 				clients[d].hp = 300;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 12, 350), 21.5, 2.5, d);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_READER;
 				p.type = RED_READER;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
-				clients[d].look.z = -1;
-				clients[d].right.x = -1;
+				clients[d].look.z = 0;
+				clients[d].right.x = 0;
 				clients[d].right.y = 0;
 				clients[d].right.z = 0;
 				break;
 			case 1:
 				clients[d].hp = 300;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(0, 12, -350), 21.5, 2.5, d);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_READER;
 				p.type = BLUE_READER;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
-				clients[d].look.z = 1;
-				clients[d].right.x = 1;
+				clients[d].look.z = 0;
+				clients[d].right.x = 0;
 				clients[d].right.y = 0;
 				clients[d].right.z = 0;
 				break;
 			case 2:
 				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(-50, 12, 0), 21.5, 2.5, d);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_TEAM;
 				p.type = BLUE_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
-				clients[d].look.z = 1;
-				clients[d].right.x = 1;
+				clients[d].look.z = 0;
+				clients[d].right.x = 0;
 				clients[d].right.y = 0;
 				clients[d].right.z = 0;
 				break;
 			case 3:
 				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(50, 12, 0), 21.5, 2.5, d);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
 				p.type = RED_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
-				clients[d].look.z = 1;
-				clients[d].right.x = 1;
+				clients[d].look.z = 0;
+				clients[d].right.x = 0;
 				clients[d].right.y = 0;
 				clients[d].right.z = 0;
 				break;
 			case 4:
 				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(160, 12, -230), 21.5, 2.5, d);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_TEAM;
 				p.type = BLUE_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
-				clients[d].look.z = 1;
-				clients[d].right.x = 1;
+				clients[d].look.z = 0;
+				clients[d].right.x = 0;
 				clients[d].right.y = 0;
 				clients[d].right.z = 0;
 				break;
 			case 5:
 				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(160, 12, 230), 21.5, 2.5, d);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
 				p.type = RED_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
-				clients[d].look.z = 1;
-				clients[d].right.x = 1;
+				clients[d].look.z = 0;
+				clients[d].right.x = 0;
 				clients[d].right.y = 0;
 				clients[d].right.z = 0;
 				break;
 			case 6:
 				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(-90, 12, -230), 21.5, 2.5, d);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_TEAM;
 				p.type = BLUE_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
-				clients[d].look.z = 1;
-				clients[d].right.x = 1;
+				clients[d].look.z = 0;
+				clients[d].right.x = 0;
 				clients[d].right.y = 0;
 				clients[d].right.z = 0;
 				break;
 			case 7:
 				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(90, 12, 230), 21.5, 2.5, d);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
 				p.type = RED_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
-				clients[d].look.z = 1;
-				clients[d].right.x = 1;
+				clients[d].look.z = 0;
+				clients[d].right.x = 0;
 				clients[d].right.y = 0;
 				clients[d].right.z = 0;
 				break;
 			case 8:
 				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(190, 12, -50), 21.5, 2.5, d);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_TEAM;
 				p.type = BLUE_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
-				clients[d].look.z = 1;
-				clients[d].right.x = 1;
+				clients[d].look.z = 0;
+				clients[d].right.x = 0;
 				clients[d].right.y = 0;
 				clients[d].right.z = 0;
 				break;
 			case 9:
 				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(190, 12, -50), 21.5, 2.5, d);
+				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
 				p.type = RED_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
-				clients[d].look.z = 1;
-				clients[d].right.x = 1;
+				clients[d].look.z = 0;
+				clients[d].right.x = 0;
 				clients[d].right.y = 0;
 				clients[d].right.z = 0;
 				break;
@@ -293,6 +297,7 @@ public:
 		else
 			m_RoomStatus = RS_JOINABLE;
 		m_StartCount = 301;
+
 		delete m_PhysXModule;
 	}
 
@@ -322,17 +327,21 @@ public:
 		clients[hitTarget.first].hp -= 10;
 
 		//죽었을때 캡슐을 릴리즈하든 캡슐액터를 릴리즈하든 할 것.
-		//게임끝나면 피직스모듈을 릴리즈하자.
 		if (clients[hitTarget.first].hp <= 0) {
 			sc_gameover_packet p;
 			p.size = sizeof(sc_gameover_packet);
 			if (clients[hitTarget.first].team == RED_READER) {
 				p.type = SC_GAMEOVER_BLUEWIN;
+				for (int d : m_JoinIdList)
+					clients[d].mCapsuleController->release();
 			}
 			else if (clients[hitTarget.first].team == BLUE_READER) {
 				p.type = SC_GAMEOVER_REDWIN;
+				for (int d : m_JoinIdList)
+					clients[d].mCapsuleController->release();
 			}
 			else {
+				clients[hitTarget.first].mCapsuleController->release();
 				p.type = SC_DEAD;
 				wcscpy(p.id, clients[hitTarget.first].m_ID.c_str());
 			}
@@ -391,6 +400,8 @@ void ErrorDisplay(const char * location)
 
 void Initialize()
 {
+	map.LoadData();
+
 	setlocale(LC_ALL, "korean");
 	WSADATA wsadata;
 	WSAStartup(MAKEWORD(2, 2), &wsadata);
@@ -1186,9 +1197,11 @@ void Accept_Threads()
 		g_clients[id].m_RoomNumber = LOBBYNUMBER;
 		CreateIoCompletionPort(reinterpret_cast<HANDLE>(cs), ghiocp, id, 0);
 		g_clients[id].m_IsConnected = true;
-		wchar_t itr[10];
-		_itow(id, itr, 10);
-		g_clients[id].m_ID += itr;
+		if (g_clients[id].m_ID == L"Temp") {
+			wchar_t itr[10];
+			_itow(id, itr, 10);
+			g_clients[id].m_ID += itr;
+		}
 		StartRecv(id);
 	}
 }
