@@ -4,34 +4,7 @@
 
 PhysXModule::PhysXModule()
 {
-	mFoundation = PxCreateFoundation(PX_PHYSICS_VERSION, mAllocator, mErrorCallback);
-
-#ifdef _DEBUG
-	mPvd = PxCreatePvd(*mFoundation);
-	PxPvdTransport* transport = PxDefaultPvdSocketTransportCreate(PVD_HOST, 5425, 10);
-	mPvd->connect(*transport, PxPvdInstrumentationFlag::eDEBUG);
-
-	mPhysics = PxCreatePhysics(PX_PHYSICS_VERSION, *mFoundation, PxTolerancesScale(), true, mPvd);
-#else
-	mPhysics = PxCreatePhysics(PX_PHYSICS_VERSION, *mFoundation, PxTolerancesScale(), true);
-#endif
-
-	PxSceneDesc sceneDesc(mPhysics->getTolerancesScale());
-	sceneDesc.gravity = PxVec3(0.0f, -9.81f, 0.0f);
-	mDispatcher = PxDefaultCpuDispatcherCreate(2);
-	sceneDesc.cpuDispatcher = mDispatcher;
-	sceneDesc.filterShader = PxDefaultSimulationFilterShader;
-//	sceneDesc.flags |= PxSceneFlag::eREQUIRE_RW_LOCK;
-	mScene = mPhysics->createScene(sceneDesc);
-
-	mMaterial = mPhysics->createMaterial(0.5f, 0.5f, 0.6f);
-	mCooking = PxCreateCooking(PX_PHYSICS_VERSION, *mFoundation, PxCookingParams(PxTolerancesScale()));
-
-	mControllerManager = PxCreateControllerManager(*mScene);
-	//mControllerManager->setOverlapRecoveryModule(true);
-
-	//PxRigidStatic* groundPlane = PxCreatePlane(*mPhysics, PxPlane(0, 1, 0, 0), *mMaterial);
-	//mScene->addActor(*groundPlane);
+	init();
 }
 
 PhysXModule::~PhysXModule()
@@ -52,40 +25,67 @@ PhysXModule::~PhysXModule()
 
 }
 
+void PhysXModule::init()
+{
+	mFoundation = PxCreateFoundation(PX_PHYSICS_VERSION, mAllocator, mErrorCallback);
+
+#ifdef _DEBUG
+	mPvd = PxCreatePvd(*mFoundation);
+	PxPvdTransport* transport = PxDefaultPvdSocketTransportCreate(PVD_HOST, 5425, 10);
+	mPvd->connect(*transport, PxPvdInstrumentationFlag::eDEBUG);
+
+	mPhysics = PxCreatePhysics(PX_PHYSICS_VERSION, *mFoundation, PxTolerancesScale(), true, mPvd);
+#else
+	mPhysics = PxCreatePhysics(PX_PHYSICS_VERSION, *mFoundation, PxTolerancesScale(), true);
+#endif
+
+	PxSceneDesc sceneDesc(mPhysics->getTolerancesScale());
+	sceneDesc.gravity = PxVec3(0.0f, -9.81f, 0.0f);
+	mDispatcher = PxDefaultCpuDispatcherCreate(2);
+	sceneDesc.cpuDispatcher = mDispatcher;
+	sceneDesc.filterShader = PxDefaultSimulationFilterShader;
+	//	sceneDesc.flags |= PxSceneFlag::eREQUIRE_RW_LOCK;
+	mScene = mPhysics->createScene(sceneDesc);
+
+	mMaterial = mPhysics->createMaterial(0.5f, 0.5f, 0.6f);
+	mCooking = PxCreateCooking(PX_PHYSICS_VERSION, *mFoundation, PxCookingParams(PxTolerancesScale()));
+
+	mControllerManager = PxCreateControllerManager(*mScene);
+
+}
+
 void PhysXModule::stepPhysics(const PxReal& frame)
 {
 	mScene->lockWrite();
+	mScene->lockRead();
 	mScene->simulate(frame);
 	mScene->fetchResults(true);
+	mScene->unlockRead();
 	mScene->unlockWrite();
 
 }
 
-pair<int,PxVec3> PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange, int id)
+pair<int, PxVec3> PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange, int id)
 {
 
 	//레이가 관통하여 여러번 체크하고싶다면 히트버퍼를 배열로 선언할 것
 	PxRaycastHit hits[30];
 	//왼쪽은 버퍼, 오른쪽은 버퍼갯수
-	PxRaycastBuffer buf(hits, 2);
+	PxRaycastBuffer buf(hits, 30);
 	//레이캐스트 함수
 	mScene->lockWrite();
-	bool status = mScene->raycast(cameraPosition, rayDirection, rayRange, buf);
+	bool status = mScene->raycast(cameraPosition, rayDirection, rayRange, buf, PxHitFlag::ePOSITION);
 	mScene->unlockWrite();
 	//밑의 조건문에 레이캐스트 성공시 행동을 추가, 실패할 경우까지 체크하려면 else문까지 추가
 	if (status) {
 		//buf이아니라 hits를 이용할 것
 		//예) hits.actor->release();
-		
-		for (int i = 0; i < buf.nbTouches; ++i) {
+
+		for (int i = buf.nbTouches - 1; i >= 0; --i) {
 			if (buf.touches[i].actor->userData) {
 				if (id != reinterpret_cast<int*>(buf.touches[i].actor->userData)[0]) {
-					return pair<int, PxVec3> (reinterpret_cast<int*>(buf.touches[i].actor->userData)[0],
-							buf.touches[i].position);
+					return pair<int, PxVec3>(reinterpret_cast<int*>(buf.touches[i].actor->userData)[0], buf.touches[i].position);
 				}
-			}	
-			else {
-				return pair<int, PxVec3>(-2, buf.touches[i].position);
 			}
 		}
 	}
@@ -101,7 +101,7 @@ PxCapsuleController* PhysXModule::setCapsuleController(PxExtendedVec3 pos, float
 	capsuleDesc.position = pos; //Initial position of capsule
 	capsuleDesc.material = mPhysics->createMaterial(1.0f, 1.0f, 1.0f); //캡슐 셰이프 재질
 	capsuleDesc.density = 1.0f; //캡슐 셰이프 밀도?
-	capsuleDesc.contactOffset = 1.0f; //콘택트판정 거리
+	capsuleDesc.contactOffset = 0.01f; //콘택트판정 거리
 	capsuleDesc.slopeLimit = 0.1f; //경사를 올라가는 이동 제한, 낮을수록 경사이동 불가능
 	capsuleDesc.stepOffset = 0.1f;	//계단 이동가능 높이, 이보다 높은 오브젝트나 지형에 막히면 멈춤
 	//capsuleDesc.maxJumpHeight = 2.0f; //최대 점프 높이
@@ -136,6 +136,7 @@ void PhysXModule::createBoxObj(const PxVec3& pos, PxReal rotateDeg, const PxVec3
 	PxTransform tmp(pos, rotation);
 	PxRigidStatic* obj = mPhysics->createRigidStatic(tmp);
 	obj->attachShape(*shape);
+	obj->userData = (new int(-2));
 	mScene->addActor(*obj);
 	shape->release();
 }

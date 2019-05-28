@@ -49,6 +49,8 @@ public:
 	PhysXModule();
 	~PhysXModule();
 
+	void init();
+
 	void stepPhysics(const PxReal& frame);
 
 	//void setCapsuleController(PxCapsuleController* mCapsuleController, PxExtendedVec3 pos, float height, float radius, PxUserControllerHitReport * collisionCallback);

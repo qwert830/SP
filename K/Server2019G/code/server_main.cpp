@@ -98,10 +98,9 @@ class Room
 {
 public:
 	unordered_set<int> m_JoinIdList;
-	unsigned char m_CurrentNum;
-	mutex m_mJoinIdList;
-	unsigned char m_RoomStatus;
-
+	atomic<char> m_CurrentNum;
+	mutex m_RoomMutex;
+	atomic<char> m_RoomStatus;
 	PhysXModule* m_PhysXModule;
 
 	int m_StartCount;
@@ -139,21 +138,28 @@ public:
 	bool gosign(array <Client, MAX_USER>& clients) {
 		if (m_CurrentNum % 2 != 0)
 			return false;
-		m_mJoinIdList.lock();
+		m_RoomMutex.lock();
 		for (int d : m_JoinIdList) {
 			if (clients[d].m_Condition != US_READY) {
-				m_mJoinIdList.unlock();
+				m_RoomMutex.unlock();
 				return false;
 			}
 		}
-		m_mJoinIdList.unlock();
-		m_PhysXModule = new PhysXModule;
-		int i = 0;
-		
-		for (MapData& d : map.mMapInfo) {
-			m_PhysXModule->createBoxObj(PxVec3(-d.offsetX, d.offsetY + (100 * d.scalingY), -d.offsetZ), d.rotationY+180, PxVec3(100 * d.scalingX, 100 * d.scalingY, 100 * d.scalingZ));
-		}
+		m_RoomMutex.unlock();
 
+		if (!m_PhysXModule) {
+			m_PhysXModule = new PhysXModule;
+			for (MapData& d : map.mMapInfo) {
+				m_PhysXModule->createBoxObj(PxVec3(-d.offsetX, d.offsetY + (100 * d.scalingY), -d.offsetZ), d.rotationY + 180, PxVec3(100 * d.scalingX, 100 * d.scalingY, 100 * d.scalingZ));
+			}
+		}
+		int i = 0;
+
+		for (int d : m_JoinIdList) {
+			if(clients[d].mCapsuleController)
+				clients[d].mCapsuleController->release();
+		}
+		
 		sc_teaminfo_packet p;
 		p.size = sizeof(sc_teaminfo_packet);
 		for (int d : m_JoinIdList) {
@@ -287,7 +293,6 @@ public:
 			++i;
 		}
 		m_RoomStatus = RS_PLAY;
-		
 		return true;
 	}
 
@@ -297,8 +302,6 @@ public:
 		else
 			m_RoomStatus = RS_JOINABLE;
 		m_StartCount = 301;
-
-		delete m_PhysXModule;
 	}
 
 	void attack(const PxVec3& pos, const PxVec3& rayDir, array <Client, MAX_USER>& clients, int id) {
@@ -321,7 +324,19 @@ public:
 			return;
 		}
 		if (hitTarget.first == -2) {
-		//유저 캐릭터가 체크되지 않은 경우. 현재 맵이 구현되지 않아 수행불가
+			sc_attack_packet atkp;
+			atkp.type = SC_ATTACK;
+			atkp.size = sizeof(sc_attack_packet);
+			wcscpy(atkp.id, clients[id].m_ID.c_str());
+			atkp.cx = pos.x;
+			atkp.cy = pos.y;
+			atkp.cz = pos.z;
+			atkp.px = hitTarget.second.x;
+			atkp.py = hitTarget.second.y;
+			atkp.pz = hitTarget.second.z;
+			for (int d : m_JoinIdList) {
+				SendPacket(d, &atkp);
+			}
 			return;
 		}
 		clients[hitTarget.first].hp -= 10;
@@ -332,16 +347,13 @@ public:
 			p.size = sizeof(sc_gameover_packet);
 			if (clients[hitTarget.first].team == RED_READER) {
 				p.type = SC_GAMEOVER_BLUEWIN;
-				for (int d : m_JoinIdList)
-					clients[d].mCapsuleController->release();
+				gameover();
 			}
 			else if (clients[hitTarget.first].team == BLUE_READER) {
 				p.type = SC_GAMEOVER_REDWIN;
-				for (int d : m_JoinIdList)
-					clients[d].mCapsuleController->release();
+				gameover();
 			}
 			else {
-				clients[hitTarget.first].mCapsuleController->release();
 				p.type = SC_DEAD;
 				wcscpy(p.id, clients[hitTarget.first].m_ID.c_str());
 			}
@@ -756,7 +768,7 @@ inline void ProcessPacket(int id, char *packet)
 			if (0 <= packet_join->roomnumber && packet_join->roomnumber < MAX_ROOMNUMBER
 				&& g_rooms[packet_join->roomnumber].m_RoomStatus != RS_FULL
 				&& g_rooms[packet_join->roomnumber].m_RoomStatus != RS_PLAY) {
-				g_rooms[packet_join->roomnumber].m_mJoinIdList.lock();
+				g_rooms[packet_join->roomnumber].m_RoomMutex.lock();
 
 				if (g_rooms[packet_join->roomnumber].join(id)) {
 					g_clients[id].m_RoomNumber = packet_join->roomnumber;
@@ -782,7 +794,7 @@ inline void ProcessPacket(int id, char *packet)
 					}
 
 				}
-				g_rooms[packet_join->roomnumber].m_mJoinIdList.unlock();
+				g_rooms[packet_join->roomnumber].m_RoomMutex.unlock();
 			}
 		}
 		break;
@@ -790,10 +802,10 @@ inline void ProcessPacket(int id, char *packet)
 		if (g_clients[id].m_RoomNumber == LOBBYNUMBER)
 		{
 			for (int i = 0; i < MAX_ROOMNUMBER; ++i) {
-				g_rooms[i].m_mJoinIdList.lock();
+				g_rooms[i].m_RoomMutex.lock();
 				if (g_rooms[i].m_RoomStatus == RS_EMPTY || g_rooms[i].m_RoomStatus == RS_JOINABLE) {
 					if (g_rooms[i].join(id)) {
-						g_rooms[i].m_mJoinIdList.unlock();
+						g_rooms[i].m_RoomMutex.unlock();
 						g_clients[id].m_RoomNumber = i;
 						sc_player_join_packet p;
 						p.type = SC_JOIN_PLAYER;
@@ -818,19 +830,19 @@ inline void ProcessPacket(int id, char *packet)
 						break;
 					}
 					else {
-						g_rooms[i].m_mJoinIdList.unlock();
+						g_rooms[i].m_RoomMutex.unlock();
 						cout << "방입장 오류" << endl;
 						break;
 					}
 				}
 				else
-					g_rooms[i].m_mJoinIdList.unlock();
+					g_rooms[i].m_RoomMutex.unlock();
 			}
 		}
 		break;
 	case CS_QUIT:
 	{
-		g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.lock();
+		g_rooms[g_clients[id].m_RoomNumber].m_RoomMutex.lock();
 		g_rooms[g_clients[id].m_RoomNumber].quit(id);
 		sc_player_quit_packet p;
 		wcscpy(p.id, g_clients[id].m_ID.c_str());
@@ -840,7 +852,7 @@ inline void ProcessPacket(int id, char *packet)
 		for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
 			SendPacket(d, &p);
 		}
-		g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.unlock();
+		g_rooms[g_clients[id].m_RoomNumber].m_RoomMutex.unlock();
 		g_clients[id].m_RoomNumber = LOBBYNUMBER;
 		break;
 	}
@@ -880,9 +892,9 @@ inline void ProcessPacket(int id, char *packet)
 	//	cs_gameresult_packet* packet_gs = reinterpret_cast<cs_gameresult_packet*>(packet);
 	//	//DBCall_SetData(id, g_clients[id].m_Score + packet_gs->score);
 
-	//	g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.lock();
+	//	g_rooms[g_clients[id].m_RoomNumber].m_RoomMutex.lock();
 	//	g_rooms[g_clients[id].m_RoomNumber].quit(id);
-	//	g_rooms[g_clients[id].m_RoomNumber].m_mJoinIdList.unlock();
+	//	g_rooms[g_clients[id].m_RoomNumber].m_RoomMutex.unlock();
 	//	g_clients[id].m_RoomNumber = LOBBYNUMBER;
 	//	break;
 	//}
@@ -1026,7 +1038,7 @@ void worker_thread()
 			}
 			StartRecv(key);
 		}
-		else if (GAMEACTION == p_over->work)
+		/*else if (GAMEACTION == p_over->work)
 		{
 			PxVec3 spdL = g_clients[key].look * 600.0f / 60.0f;
 			PxVec3 spdR = g_clients[key].right * 600.0f / 60.0f;
@@ -1074,7 +1086,7 @@ void worker_thread()
 			g_clients[key].mCapsuleController->move(PxVec3(g_clients[key].moveVec.x, g_clients[key].moveVec.y, g_clients[key].moveVec.z), 0.001f, FRAME_PER_SEC, filter);
 			g_clients[key].x = g_clients[key].mCapsuleController->getPosition().x;
 			g_clients[key].z = g_clients[key].mCapsuleController->getPosition().z;
-		}
+		}*/
 		//else if (PERIODICACTION == p_over->work) {
 		//	sc_movestatus_packet p;
 		//	p.size = sizeof(sc_movestatus_packet);
@@ -1089,8 +1101,8 @@ void worker_thread()
 			for (int id : g_rooms[key].m_JoinIdList) {
 				if (g_clients[id].hp <= 0)
 					continue;
-				PxVec3 spdL = g_clients[id].look * 600.0f / 60.0f;
-				PxVec3 spdR = g_clients[id].right * 600.0f / 60.0f;
+				PxVec3 spdL = g_clients[id].look * 400.0f / 60.0f;
+				PxVec3 spdR = g_clients[id].right * 400.0f / 60.0f;
 				switch (g_clients[id].m_MoveDirection) {
 				case LEFT_DR:
 					g_clients[id].moveVec.x = -spdR.x;
@@ -1134,6 +1146,15 @@ void worker_thread()
 				g_clients[id].mCapsuleController->move(PxVec3(g_clients[id].moveVec.x, g_clients[id].moveVec.y, g_clients[id].moveVec.z), 0.001f, FRAME_PER_SEC, filter);
 				g_clients[id].x = g_clients[id].mCapsuleController->getPosition().x;
 				g_clients[id].z = g_clients[id].mCapsuleController->getPosition().z;
+			}
+			for (int d : g_rooms[key].m_JoinIdList) {
+				if (g_clients[d].hp <= 0)
+					g_clients[d].mCapsuleController->release();
+			}
+			if (g_rooms[key].m_RoomStatus != RS_PLAY) {
+				for (int d : g_rooms[key].m_JoinIdList) {
+					g_clients[d].mCapsuleController->release();
+				}
 			}
 			g_rooms[key].m_PhysXModule->stepPhysics(FRAME_PER_SEC);
 		}
@@ -1238,6 +1259,7 @@ void Timer_Thread() {
 					for (auto idx : g_rooms[roomidx].m_JoinIdList) {
 						SendPacket(idx, &p);
 					}
+					cout << "ㄱㄱㄱ" << endl;
 				}
 			}
 
