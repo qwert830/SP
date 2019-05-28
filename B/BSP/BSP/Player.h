@@ -30,7 +30,7 @@ private:
 	unsigned char mMoveState = MOVE::STAND;
 	unsigned char mAttackState = ATTACK::NOATTACK;
 
-	const float mMoveSpeed = 600.0f;
+	const float mMoveSpeed = 400.0f;
 
 	float mSuperheat = 0.0f;
 	float mAttackCools[10] = { 0.1f, };

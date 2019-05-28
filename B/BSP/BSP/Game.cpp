@@ -873,7 +873,7 @@ void Game::UpdateAnimation(const GameTimer & gt)
 	for (int i = 0; i < 10; ++i)
 	{
 		for (int k = 0; k < mAnimationManager.GetSize("Walk"); ++k)
-			mAnimationData.gBoneTransforms[0][k] = mAnimationManager.GetData("Walk", k);
+			mAnimationData.gBoneTransforms[i][k] = mAnimationManager.GetData("Walk", k);
 	}
 	auto currAniData = mCurrFrameResource->AnimationCB.get();
 	currAniData->CopyData(0, mAnimationData);
@@ -996,9 +996,9 @@ void Game::UpdateAttackToServer()
 		send_wsabuf.len = sizeof(cs_attack_packet);
 		atp->size = sizeof(cs_attack_packet);
 		atp->type = CS_ATTACK;
-		atp->cameraPosx = position.x;
+		atp->cameraPosx = position.x + look.x*3.5;
 		atp->cameraPosy = position.y;
-		atp->cameraPosz = position.z;
+		atp->cameraPosz = position.z + look.z*3.5;
 		atp->lx = look.x;
 		atp->ly = look.y;
 		atp->lz = look.z;
