@@ -1807,7 +1807,7 @@ void Game::BuildRenderItemsGame()
 	CreateRenderItems("grid", 1, GAME, OPAQUEITEM, 1, 1, XMFLOAT3(20.0f, 20.0f, 1.0f), XMFLOAT3(50.0f, 1.0f, 50.0f));
 
 	// 플레이어 캐릭터
-	CreateRenderItems("PlayerChar", mMapLoader, PLAYERINFO, GAME, PLAYER, 1, 3);
+	CreateRenderItems("PlayerChar", mMapLoader, PLAYERINFO, GAME, PLAYER, -1, 3);
 
 	//UI 아이템
 	CreateUIItemsGame();
