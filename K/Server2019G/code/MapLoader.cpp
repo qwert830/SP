@@ -22,7 +22,7 @@ void MapLoader::LoadMapData()
 	MapData d;
 
 	std::fstream f;
-	f.open("Resource/Map.txt");
+	f.open("Map.txt");
 	if (!f.is_open())
 		return;
 
@@ -97,7 +97,7 @@ void MapLoader::LoadPlayerData()
 	PlayerData d;
 
 	std::fstream f;
-	f.open("Resource/PlayerMap.txt");
+	f.open("PlayerMap.txt");
 	if (!f.is_open())
 		return;
 
