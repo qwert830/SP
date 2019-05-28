@@ -154,7 +154,7 @@ private:
 	void SetPosition(std::string name, XMFLOAT3 position);
 	void SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3 up);
 	void SetAttack(std::string name, XMFLOAT3 particlePos, XMFLOAT3 charPos);
-	void SetTeam(std::string name, unsigned char team);
+	void SetTeam(std::string name, unsigned char team, float x, float y, float z, float r);
 	void SetCurrentHP(std::string name, float hp);
 	void SetCurrentHP(float hp);
 	void SetParticle(XMFLOAT3 pos, XMFLOAT3 charPos);
@@ -324,7 +324,8 @@ bool Game::Initialize()
 	
 	mPlayer.SetTestMode(testMode);
 	mPlayer.mCamera.SetPosition(0.0f, 5.0f, -15.0f);
-	SelectID(0);
+	if (testMode)
+		SelectID(0);
 
     ThrowIfFailed(mCommandList->Close());
 	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
@@ -2297,7 +2298,7 @@ void Game::SetAttack(std::string name, XMFLOAT3 particlePos, XMFLOAT3 charPos)
 	SetParticle(particlePos, charPos);
 }
 
-void Game::SetTeam(std::string name, unsigned char team)
+void Game::SetTeam(std::string name, unsigned char team, float x, float y, float z, float r)
 {
 	int id = mUserID[name];
 	if (id == 0)
@@ -2311,6 +2312,14 @@ void Game::SetTeam(std::string name, unsigned char team)
 			teamTextureIndex = 14;
 		else if (team == BLUE_TEAM)
 			teamTextureIndex = 15;
+
+		XMFLOAT4X4 w;
+		XMStoreFloat4x4(&w, XMMatrixScaling(0.1f, 0.1f, 0.1f)*XMMatrixRotationY(r*radian)*XMMatrixTranslation(x, y, z));
+		mPlayer.mVector[0].mRight	 = { w._11, w._12, w._13 };
+		mPlayer.mVector[0].mUp		 = { w._21, w._22, w._23 };
+		mPlayer.mVector[0].mLook	 = { w._31, w._32, w._33 };
+		mPlayer.mVector[0].mPosition = { w._41, w._42, w._43 };
+		SelectID(0);
 
 		mPlayer.SetTeam(team);
 		mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = -1;
@@ -2680,7 +2689,7 @@ void Game::ProcessPacket(char * ptr)
 		sc_teaminfo_packet* tip = reinterpret_cast<sc_teaminfo_packet*>(ptr);
 		char idbuff[10];
 		wcstombs(idbuff, tip->id, wcslen(tip->id) + 1);
-		SetTeam(idbuff, tip->type);
+		SetTeam(idbuff, tip->type, tip->x, tip->y, tip->z, tip->r);
 		break;
 	}
 	case SC_GO:
