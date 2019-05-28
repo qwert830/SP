@@ -209,6 +209,8 @@ struct sc_teaminfo_packet {
 	unsigned char size;
 	unsigned char type;
 	wchar_t id[10];
+	float x, y, z;
+	float r;
 };
 
 #pragma pack (pop)

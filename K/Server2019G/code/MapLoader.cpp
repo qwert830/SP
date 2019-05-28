@@ -22,7 +22,7 @@ void MapLoader::LoadMapData()
 	MapData d;
 
 	std::fstream f;
-	f.open("Map.txt");
+	f.open("Resource/Map.txt");
 	if (!f.is_open())
 		return;
 
@@ -83,7 +83,7 @@ void MapLoader::LoadMapData()
 			mMapInfo.push_back(d);
 			i++;
 		}
-		
+
 		if (f.eof())
 			return;
 	}
@@ -97,7 +97,7 @@ void MapLoader::LoadPlayerData()
 	PlayerData d;
 
 	std::fstream f;
-	f.open("PlayerMap.txt");
+	f.open("Resource/PlayerMap.txt");
 	if (!f.is_open())
 		return;
 
@@ -125,11 +125,38 @@ void MapLoader::LoadPlayerData()
 				arr = f.get();
 				f.getline(temp, 100, ' ');
 				d.tz = (float)atof(temp);
-				mPlayerInfo.push_back(d);
-				i++;
+
 			}
+		}
+		else if (arr == "r")
+		{
+			arr = f.get();
+			f.getline(temp, 100, ' ');
+			d.r = (float)atof(temp);
+			mPlayerInfo.push_back(d);
+			i++;
 		}
 		if (f.eof())
 			return;
 	}
+}
+
+int MapLoader::GetSizeofMapData()
+{
+	return (int)mMapInfo.size();
+}
+
+int MapLoader::GetSizeofPlayerData()
+{
+	return (int)mPlayerInfo.size();
+}
+
+MapData MapLoader::GetMapData(int index)
+{
+	return mMapInfo[index];
+}
+
+PlayerData MapLoader::GetPlayerData(int index)
+{
+	return mPlayerInfo[index];
 }

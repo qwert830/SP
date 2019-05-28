@@ -1,10 +1,14 @@
-tx=0 ty=0 tz=350 
-tx=0 ty=0 tz=-350 
-tx=-50 ty=0 tz=0 
-tx=50 ty=0 tz=0 
-tx=-160 ty=0 tz=-230 
-tx=160 ty=0 tz=230 
-tx=-90 ty=0 tz=-230 
-tx=90 ty=0 tz=230 
-tx=190 ty=0 tz=-50 
-tx=-190 ty=0 tz=50 
+tx=0 ty=0 tz=350 r=180 
+tx=0 ty=0 tz=-350 r=180  
+
+tx=-50 ty=0 tz=0 r=90 
+tx=50 ty=0 tz=0 r=-90 
+
+tx=-160 ty=0 tz=-230 r=0 
+tx=160 ty=0 tz=230 r=180 
+
+tx=-90 ty=0 tz=-230 r=0 
+tx=90 ty=0 tz=230 r=180 
+
+tx=190 ty=0 tz=-50 r=-90 
+tx=-190 ty=0 tz=50 r=270 

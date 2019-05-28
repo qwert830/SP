@@ -160,8 +160,8 @@ public:
 				clients[d].mCapsuleController->release();
 		}
 		
-		sc_teaminfo_packet p;
-		p.size = sizeof(sc_teaminfo_packet);
+		sc_teaminfo_packet tip;
+		tip.size = sizeof(sc_teaminfo_packet);
 		for (int d : m_JoinIdList) {
 			clients[d].hp = 100;
 			switch (i) {
@@ -169,7 +169,7 @@ public:
 				clients[d].hp = 300;
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_READER;
-				p.type = RED_READER;
+				tip.type = RED_READER;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
 				clients[d].look.z = 0;
@@ -181,7 +181,7 @@ public:
 				clients[d].hp = 300;
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_READER;
-				p.type = BLUE_READER;
+				tip.type = BLUE_READER;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
 				clients[d].look.z = 0;
@@ -193,7 +193,7 @@ public:
 				clients[d].hp = 100;
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_TEAM;
-				p.type = BLUE_TEAM;
+				tip.type = BLUE_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
 				clients[d].look.z = 0;
@@ -205,7 +205,7 @@ public:
 				clients[d].hp = 100;
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
-				p.type = RED_TEAM;
+				tip.type = RED_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
 				clients[d].look.z = 0;
@@ -217,7 +217,7 @@ public:
 				clients[d].hp = 100;
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_TEAM;
-				p.type = BLUE_TEAM;
+				tip.type = BLUE_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
 				clients[d].look.z = 0;
@@ -229,7 +229,7 @@ public:
 				clients[d].hp = 100;
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
-				p.type = RED_TEAM;
+				tip.type = RED_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
 				clients[d].look.z = 0;
@@ -241,7 +241,7 @@ public:
 				clients[d].hp = 100;
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_TEAM;
-				p.type = BLUE_TEAM;
+				tip.type = BLUE_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
 				clients[d].look.z = 0;
@@ -253,7 +253,7 @@ public:
 				clients[d].hp = 100;
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
-				p.type = RED_TEAM;
+				tip.type = RED_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
 				clients[d].look.z = 0;
@@ -265,7 +265,7 @@ public:
 				clients[d].hp = 100;
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_TEAM;
-				p.type = BLUE_TEAM;
+				tip.type = BLUE_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
 				clients[d].look.z = 0;
@@ -277,7 +277,7 @@ public:
 				clients[d].hp = 100;
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
-				p.type = RED_TEAM;
+				tip.type = RED_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
 				clients[d].look.z = 0;
@@ -287,11 +287,19 @@ public:
 				break;
 			}
 			clients[d].m_Condition = US_PLAY;
-			wcscpy(p.id, clients[d].m_ID.c_str());
-			for (int f : m_JoinIdList)
-				SendPacket(f, &p);
+			wcscpy(tip.id, clients[d].m_ID.c_str());
+			tip.x = map.mPlayerInfo[i].tx;
+			tip.y = map.mPlayerInfo[i].ty;
+			tip.z = map.mPlayerInfo[i].tz;
+			tip.r = map.mPlayerInfo[i].r;
+			for (int f : m_JoinIdList) {
+				SendPacket(f, &tip);
+			}
+
 			++i;
 		}
+
+
 		m_RoomStatus = RS_PLAY;
 		return true;
 	}
@@ -860,11 +868,11 @@ inline void ProcessPacket(int id, char *packet)
 		g_clients[id].m_Condition = US_READY;
 		if (g_rooms[g_clients[id].m_RoomNumber].gosign(g_clients)) {
 			g_clients[id].m_Condition = US_PLAY;
-			//sc_usercondition_packet p;
-			//p.size = sizeof(sc_usercondition_packet);
-			//p.type = SC_GO;
+			//sc_usercondition_packet tip;
+			//tip.size = sizeof(sc_usercondition_packet);
+			//tip.type = SC_GO;
 			//for (int g_rooms : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
-			//	SendPacket(g_rooms, &p);
+			//	SendPacket(g_rooms, &tip);
 			//}
 		}
 		else {
@@ -1088,14 +1096,14 @@ void worker_thread()
 			g_clients[key].z = g_clients[key].mCapsuleController->getPosition().z;
 		}*/
 		//else if (PERIODICACTION == p_over->work) {
-		//	sc_movestatus_packet p;
-		//	p.size = sizeof(sc_movestatus_packet);
-		//	p.type = g_clients[key].m_MoveDirection;
-		//	wcscpy(p.id, g_clients[key].m_ID.c_str());
-		//	p.x = g_clients[key].x;
-		//	p.y = 0;
-		//	p.z = g_clients[key].z;
-		//	SendPacket(key, &p);
+		//	sc_movestatus_packet tip;
+		//	tip.size = sizeof(sc_movestatus_packet);
+		//	tip.type = g_clients[key].m_MoveDirection;
+		//	wcscpy(tip.id, g_clients[key].m_ID.c_str());
+		//	tip.x = g_clients[key].x;
+		//	tip.y = 0;
+		//	tip.z = g_clients[key].z;
+		//	SendPacket(key, &tip);
 		//}
 		else if (PXACTION == p_over->work) {
 			for (int id : g_rooms[key].m_JoinIdList) {
