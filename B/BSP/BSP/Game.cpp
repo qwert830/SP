@@ -996,9 +996,9 @@ void Game::UpdateAttackToServer()
 		send_wsabuf.len = sizeof(cs_attack_packet);
 		atp->size = sizeof(cs_attack_packet);
 		atp->type = CS_ATTACK;
-		atp->cameraPosx = position.x + look.x*3.5;
+		atp->cameraPosx = position.x;
 		atp->cameraPosy = position.y;
-		atp->cameraPosz = position.z + look.z*3.5;
+		atp->cameraPosz = position.z;
 		atp->lx = look.x;
 		atp->ly = look.y;
 		atp->lz = look.z;
@@ -2034,6 +2034,7 @@ void Game::CreateRenderItems(const char * geoName, MapLoader mapLoader, int load
 			XMStoreFloat4x4(&TempRitem->Instances[i].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 			XMStoreFloat4x4(&TempRitem->Instances[i].World,
 				XMMatrixScaling(0.1f,0.1f,0.1f)*
+				XMMatrixRotationY(d.r*radian)*
 				XMMatrixTranslation(d.tx, d.ty, d.tz));
 			TempRitem->Instances[i].IsDraw = isDraw;
 		}
@@ -2376,8 +2377,13 @@ void Game::SetRoom()
 	mTime = 600.0f;
 	mRenderItems[GAME].renderItems[UI][2]->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	for (int i = 0; i < 10; ++i)
+	{
 		Ready(i, SC_UNREADY);
+		mPlayer.SetSurvival(i, true);
+	}
+	mButton.readyButton = 2;
 
+	mGameQuit = false;
 	mScene = ROOM;
 }
 

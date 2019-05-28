@@ -125,9 +125,16 @@ void MapLoader::LoadPlayerData()
 				arr = f.get();
 				f.getline(temp, 100, ' ');
 				d.tz = (float)atof(temp);
-				mPlayerInfo.push_back(d);
-				i++;
+
 			}
+		}
+		else if (arr == "r")
+		{
+			arr = f.get();
+			f.getline(temp, 100, ' ');
+			d.r = (float)atof(temp);
+			mPlayerInfo.push_back(d);
+			i++;
 		}
 		if (f.eof())
 			return;

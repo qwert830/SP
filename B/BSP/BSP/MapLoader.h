@@ -10,17 +10,19 @@ enum MAPLOADERSTATE
 };
 struct MapData
 {
+	float offsetX, offsetY, offsetZ, scalingX, scalingY, scalingZ, rotationY;
+
 	MapData() {}
 	MapData(float ox, float oy, float oz, float sx, float sy, float sz, float ry) 
 		: offsetX(ox), offsetY(oy), offsetZ(oz), scalingX(sx), scalingY(sy), scalingZ(sz), rotationY(ry) {}
-	float offsetX, offsetY, offsetZ, scalingX, scalingY, scalingZ, rotationY;
 };
 
 struct PlayerData
 {
+	float tx, ty, tz, r;
+
 	PlayerData() {}
-	PlayerData(float x, float y, float z) : tx(x), ty(y), tz(z) {}
-	float tx, ty, tz;
+	PlayerData(float x, float y, float z, float r) : tx(x), ty(y), tz(z), r(r) {}
 };
 
 
