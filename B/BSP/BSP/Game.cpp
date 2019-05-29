@@ -17,7 +17,7 @@
 const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = true;
+const bool testMode = false;
 
 float testTime = 0.0f;
 float testR = 0.0f;
@@ -994,7 +994,8 @@ void Game::UpdateAttackToServer()
 {
 	if (mGameStart && mPlayer.GetAttackState())
 	{
-		mSoundManager.SetSound(FIRE,mPlayer.GetCameraPosition(),XMFLOAT3(0,15,0),mPlayer.GetPlayerLookVector());
+		if (testMode)
+			mSoundManager.SetSound(FIRE, mPlayer.GetCameraPosition(), mPlayer.GetCameraPosition());
 
 		XMFLOAT3 position = mPlayer.GetCameraPosition();
 		XMFLOAT3 look = mPlayer.GetCameraLookVector();
@@ -2742,6 +2743,7 @@ void Game::ProcessPacket(char * ptr)
 		char idbuff[10];
 		wcstombs(idbuff, atp->id, wcslen(atp->id) + 1);
 		SetAttack(idbuff, XMFLOAT3(atp->px, atp->py, atp->pz), XMFLOAT3(atp->cx, atp->cy, atp->cz));
+		mSoundManager.SetSound(FIRE, mPlayer.GetCameraPosition(), XMFLOAT3(atp->cx, atp->cy, atp->cz));
 		break;
 	}
 	case SC_DEAD:

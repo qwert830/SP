@@ -23,7 +23,7 @@ void SoundManager::Init()
 	mSound[0]->setMode(FMOD_LOOP_OFF);
 }
 
-void SoundManager::SetSound(int index, XMFLOAT3 pos, XMFLOAT3 soundPos, XMFLOAT3 look)
+void SoundManager::SetSound(int index, XMFLOAT3 pos, XMFLOAT3 soundPos)
 {
 	FMOD_VECTOR vel = { 0.0f, 0.0f, 0.0f };
 	FMOD_VECTOR up = { 0.0f, 1.0f, 0.0f };
@@ -37,11 +37,6 @@ void SoundManager::SetSound(int index, XMFLOAT3 pos, XMFLOAT3 soundPos, XMFLOAT3
 	sp.x = soundPos.x;
 	sp.y = soundPos.y;
 	sp.z = soundPos.z;
-
-	FMOD_VECTOR l;
-	l.x = look.x;
-	l.y = look.y;
-	l.z = look.z;
 
 	float x = (float)fabs(pos.x - sp.x);
 	float y = (float)fabs(pos.y - sp.y);

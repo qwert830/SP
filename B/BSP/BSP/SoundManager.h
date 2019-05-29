@@ -27,6 +27,6 @@ public:
 	~SoundManager();
 
 	void Init();
-	void SetSound(int index, XMFLOAT3 pos, XMFLOAT3 soundPos, XMFLOAT3 look);
+	void SetSound(int index, XMFLOAT3 pos, XMFLOAT3 soundPos);
 };
 
