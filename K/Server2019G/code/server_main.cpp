@@ -733,6 +733,7 @@ void StartRecv(int id)
 
 inline void SendPacket(int id, void * ptr)
 {
+	if (!g_clients[id].m_IsConnected) return;
  	char *packet = reinterpret_cast<char *>(ptr);
 	unsigned char sizepacket = packet[0];
 	EXOVER *s_over = new EXOVER;
