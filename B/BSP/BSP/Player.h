@@ -37,6 +37,7 @@ private:
 
 	float mMaxHP = 300.0f;
 	float mCurrentHP = 300.0f;
+	float mHit = 0.0f;
 
 	bool mLButtonDown = false;
 	bool mRButtonDown = false;
@@ -44,7 +45,7 @@ private:
 	bool mSurvival[10] = { true, };
 
 	bool mTestMode = false;
-
+	
 	POINT mMousePos;
 
 public:
@@ -58,34 +59,36 @@ public:
 
 	void SelectPlayer(const int i);
 	
-	void PlayerKeyBoardInput(const GameTimer& gt);
+	void SetMousePos(int x, int y);
+	void PlayerMouseUp(WPARAM btnState, int x, int y);
 	void PlayerMouseMove(WPARAM btnState, int x, int y);
 	void PlayerMouseDown(WPARAM btnState, int x, int y);
-	void PlayerMouseUp(WPARAM btnState, int x, int y);
-	void SetMousePos(int x, int y);
+	void PlayerKeyBoardInput(const GameTimer& gt);
 
-	void Forward(float d);
-	void Strafe(float d);
 	void Pitch(float angle);
+	void Strafe(float d);
+	void Forward(float d);
 	void RotateY(float angle);
 	
 	void Update(const GameTimer& gt);
 	void AttackUpdate(const float& dt);
 	void MoveUpdate(const float& dt);
 	
-	void	SetHP(float hp);
-	void	SetTeam(unsigned char team);
-	void	SetAttack(int index);
-	void	SetTestMode(const bool test);
-	void	SetSurvival(int index, const bool survival);
+	void SetHP(float hp);
+	void SetTeam(unsigned char team);
+	void SetAttack(int index);
+	void SetTestMode(const bool test);
+	void SetSurvival(int index, const bool survival);
+	void SetHit();
 
-	bool	GetAttackState();
-	float	IsAttack(int index);
-	float	GetMaxHP();
-	float	GetCurrentHP();
-	float	GetSuperheat();
-	float	GetSurvival();
-	const char	GetPlayerID();
+	bool GetAttackState();
+	float GetHit();
+	float IsAttack(int index);
+	float GetMaxHP();
+	float GetCurrentHP();
+	float GetSuperheat();
+	float GetSurvival();
+	const char GetPlayerID();
 	unsigned char GetMoveState();
 	unsigned char GetPlayerTeam();
 

@@ -93,20 +93,27 @@ void Player::PlayerKeyBoardInput(const GameTimer & gt)
 	}
 	// ------------------------------------------------------
 
+	if (GetAsyncKeyState('1') & 0x8000)
+		mSensitivity = 0.1f;
+	if (GetAsyncKeyState('2') & 0x8000)
+		mSensitivity = 0.25f;
+	if (GetAsyncKeyState('3') & 0x8000)
+		mSensitivity = 0.4f;
+	if (GetAsyncKeyState('4') & 0x8000)
+		mSensitivity = 0.55f;
+
+
 
 	// test¿ë ÄÚµå
 	// --------------------------------
-	if (mTestMode)
-	{
-		if (GetAsyncKeyState('1') & 0x8000)
-			SelectPlayer(1);
-		if (GetAsyncKeyState('2') & 0x8000)
-			SelectPlayer(2);
-		if (GetAsyncKeyState('3') & 0x8000)
-			SelectPlayer(3);
-		if (GetAsyncKeyState('4') & 0x8000)
-			SelectPlayer(4);
-	}
+		//if (GetAsyncKeyState('1') & 0x8000)
+		//	SelectPlayer(1);
+		//if (GetAsyncKeyState('2') & 0x8000)
+		//	SelectPlayer(2);
+		//if (GetAsyncKeyState('3') & 0x8000)
+		//	SelectPlayer(3);
+		//if (GetAsyncKeyState('4') & 0x8000)
+		//	SelectPlayer(4);
 	// --------------------------------
 
 }
@@ -212,6 +219,10 @@ void Player::Update(const GameTimer& gt)
 			MoveUpdate(dt);
 		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + mCameraOffsetY, mVector[mPlayerID].mPosition.z);
 		mCamera.UpdateViewMatrix();
+
+		mHit -= 2 * dt;
+
+		mHit = max(mHit, 0);
 	}
 
 }
@@ -335,6 +346,11 @@ bool Player::GetAttackState()
 	return false;
 }
 
+float Player::GetHit()
+{
+	return mHit;
+}
+
 float Player::GetSurvival()
 {
 	if (mSurvival[0])
@@ -360,6 +376,11 @@ void Player::SetTestMode(const bool test)
 void Player::SetSurvival(int index, const bool survival)
 {
 	mSurvival[index] = survival;
+}
+
+void Player::SetHit()
+{
+	mHit += 0.5f;
 }
 
 void Player::SetTeam(unsigned char team)

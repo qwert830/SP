@@ -62,7 +62,7 @@ cbuffer cbPass : register(b0)
     float MaxHP;
     float CurrentHP;
     float Survival;
-    float pad2;
+    float Hit;
     float4 gAmbientLight;
 
     Light gLights[MaxLights];
@@ -454,10 +454,11 @@ float4 DPS(DeferredVSOut pin) : SV_Target
     
     float4 fogColor = float4(0.7f, 0.7f, 0.7f, 1.0f);
 
-
     float4 litcolor = ambient + directLight - fog;
 
     litcolor = lerp(litcolor, fogColor, saturate((distToEye - 5.0f) / 350.0f));
+
+    litcolor.r += Hit;
 
     if (Survival < 0)
     {

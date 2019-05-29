@@ -857,6 +857,7 @@ void Game::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.MaxHP = mPlayer.GetMaxHP();
 	mMainPassCB.CurrentHP = mPlayer.GetCurrentHP();
 	mMainPassCB.Survival = mPlayer.GetSurvival();
+	mMainPassCB.Hit = mPlayer.GetHit();
 	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
 	mMainPassCB.Lights[0].Direction = mBaseLightDirections[0];
 	mMainPassCB.Lights[0].Strength = { 0.8f, 0.8f, 0.8f };
@@ -1806,8 +1807,11 @@ void Game::BuildRenderItemsGame()
 	// 맵 바닥
 	CreateRenderItems("grid", 1, GAME, OPAQUEITEM, 1, 1, XMFLOAT3(20.0f, 20.0f, 1.0f), XMFLOAT3(50.0f, 1.0f, 50.0f));
 
+	float draw = -1;
+	if (testMode)
+		draw = 1;
 	// 플레이어 캐릭터
-	CreateRenderItems("PlayerChar", mMapLoader, PLAYERINFO, GAME, PLAYER, -1, 3);
+	CreateRenderItems("PlayerChar", mMapLoader, PLAYERINFO, GAME, PLAYER, draw, 3);
 
 	//UI 아이템
 	CreateUIItemsGame();
@@ -2722,6 +2726,7 @@ void Game::ProcessPacket(char * ptr)
 	case SC_HIT:
 	{
 		sc_hit_packet* hp = reinterpret_cast<sc_hit_packet*>(ptr);
+		mPlayer.SetHit();
 		SetCurrentHP((float)hp->hp);
 		break;
 	}
