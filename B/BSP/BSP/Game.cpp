@@ -432,7 +432,8 @@ void Game::DeferredDraw(const GameTimer & gt)
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYERGUN]);
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PARTICLE]);
 
-	//mCommandList->SetPipelineState(mPSOs["DeferredPlayerResource"].Get());
+	if (testMode)
+		mCommandList->SetPipelineState(mPSOs["DeferredPlayerResource"].Get());
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYER]);
 
 	mCommandList->SetPipelineState(mPSOs["DeferredTransparentResource"].Get());
@@ -2394,7 +2395,7 @@ void Game::SetRoom()
 		Ready(i, SC_UNREADY);
 		mPlayer.SetSurvival(i, true);
 	}
-	mButton.readyButton = 2;
+	mButton.readyButton = 0;
 
 	mGameQuit = false;
 	mScene = ROOM;
