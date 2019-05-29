@@ -733,7 +733,6 @@ void StartRecv(int id)
 
 inline void SendPacket(int id, void * ptr)
 {
-	if (!g_clients[id].m_IsConnected) return;
  	char *packet = reinterpret_cast<char *>(ptr);
 	unsigned char sizepacket = packet[0];
 	EXOVER *s_over = new EXOVER;
@@ -1145,8 +1144,9 @@ void worker_thread()
 		else if (PXACTION == p_over->work) {
 
 			for (int id : g_rooms[key].m_JoinIdList) {
-				if (g_clients[id].hp <= 0)
+				if (g_clients[id].hp <= 0) {
 					continue;
+				}
 				PxVec3 spdL = g_clients[id].look * 400.0f / 60.0f;
 				PxVec3 spdR = g_clients[id].right * 400.0f / 60.0f;
 				switch (g_clients[id].m_MoveDirection) {
@@ -1192,8 +1192,6 @@ void worker_thread()
 				g_clients[id].mCapsuleController->move(PxVec3(g_clients[id].moveVec.x, g_clients[id].moveVec.y, g_clients[id].moveVec.z), 0.001f, FRAME_PER_SEC, filter);
 				g_clients[id].x = g_clients[id].mCapsuleController->getPosition().x;
 				g_clients[id].z = g_clients[id].mCapsuleController->getPosition().z;
-				if (g_clients[id].hp <= 0)
-					g_clients[id].mCapsuleController->release();
 			}
 			if (g_rooms[key].timer <= 0) {
 				sc_gameover_packet gop;
@@ -1334,10 +1332,10 @@ void Timer_Thread() {
 
 			if (!count) {
 				g_rooms[roomidx].timer--;
-				for (int id : g_rooms[roomidx].m_JoinIdList) {
-					if (g_clients[id].hp <= 0) continue;
-						PostQueuedCompletionStatus(ghiocp, 1, id, &periodic.m_over);
-				}
+				//for (int id : g_rooms[roomidx].m_JoinIdList) {
+				//	if (g_clients[id].hp <= 0) continue;
+				//		PostQueuedCompletionStatus(ghiocp, 1, id, &periodic.m_over);
+				//}
 			}
 		}
 		chrono::system_clock::time_point t2 = chrono::system_clock::now();
