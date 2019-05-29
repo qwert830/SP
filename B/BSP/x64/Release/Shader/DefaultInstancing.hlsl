@@ -59,6 +59,10 @@ cbuffer cbPass : register(b0)
     float gFarZ;
     float gTotalTime;
     float gDeltaTime;
+    float MaxHP;
+    float CurrentHP;
+    float Survival;
+    float Hit;
     float4 gAmbientLight;
 
     Light gLights[MaxLights];
@@ -66,14 +70,13 @@ cbuffer cbPass : register(b0)
 
 cbuffer cbSkinned : register(b1)
 {
-    float4x4 gBoneTransforms[10][96];
+    float4x4 gBoneTransforms[10][46];
 };
 
-Texture2D gDiffuseMap[12] : register(t0);
-Texture2D gShadowMap : register(t12);
-Texture2D gDepthResource : register(t13);
-Texture2D gBufferResource[3] : register(t14);
-
+Texture2D gDiffuseMap[20] : register(t0);
+Texture2D gShadowMap : register(t20);
+Texture2D gDepthResource : register(t21);
+Texture2D gBufferResource[3] : register(t22);
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
@@ -282,6 +285,61 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
     return vout;
 };
 
+VertexOut PlayerVS(VertexIn vin, uint instanceID : SV_InstanceID)
+{
+    VertexOut vout = (VertexOut) 0.0f;
+	
+    InstanceData instData = gInstanceData[instanceID];
+    float4x4 world = instData.World;
+    float4x4 texTransform = instData.TexTransform;
+    uint matIndex = instData.MaterialIndex;
+    MaterialConstants matData = gMaterialData[0];
+
+    if (instData.IsDraw < 0)
+    {
+        vout.PosW = float3(-100000.0f, -100000.0f, 0.0f);
+
+        return vout;
+    }
+
+    float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    weights[0] = vin.BoneWeights.x;
+    weights[1] = vin.BoneWeights.y;
+    weights[2] = vin.BoneWeights.z;
+    weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
+
+    float3 posL = float3(0.0f, 0.0f, 0.0f);
+    float3 normalL = float3(0.0f, 0.0f, 0.0f);
+
+    for (int i = 0; i < 4; ++i)
+    {
+        posL += weights[i] * mul(float4(vin.PosL.xyz, 1.0f), gBoneTransforms[instanceID][vin.BoneIndices[i]]).xyz;
+        normalL += weights[i] * mul(vin.NormalL, (float3x3) gBoneTransforms[instanceID][vin.BoneIndices[i]]);
+    }
+
+    vin.PosL = float4(posL, 1.0f);
+    vin.NormalL = normalL;
+
+    vout.MatIndex = matIndex;
+    float4 posW = mul(float4(vin.PosL.xyz, 1.0f), world); // ¸ðµ¨ÁÂÇ¥ -> ¿ùµåÁÂÇ¥
+
+    vout.PosW = posW.xyz;
+
+    vout.NormalW = mul(vin.NormalL, (float3x3) world);
+
+    vout.PosH = mul(posW, gViewProj); // xyz,1
+	
+    float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), texTransform);
+  
+    vout.TexC = mul(texC, matData.MatTransform).xy;
+    vout.ShadowPosH = mul(posW, gShadowTransform);
+
+    vout.IsDraw = instData.IsDraw;
+    vout.Instance = instanceID;
+    return vout;
+};
+
+
 float4 PS(VertexOut pin) : SV_Target
 {
     MaterialConstants matData = gMaterialData[0];
@@ -320,9 +378,10 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
     float3 fresnelR0 = matData.FresnelR0;
     float roughness = matData.Roughness;
     uint diffuseTexIndex = matData.DiffuseMapIndex;
+    const float shininess = 1.0f - roughness;
+   
     diffuseAlbedo *= gDiffuseMap[pin.MatIndex].Sample(gsamAnisotropicWrap, pin.TexC);
     pin.NormalW = normalize(pin.NormalW);
-    const float shininess = 1.0f - roughness;
 
     float4 pos = float4(pin.PosW, 0.0f);
     
@@ -333,13 +392,13 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
     if(pin.MatIndex == 6)
         diffuseAlbedo.x += superheat / 100.0f;
 
-    if(pin.MatIndex ==3)
+    if(pin.MatIndex == 3)
     {
-        if(pin.Instance == 0)
+        if(pin.IsDraw == 11)
         {
             diffuseAlbedo.x = 1;
         }
-        else if(pin.Instance == 1)
+        if(pin.IsDraw == 101)
         {
             diffuseAlbedo.z = 1;
         }
@@ -363,7 +422,7 @@ DeferredVSOut DVS(ShadowVertexIn vin, uint vertexID : SV_VertexID)
 };
 
 float4 DPS(DeferredVSOut pin) : SV_Target
-{  
+{
     float depth = gDepthResource.Load(float3(pin.Pos.xy, 0)).x;
 
     float lineardepth = ConvertDepthToLinear(depth);
@@ -395,10 +454,17 @@ float4 DPS(DeferredVSOut pin) : SV_Target
     
     float4 fogColor = float4(0.7f, 0.7f, 0.7f, 1.0f);
 
-
     float4 litcolor = ambient + directLight - fog;
 
     litcolor = lerp(litcolor, fogColor, saturate((distToEye - 5.0f) / 350.0f));
+
+    litcolor.r += Hit;
+
+    if (Survival < 0)
+    {
+        float a = (litcolor.r + litcolor.g + litcolor.b) / 3 * 0.5f;
+        litcolor = float4(a, a, a, 1.0f);
+    }
 
     return litcolor;
 }
@@ -466,7 +532,7 @@ float4 UI_PS(VertexOut pin) : SV_Target
         else
             return float4(0.0f, 0.0, pin.TexC.x, 1.0f);
     }
-    if (pin.MatIndex == 5)
+    else if (pin.MatIndex == 5)
     {
         float varX = cos(gTotalTime * 2);
         
@@ -476,19 +542,39 @@ float4 UI_PS(VertexOut pin) : SV_Target
         color = 1 - abs(varX - pin.TexC.x + varY - pin.TexC.y);
         return float4(diffuseAlbedo.r * 0.8, color, color, 1.0f);
     }
-    if (pin.MatIndex == 9)
+    else if (pin.MatIndex == 9)
     {
         if (pin.IsDraw >= 10)
             return float4(1.0f, 0.1f, 0.1f, 1.0f);
         if (pin.IsDraw > 1)
             return float4(1.0f, 1.0f, 1.0f, 1.0f);
     }
-
-    if (pin.MatIndex == 10)
+    else if (pin.MatIndex == 10)
     {
         if (pin.IsDraw > 1)
             return float4(1.0f, 1.0f, 1.0f, 1.0f);
     }
+    else if (pin.MatIndex == 16)
+    {
+        float hp = CurrentHP / MaxHP;
+        hp = clamp(hp * 0.82 + 0.18, 0, 1);
+        if(diffuseAlbedo.x >= 0.96f && diffuseAlbedo.z >= 0.96f && diffuseAlbedo.y != 1.0f )
+        {
+            if (pin.TexC.x <= hp)
+                diffuseAlbedo = float4(0.9f, 0.1f, 0.0f, 1.0f);
+            else
+                discard;
+        }
+    }
+    else if (pin.MatIndex == 18)
+    {
+        diffuseAlbedo = float4(0.1f, 0.1f, 0.9f, 1.0f);
+    }
+    else if (pin.MatIndex == 19)
+    {
+        diffuseAlbedo = float4(0.9f, 0.1f, 0.1f, 1.0f);
+    }
+
     return diffuseAlbedo;
 };
 

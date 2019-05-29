@@ -11,12 +11,13 @@
 #include "Particle.h"
 #include "ModelLoader.h"
 #include "AnimationManager.h"
+#include "SoundManager.h"
 #include <fstream>
 
 const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = false;
+const bool testMode = true;
 
 float testTime = 0.0f;
 float testR = 0.0f;
@@ -178,6 +179,7 @@ private:
 	ModelLoader			mModelLoader;
 	AnimationManager	mAnimationManager;
 	FontManager			mFontManager;
+	SoundManager		mSoundManager;
 	MapLoader			mMapLoader;
 	Particle			mParticle[PARTICLEOBJECT];
 
@@ -308,6 +310,7 @@ bool Game::Initialize()
 	h = mFontManager.InitFont();
 	mMapLoader.LoadData();
 	mAnimationManager.Init();
+	mSoundManager.Init();
 
 	LoadTextures();
 	BuildDescriptorHeaps();
@@ -991,6 +994,8 @@ void Game::UpdateAttackToServer()
 {
 	if (mGameStart && mPlayer.GetAttackState())
 	{
+		mSoundManager.SetSound(FIRE,mPlayer.GetCameraPosition(),XMFLOAT3(0,15,0),mPlayer.GetPlayerLookVector());
+
 		XMFLOAT3 position = mPlayer.GetCameraPosition();
 		XMFLOAT3 look = mPlayer.GetCameraLookVector();
 
