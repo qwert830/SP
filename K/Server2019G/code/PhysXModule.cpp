@@ -80,14 +80,23 @@ pair<int, PxVec3> PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxV
 	if (status) {
 		//buf이아니라 hits를 이용할 것
 		//예) hits.actor->release();
-
-		for (int i = buf.nbTouches - 1; i >= 0; --i) {
+		float compare(rayRange);
+		float distance;
+		int residx;
+		for (int i = 0; i < buf.nbTouches; ++i) {
 			if (buf.touches[i].actor->userData) {
 				if (id != reinterpret_cast<int*>(buf.touches[i].actor->userData)[0]) {
-					return pair<int, PxVec3>(reinterpret_cast<int*>(buf.touches[i].actor->userData)[0], buf.touches[i].position);
+					distance = sqrtf(((buf.touches[i].position.x - cameraPosition.x)*(buf.touches[i].position.x - cameraPosition.x)) +
+						((buf.touches[i].position.y - cameraPosition.y)*(buf.touches[i].position.y - cameraPosition.y)) +
+						((buf.touches[i].position.z - cameraPosition.z)*(buf.touches[i].position.z - cameraPosition.z)));
+					if (compare > distance) {
+						compare = distance;
+						residx = i;
+					};
 				}
 			}
 		}
+		return pair<int, PxVec3>(reinterpret_cast<int*>(buf.touches[residx].actor->userData)[0], buf.touches[residx].position);
 	}
 	return pair<int, PxVec3>(-1, PxVec3(0, 0, 0));
 }

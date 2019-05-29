@@ -92,6 +92,33 @@ public:
 	}
 	~Client() {
 	}
+	void init() {
+		m_ID = L"Temp";
+		m_Score = 0;
+		m_IsConnected = false;
+		moveVec.x = 0;
+		moveVec.y = 0;
+		moveVec.z = 0;
+		look.x = 0;
+		look.y = 0;
+		look.z = 0;
+		right.x = 0;
+		right.y = 0;
+		right.z = 0;
+		x = 0;
+		y = 0;
+		z = 0;
+		hp = 100;
+		m_RoomNumber = LOBBYNUMBER;
+		m_Condition = US_WAIT;
+		m_MoveDirection = STOP_DR;
+
+		ZeroMemory(&m_rxover.m_over, sizeof(WSAOVERLAPPED));
+		m_rxover.m_wsabuf.buf = m_rxover.m_iobuf;
+		m_rxover.m_wsabuf.len = sizeof(m_rxover.m_wsabuf.buf);
+		m_rxover.work = RECV;
+		m_prev_packet_size = 0;
+	}
 };
 
 class Room 
@@ -104,12 +131,14 @@ public:
 	PhysXModule* m_PhysXModule;
 
 	int m_StartCount;
+	int timer;
 
 	Room() {
 		m_JoinIdList.clear();
 		m_CurrentNum = 0;
 		m_RoomStatus = RS_EMPTY;
-		m_StartCount = 301;
+		m_StartCount = 300;
+		timer = 605;
 	}
 
 	bool join(const int id) {
@@ -309,7 +338,8 @@ public:
 			m_RoomStatus = RS_FULL;
 		else
 			m_RoomStatus = RS_JOINABLE;
-		m_StartCount = 301;
+		m_StartCount = 300;
+		timer = 605;
 	}
 
 	void attack(const PxVec3& pos, const PxVec3& rayDir, array <Client, MAX_USER>& clients, int id) {
@@ -982,7 +1012,7 @@ void DisconnectPlayer(int id)
 		}
 	}
 	closesocket(g_clients[id].m_Socket);
-	g_clients[id].m_IsConnected = false;
+	g_clients[id].init();
 }
 
 
@@ -1095,17 +1125,24 @@ void worker_thread()
 			g_clients[key].x = g_clients[key].mCapsuleController->getPosition().x;
 			g_clients[key].z = g_clients[key].mCapsuleController->getPosition().z;
 		}*/
-		//else if (PERIODICACTION == p_over->work) {
-		//	sc_movestatus_packet tip;
-		//	tip.size = sizeof(sc_movestatus_packet);
-		//	tip.type = g_clients[key].m_MoveDirection;
-		//	wcscpy(tip.id, g_clients[key].m_ID.c_str());
-		//	tip.x = g_clients[key].x;
-		//	tip.y = 0;
-		//	tip.z = g_clients[key].z;
-		//	SendPacket(key, &tip);
-		//}
+		else if (PERIODICACTION == p_over->work) {
+			sc_timer_packet tp;
+			tp.size = sizeof(sc_timer_packet);
+			tp.type = SC_TIMER;
+			tp.timer = g_rooms[g_clients[key].m_RoomNumber].timer;
+			SendPacket(key, &tp);
+
+			sc_movestatus_packet msp;
+			msp.size = sizeof(sc_movestatus_packet);
+			msp.type = g_clients[key].m_MoveDirection;
+			wcscpy(msp.id, g_clients[key].m_ID.c_str());
+			msp.x = g_clients[key].x;
+			msp.y = 0;
+			msp.z = g_clients[key].z;
+			SendPacket(key, &msp);
+		}
 		else if (PXACTION == p_over->work) {
+
 			for (int id : g_rooms[key].m_JoinIdList) {
 				if (g_clients[id].hp <= 0)
 					continue;
@@ -1154,11 +1191,33 @@ void worker_thread()
 				g_clients[id].mCapsuleController->move(PxVec3(g_clients[id].moveVec.x, g_clients[id].moveVec.y, g_clients[id].moveVec.z), 0.001f, FRAME_PER_SEC, filter);
 				g_clients[id].x = g_clients[id].mCapsuleController->getPosition().x;
 				g_clients[id].z = g_clients[id].mCapsuleController->getPosition().z;
+				if (g_clients[id].hp <= 0)
+					g_clients[id].mCapsuleController->release();
 			}
-			for (int d : g_rooms[key].m_JoinIdList) {
-				if (g_clients[d].hp <= 0)
-					g_clients[d].mCapsuleController->release();
+			if (g_rooms[key].timer <= 0) {
+				sc_gameover_packet gop;
+				gop.size = sizeof(sc_gameover_packet);
+				int rhp, bhp;
+				for (int id : g_rooms[key].m_JoinIdList) {
+					if (g_clients[id].team == RED_READER) {
+						rhp = g_clients[id].hp;
+					}
+					else if (g_clients[id].team == BLUE_READER) {
+						bhp = g_clients[id].hp;
+					}
+				}
+				if (rhp >= bhp) {
+					gop.type = SC_GAMEOVER_REDWIN;
+				}
+				else {
+					gop.type = SC_GAMEOVER_BLUEWIN;
+				}
+				for (int id : g_rooms[key].m_JoinIdList) {
+					SendPacket(id, &gop);
+				}
+				g_rooms[key].gameover();
 			}
+			
 			if (g_rooms[key].m_RoomStatus != RS_PLAY) {
 				for (int d : g_rooms[key].m_JoinIdList) {
 					g_clients[d].mCapsuleController->release();
@@ -1264,22 +1323,21 @@ void Timer_Thread() {
 					sc_usercondition_packet p;
 					p.size = sizeof(sc_usercondition_packet);
 					p.type = SC_GO;
-					for (auto idx : g_rooms[roomidx].m_JoinIdList) {
+					for (int idx : g_rooms[roomidx].m_JoinIdList) {
 						SendPacket(idx, &p);
 					}
-					cout << "ㄱㄱㄱ" << endl;
+					cout << roomidx << "번방 게임시작" << endl;
 				}
 			}
-
 			PostQueuedCompletionStatus(ghiocp, 1, roomidx, &pxact.m_over);
-			//for (int id : g_rooms[roomidx].m_JoinIdList) {
-			//	if (g_clients[id].hp <= 0)
-			//		continue;
-			//	PostQueuedCompletionStatus(ghiocp, 1, id, &over.m_over);
-			//	if (!count) {
-			//		PostQueuedCompletionStatus(ghiocp, 1, id, &periodic.m_over);
-			//	}
-			//}
+
+			if (!count) {
+				g_rooms[roomidx].timer--;
+				for (int id : g_rooms[roomidx].m_JoinIdList) {
+					if (g_clients[id].hp <= 0) continue;
+						PostQueuedCompletionStatus(ghiocp, 1, id, &periodic.m_over);
+				}
+			}
 		}
 		chrono::system_clock::time_point t2 = chrono::system_clock::now();
 		chrono::duration<double> sptime = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
@@ -1298,7 +1356,7 @@ int main()
 	thread a_thread{ Accept_Threads };
 	thread t_thread{ Timer_Thread };
 	cout << "서버 시작" << endl;
-	for (auto &t : w_threads)
+	for (thread &t : w_threads)
 		t.join();
 
 	a_thread.join();

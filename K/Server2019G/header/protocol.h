@@ -60,7 +60,7 @@ enum SC_PacketKind {
 	SC_LOGINFAIL,
 	SC_LOGINSUCCESS,
 	SC_REGISTFAIL,
-	SC_REGISTSUCCESS, 
+	SC_REGISTSUCCESS,
 	SC_GO,
 	SC_READY,
 	SC_UNREADY,
@@ -70,7 +70,8 @@ enum SC_PacketKind {
 	SC_GAMEOVER_BLUEWIN,
 	SC_HIT,
 	SC_DEAD,
-	SC_ATTACK
+	SC_ATTACK,
+	SC_TIMER,
 };
 #pragma pack (push, 1)
 // 클라이언트 -> 서버------------------------
@@ -174,7 +175,7 @@ struct sc_movestatus_packet {
 struct sc_timer_packet {
 	unsigned char size;
 	unsigned char type;
-	unsigned int timer;
+	int timer;
 };
 
 struct sc_angle_packet {
