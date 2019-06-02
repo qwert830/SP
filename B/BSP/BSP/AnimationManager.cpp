@@ -114,10 +114,11 @@ void AnimationManager::LoadDataFromFile(const char* name, const char* aniName)
 				auto t = XMMatrixTranslation(tx, ty, tz);
 				auto s = XMMatrixScaling(sx, sy, sz);
 				auto r = XMMatrixRotationQuaternion(XMLoadFloat4(&XMFLOAT4(qx, qy, qz, qw)));
-
 				XMFLOAT4X4 result;
-				XMStoreFloat4x4(&result, t*s*r);
-
+				XMStoreFloat4x4(&result, s*r*t);
+				
+				XMMATRIX temp = XMLoadFloat4x4(&result);
+				XMStoreFloat4x4(&result, XMMatrixTranspose(temp));
 				data[aniName].push_back(result);
 			}
 		}
