@@ -17,7 +17,7 @@
 const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = false;
+const bool testMode = true;
 
 float testTime = 0.0f;
 float testR = 0.0f;
@@ -426,7 +426,7 @@ void Game::DeferredDraw(const GameTimer & gt)
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
 	auto aniData = mCurrFrameResource->AnimationCB->Resource();
-	mCommandList->SetGraphicsRootConstantBufferView(3, passCB->GetGPUVirtualAddress());
+	mCommandList->SetGraphicsRootConstantBufferView(3, aniData->GetGPUVirtualAddress());
 
 	//인스턴싱으로 리소스 생성 : ui / 반투명은 따로 그리기
 	mCommandList->SetPipelineState(mPSOs["DeferredResource"].Get()); // 파이프라인 설정
@@ -994,9 +994,6 @@ void Game::UpdateAttackToServer()
 {
 	if (mGameStart && mPlayer.GetAttackState())
 	{
-		if (testMode)
-			mSoundManager.SetSound(FIRE, mPlayer.GetCameraPosition(), mPlayer.GetCameraPosition());
-
 		XMFLOAT3 position = mPlayer.GetCameraPosition();
 		XMFLOAT3 look = mPlayer.GetCameraLookVector();
 

@@ -314,7 +314,7 @@ VertexOut PlayerVS(VertexIn vin, uint instanceID : SV_InstanceID)
     for (int i = 0; i < 4; ++i)
     {
         posL += weights[i] * mul(float4(vin.PosL.xyz, 1.0f), gBoneTransforms[instanceID][vin.BoneIndices[i]]).xyz;
-        normalL += weights[i] * mul(vin.NormalL, (float3x3) gBoneTransforms[instanceID][vin.BoneIndices[i]]);
+        normalL += weights[i] * mul(vin.NormalL, (float3x3) gBoneTransforms[instanceID][vin.BoneIndices[i]]).xyz;
     }
 
     vin.PosL = float4(posL, 1.0f);
@@ -324,11 +324,10 @@ VertexOut PlayerVS(VertexIn vin, uint instanceID : SV_InstanceID)
     float4 posW = mul(float4(vin.PosL.xyz, 1.0f), world); // ¸ðµ¨ÁÂÇ¥ -> ¿ùµåÁÂÇ¥
 
     vout.PosW = posW.xyz;
+    vout.PosH = mul(posW, gViewProj); // xyz,1
 
     vout.NormalW = mul(vin.NormalL, (float3x3) world);
 
-    vout.PosH = mul(posW, gViewProj); // xyz,1
-	
     float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), texTransform);
   
     vout.TexC = mul(texC, matData.MatTransform).xy;
