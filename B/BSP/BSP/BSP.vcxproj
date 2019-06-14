@@ -75,16 +75,16 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>.\include\fmod;.\include;$(IncludePath)</IncludePath>
-    <LibraryPath>.\lib;.\x64\Debug;$(LibraryPath)</LibraryPath>
+    <IncludePath>.\;.\include\fmod;.\include;$(IncludePath)</IncludePath>
+    <LibraryPath>.\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>.\include\fmod;.\include;$(IncludePath)</IncludePath>
-    <LibraryPath>\lib;.\x64\Release;$(LibraryPath)</LibraryPath>
+    <IncludePath>.\;.\include\fmod;.\include;$(IncludePath)</IncludePath>
+    <LibraryPath>.\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -155,7 +155,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="AnimationManager.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="d3dApp.h" />
     <ClInclude Include="d3dUtil.h" />
@@ -167,7 +166,6 @@
     <ClInclude Include="MapLoader.h" />
     <ClInclude Include="MathHelper.h" />
     <ClInclude Include="ModelLoader.h" />
-    <ClInclude Include="ModelManager.h" />
     <ClInclude Include="NetworkModule.h" />
     <ClInclude Include="Particle.h" />
     <ClInclude Include="Player.h" />
@@ -176,7 +174,6 @@
     <ClInclude Include="UploadBuffer.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="AnimationManager.cpp" />
     <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="FontManager.cpp" />
     <ClCompile Include="FrameResource.cpp" />
@@ -194,7 +191,6 @@
     <ClCompile Include="MapLoader.cpp" />
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="ModelLoader.cpp" />
-    <ClCompile Include="ModelManager.cpp" />
     <ClCompile Include="NetworkModule.cpp" />
     <ClCompile Include="Particle.cpp" />
     <ClCompile Include="Player.cpp" />

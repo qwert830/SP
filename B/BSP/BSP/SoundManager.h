@@ -8,7 +8,7 @@ using namespace FMOD;
 
 enum soundName
 {
-	FIRE = 0
+	FIRESOUND = 0
 };
 
 class SoundManager

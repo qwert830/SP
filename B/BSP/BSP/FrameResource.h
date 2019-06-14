@@ -31,6 +31,8 @@ struct Vertex
 	XMFLOAT2 Tex;
 	XMFLOAT3 BoneWeights = XMFLOAT3(0,0,0);
 	BYTE BoneIndices[4] = {0,0,0,0};
+	Vertex() {}
+	Vertex(XMFLOAT4 pos, XMFLOAT3 normal, XMFLOAT2 tex) : Pos(pos), Normal(normal), Tex(tex) {}
 };
 
 struct PassConstants
@@ -62,7 +64,7 @@ struct PassConstants
 
 struct AnimationData
 {
-	XMFLOAT4X4 gBoneTransforms[10][46];
+	XMFLOAT4X4 gBoneTransforms[10][44];
 };
 
 struct FrameResource

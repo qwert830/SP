@@ -42,9 +42,6 @@
     <ClInclude Include="Player.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="ModelManager.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="ShadowMap.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
@@ -78,14 +75,11 @@
     <ClInclude Include="Particle.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="ModelLoader.h">
-      <Filter>유틸\헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="AnimationManager.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="SoundManager.h">
       <Filter>유틸\헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="ModelLoader.h">
+      <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -102,9 +96,6 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="Player.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="ModelManager.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="ShadowMap.cpp">
@@ -137,14 +128,11 @@
     <ClCompile Include="Particle.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="ModelLoader.cpp">
-      <Filter>유틸\소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="AnimationManager.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="SoundManager.cpp">
       <Filter>유틸\소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="ModelLoader.cpp">
+      <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

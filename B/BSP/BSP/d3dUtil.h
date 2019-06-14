@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include <windows.h>
@@ -25,9 +24,6 @@
 #include "d3dx12.h"
 #include "DDSTextureLoader.h"
 #include "MathHelper.h"
-#include "../BSP/include/fbxsdk.h"
-
-#pragma comment(lib, "libfbxsdk.lib")
 
 using namespace std;
 using namespace DirectX;

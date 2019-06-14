@@ -346,6 +346,17 @@ bool Player::GetAttackState()
 	return false;
 }
 
+bool Player::GetMoveStateDirty()
+{
+	if (mPreMoveState == mMoveState)
+		return false;
+	else
+	{
+		mPreMoveState = mMoveState;
+		return true;
+	}
+}
+
 float Player::GetHit()
 {
 	return mHit;

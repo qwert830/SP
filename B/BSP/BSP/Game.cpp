@@ -10,14 +10,13 @@
 #include "MapLoader.h"
 #include "Particle.h"
 #include "ModelLoader.h"
-#include "AnimationManager.h"
 #include "SoundManager.h"
 #include <fstream>
 
 const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = true;
+const bool testMode = false;
 
 float testTime = 0.0f;
 float testR = 0.0f;
@@ -175,9 +174,7 @@ private:
 
 	Button				mButton;
 	Player				mPlayer;
-	ModelManager		mModelManager;
 	ModelLoader			mModelLoader;
-	AnimationManager	mAnimationManager;
 	FontManager			mFontManager;
 	SoundManager		mSoundManager;
 	MapLoader			mMapLoader;
@@ -309,8 +306,9 @@ bool Game::Initialize()
 	bool h;
 	h = mFontManager.InitFont();
 	mMapLoader.LoadData();
-	mAnimationManager.Init();
 	mSoundManager.Init();
+	mModelLoader.ModelLoad("Resource//PlayerChar.fbx", false);
+	mModelLoader.InitAnimation();
 
 	LoadTextures();
 	BuildDescriptorHeaps();
@@ -435,8 +433,7 @@ void Game::DeferredDraw(const GameTimer & gt)
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYERGUN]);
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PARTICLE]);
 
-	if (testMode)
-		mCommandList->SetPipelineState(mPSOs["DeferredPlayerResource"].Get());
+	mCommandList->SetPipelineState(mPSOs["DeferredPlayerResource"].Get());
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYER]);
 
 	mCommandList->SetPipelineState(mPSOs["DeferredTransparentResource"].Get());
@@ -651,40 +648,43 @@ void Game::OnKeyboardInput(const GameTimer& gt)
 	if (mScene == GAME && mGameStart && mPlayer.GetSurvival() >= 1.0f)
 	{
 		mPlayer.PlayerKeyBoardInput(gt);
-		DWORD iobyte;
-		cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
-		send_wsabuf.len = sizeof(cs_movestatus_packet);
-		msp->size = sizeof(cs_movestatus_packet);
-		switch (mPlayer.GetMoveState()) {
-		case MOVE::DOWN:
-			msp->type = move_direction::DOWN_DR;
-			break;
-		case MOVE::LEFT:
-			msp->type = move_direction::LEFT_DR;
-			break;
-		case MOVE::LEFTDOWN:
-			msp->type = move_direction::DLEFT_DR;
-			break;
-		case MOVE::LEFTUP:
-			msp->type = move_direction::ULEFT_DR;
-			break;
-		case MOVE::RIGHT:
-			msp->type = move_direction::RIGHT_DR;
-			break;
-		case MOVE::RIGHTDOWN:
-			msp->type = move_direction::DRIGHT_DR;
-			break;
-		case MOVE::RIGHTUP:
-			msp->type = move_direction::URIGHT_DR;
-			break;
-		case MOVE::STAND:
-			msp->type = move_direction::STOP_DR;
-			break;
-		case MOVE::UP:
-			msp->type = move_direction::UP_DR;
-			break;
+		if (mPlayer.GetMoveStateDirty())
+		{
+			DWORD iobyte;
+			cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
+			send_wsabuf.len = sizeof(cs_movestatus_packet);
+			msp->size = sizeof(cs_movestatus_packet);
+			switch (mPlayer.GetMoveState()) {
+			case MOVE::DOWN:
+				msp->type = move_direction::DOWN_DR;
+				break;
+			case MOVE::LEFT:
+				msp->type = move_direction::LEFT_DR;
+				break;
+			case MOVE::LEFTDOWN:
+				msp->type = move_direction::DLEFT_DR;
+				break;
+			case MOVE::LEFTUP:
+				msp->type = move_direction::ULEFT_DR;
+				break;
+			case MOVE::RIGHT:
+				msp->type = move_direction::RIGHT_DR;
+				break;
+			case MOVE::RIGHTDOWN:
+				msp->type = move_direction::DRIGHT_DR;
+				break;
+			case MOVE::RIGHTUP:
+				msp->type = move_direction::URIGHT_DR;
+				break;
+			case MOVE::STAND:
+				msp->type = move_direction::STOP_DR;
+				break;
+			case MOVE::UP:
+				msp->type = move_direction::UP_DR;
+				break;
+			}
+			WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
 		}
-		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
 	}
 }
 
@@ -735,6 +735,7 @@ void Game::UpdatePlayerData() // 렌더러아이템에 월드행렬을 플레이어에 벡터들을 �
 	(
 		&mRenderItems[GAME].renderItems[PLAYERGUN][0]->Instances[0].World,
 		XMMatrixScaling(0.05f, 0.05f, 0.05f)*
+		XMMatrixRotationY(180 * radian)*
 		XMMatrixTranslation(Offset.x, 0, Offset.z)*
 		XMLoadFloat4x4(&gunMatrix)*
 		XMMatrixTranslation(mPlayer.mVector[id].mPosition.x, mPlayer.mVector[id].mPosition.y + Offset.y, mPlayer.mVector[id].mPosition.z)
@@ -878,11 +879,12 @@ void Game::UpdateAnimation(const GameTimer & gt)
 {
 	for (int i = 0; i < 10; ++i)
 	{
-		for (int k = 0; k < mAnimationManager.GetSize("Walk"); ++k)
-			mAnimationData.gBoneTransforms[i][k] = mAnimationManager.GetData("Walk", k);
+		mModelLoader.BoneTransform(mAnimationData.gBoneTransforms[i], i);
 	}
 	auto currAniData = mCurrFrameResource->AnimationCB.get();
 	currAniData->CopyData(0, mAnimationData);
+
+	mModelLoader.UpdateTime(gt.DeltaTime());
 }
 
 void Game::UpdateShadowPassCB(const GameTimer & gt)
@@ -1342,20 +1344,25 @@ void Game::BuildShapeGeometry()
 	GeometryGenerator::MeshData quad = geoGen.CreateQuad(-1.0f, 1.0f, 2.0f, 2.0f, 0.0f);
 	GeometryGenerator::MeshData miniBox = geoGen.CreateBox(0.5f, 0.5f, 1.0f, 0);
 
-	std::vector<ModelData> data;
-	mModelLoader.LoadDataFromFile("Resource//PlayerChar.txt", &data);
-	//mModelManager.LoadFBX("Resource//PlayerChar.fbx", &data);
-	//16488개 버텍스
-	//mModelManager.LoadAnim("Resource//PlayerChar.fbx", &data);
-	
-	std::vector<ModelData> data2;
-	mModelManager.LoadFBX("Resource//PlayerGun.fbx", &data2);
 
-	std::vector<ModelData> data3;
-	mModelManager.LoadFBX("Resource//Cube.fbx", &data3);
+	ModelLoader PlayerCharLoader;
+	PlayerCharLoader.ModelLoad("Resource//PlayerChar.fbx", false);
+	auto vertexData = PlayerCharLoader.GetMesh()[0].m_vertices;
+	auto indicesData = PlayerCharLoader.GetMesh()[0].m_indices;
+
+	ModelLoader PlayerGunLoader;
+	PlayerGunLoader.ModelLoad("Resource//PlayerGun.fbx", false);
+	auto vertexData2 = PlayerGunLoader.GetMesh()[0].m_vertices;
+	auto indicesData2 = PlayerGunLoader.GetMesh()[0].m_indices;
+
+	ModelLoader CubeLoader;
+	CubeLoader.ModelLoad("Resource//Cube.fbx", false);
+	auto vertexData3 = CubeLoader.GetMesh()[0].m_vertices;
+	auto indicesData3 = CubeLoader.GetMesh()[0].m_indices;
+
 
 	// 모델 데이터 입력
-	auto totalVertexCount = grid.Vertices.size()+ data.size() + uiGrid.Vertices.size() + quad.Vertices.size() + data2.size() + data3.size() 
+	auto totalVertexCount = grid.Vertices.size()+ vertexData.size() + uiGrid.Vertices.size() + quad.Vertices.size() + vertexData2.size() + vertexData3.size()
 							+ miniBox.Vertices.size();
 	
 	std::vector<Vertex> vertices(totalVertexCount);
@@ -1379,14 +1386,17 @@ void Game::BuildShapeGeometry()
 	}
 	indices.insert(indices.end(), uiGrid.Indices32.begin(), uiGrid.Indices32.end());
 
-	for (int i = 0; i < data.size(); ++i, ++k)
+	for (int i = 0; i < vertexData.size(); ++i, ++k)
 	{
-		vertices[k].Pos = XMFLOAT4(data[i].x, data[i].y, data[i].z, 0.0f);
-		vertices[k].Tex = XMFLOAT2(data[i].tu, 1 - data[i].tv);
-		vertices[k].Normal = XMFLOAT3(data[i].nx, data[i].ny, data[i].nz);
-		indices.insert(indices.end(), i);
-	}	
-	UINT playerIndex = (UINT)data.size();
+		vertices[k].Pos = vertexData[i].Pos;
+		vertices[k].Normal = vertexData[i].Normal;
+		vertices[k].Tex = vertexData[i].Tex;
+		vertices[k].BoneWeights = vertexData[i].BoneWeights;
+		for (int j = 0; j < 4; ++j)
+			vertices[k].BoneIndices[j] = vertexData[i].BoneIndices[j];
+	}
+	indices.insert(indices.end(), indicesData.begin(), indicesData.end());
+	UINT playerIndex = (UINT)indicesData.size();
 
 	for(int i = 0; i < quad.Vertices.size(); ++i, ++k)
 	{
@@ -1396,23 +1406,29 @@ void Game::BuildShapeGeometry()
 	}
 	indices.insert(indices.end(), quad.Indices32.begin(), quad.Indices32.end());
 
-	for (int i = 0; i < data2.size(); ++i, ++k)
+	for (int i = 0; i < vertexData2.size(); ++i, ++k)
 	{
-		vertices[k].Pos = XMFLOAT4(data2[i].x, data2[i].y, data2[i].z, 0.0f);
-		vertices[k].Tex = XMFLOAT2(data2[i].tu, 1 - data2[i].tv);
-		vertices[k].Normal = XMFLOAT3(data2[i].nx, data2[i].ny, data2[i].nz);
-		indices.insert(indices.end(), i);
+		vertices[k].Pos = vertexData2[i].Pos;
+		vertices[k].Normal = vertexData2[i].Normal;
+		vertices[k].Tex = vertexData2[i].Tex;
+		vertices[k].BoneWeights = vertexData2[i].BoneWeights;
+		for (int j = 0; j < 4; ++j)
+			vertices[k].BoneIndices[j] = vertexData2[i].BoneIndices[j];
 	}
-	UINT playerGunIndex = (UINT)data2.size();
+	indices.insert(indices.end(), indicesData2.begin(), indicesData2.end());
+	UINT playerGunIndex = (UINT)indicesData2.size();
 
-	for (int i = 0; i < data3.size(); ++i, ++k)
+	for (int i = 0; i < vertexData3.size(); ++i, ++k)
 	{
-		vertices[k].Pos = XMFLOAT4(data3[i].x, data3[i].y, data3[i].z, 0.0f);
-		vertices[k].Tex = XMFLOAT2(data3[i].tu, 1 - data3[i].tv);
-		vertices[k].Normal = XMFLOAT3(data3[i].nx, data3[i].ny, data3[i].nz);
-		indices.insert(indices.end(), i);
+		vertices[k].Pos = vertexData3[i].Pos;
+		vertices[k].Normal = vertexData3[i].Normal;
+		vertices[k].Tex = vertexData3[i].Tex;
+		vertices[k].BoneWeights = vertexData3[i].BoneWeights;
+		for (int j = 0; j < 4; ++j)
+			vertices[k].BoneIndices[j] = vertexData3[i].BoneIndices[j];
 	}
-	UINT CubeIndex = (UINT)data3.size();
+	indices.insert(indices.end(), indicesData3.begin(), indicesData3.end());
+	UINT CubeIndex = (UINT)indicesData3.size();
 
 	for (int i = 0; i < miniBox.Vertices.size(); ++i, ++k)
 	{
@@ -1434,17 +1450,17 @@ void Game::BuildShapeGeometry()
 	UINT PlayerIndexOffset = (UINT)uiGrid.Indices32.size() + uiGridIndexOffset;
 	UINT PlayerVertexOffset = (UINT)uiGrid.Vertices.size() + uiGridVertexOffset;
 
-	UINT QuadIndexOffset = playerIndex + PlayerIndexOffset;
-	UINT QuadVertexOffset = (UINT)data.size() + PlayerVertexOffset;
+	UINT QuadIndexOffset = (UINT)indicesData.size() + PlayerIndexOffset;
+	UINT QuadVertexOffset = (UINT)vertexData.size() + PlayerVertexOffset;
 
 	UINT PlayerGunIndexOffset = (UINT)quad.Indices32.size() + QuadIndexOffset;
 	UINT PlayerGunVertexOffset = (UINT)quad.Vertices.size() + QuadVertexOffset;
 
-	UINT CubeIndexOffset = playerGunIndex + PlayerGunIndexOffset;
-	UINT CubeVertexOffset = (UINT)data2.size() + PlayerGunVertexOffset;
+	UINT CubeIndexOffset = (UINT)indicesData2.size() + PlayerGunIndexOffset;
+	UINT CubeVertexOffset = (UINT)vertexData2.size() + PlayerGunVertexOffset;
 
-	UINT miniBoxIndexOffset = CubeIndex + CubeIndexOffset;
-	UINT miniBoxVertexOffset = (UINT)data3.size() + CubeVertexOffset;
+	UINT miniBoxIndexOffset = (UINT)indicesData3.size() + CubeIndexOffset;
+	UINT miniBoxVertexOffset = (UINT)vertexData3.size() + CubeVertexOffset;
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = "shapeGeo";
@@ -1480,7 +1496,7 @@ void Game::BuildShapeGeometry()
 	uiGridSubmesh.BaseVertexLocation = uiGridVertexOffset;
 	
 	SubmeshGeometry PlayerSubmesh;
-	PlayerSubmesh.IndexCount = (UINT)playerIndex;
+	PlayerSubmesh.IndexCount = (UINT)indicesData.size();
 	PlayerSubmesh.StartIndexLocation = PlayerIndexOffset;
 	PlayerSubmesh.BaseVertexLocation = PlayerVertexOffset;
 
@@ -1490,12 +1506,12 @@ void Game::BuildShapeGeometry()
 	QuadSubmesh.BaseVertexLocation = QuadVertexOffset;
 
 	SubmeshGeometry PlayerGunSubmesh;
-	PlayerGunSubmesh.IndexCount = (UINT)playerGunIndex;
+	PlayerGunSubmesh.IndexCount = (UINT)indicesData2.size();
 	PlayerGunSubmesh.StartIndexLocation = PlayerGunIndexOffset;
 	PlayerGunSubmesh.BaseVertexLocation = PlayerGunVertexOffset;
 
 	SubmeshGeometry CubeSubmesh;
-	CubeSubmesh.IndexCount = (UINT)CubeIndex;
+	CubeSubmesh.IndexCount = (UINT)indicesData3.size();
 	CubeSubmesh.StartIndexLocation = CubeIndexOffset;
 	CubeSubmesh.BaseVertexLocation = CubeVertexOffset;
 
@@ -2042,7 +2058,7 @@ void Game::CreateRenderItems(const char * geoName, MapLoader mapLoader, int load
 			TempRitem->Instances[i].MaterialIndex = matIndex;
 			XMStoreFloat4x4(&TempRitem->Instances[i].TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 			XMStoreFloat4x4(&TempRitem->Instances[i].World,
-				XMMatrixScaling(0.1f,0.1f,0.1f)*
+				XMMatrixScaling(0.25f,0.25f,0.25f)*
 				XMMatrixRotationY(d.r*radian)*
 				XMMatrixTranslation(d.tx, d.ty, d.tz));
 			TempRitem->Instances[i].IsDraw = isDraw;
@@ -2304,6 +2320,7 @@ void Game::SetAttack(std::string name, XMFLOAT3 particlePos, XMFLOAT3 charPos)
 	int id = mUserID[name];
 	mPlayer.SetAttack(id);
 	SetParticle(particlePos, charPos);
+	mModelLoader.ChangeAnimation(id, FIRE);
 }
 
 void Game::SetTeam(std::string name, unsigned char team, float x, float y, float z, float r)
@@ -2740,7 +2757,7 @@ void Game::ProcessPacket(char * ptr)
 		char idbuff[10];
 		wcstombs(idbuff, atp->id, wcslen(atp->id) + 1);
 		SetAttack(idbuff, XMFLOAT3(atp->px, atp->py, atp->pz), XMFLOAT3(atp->cx, atp->cy, atp->cz));
-		mSoundManager.SetSound(FIRE, mPlayer.GetCameraPosition(), XMFLOAT3(atp->cx, atp->cy, atp->cz));
+		mSoundManager.SetSound(FIRESOUND, mPlayer.GetCameraPosition(), XMFLOAT3(atp->cx, atp->cy, atp->cz));
 		break;
 	}
 	case SC_DEAD:

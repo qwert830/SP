@@ -27,6 +27,7 @@ private:
 	float mSensitivity = 0;
 	unsigned char mPlayerTeam;
 
+	unsigned char mPreMoveState = MOVE::STAND;
 	unsigned char mMoveState = MOVE::STAND;
 	unsigned char mAttackState = ATTACK::NOATTACK;
 
@@ -82,6 +83,7 @@ public:
 	void SetHit();
 
 	bool GetAttackState();
+	bool GetMoveStateDirty();
 	float GetHit();
 	float IsAttack(int index);
 	float GetMaxHP();
