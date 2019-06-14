@@ -648,7 +648,7 @@ void Game::OnKeyboardInput(const GameTimer& gt)
 	if (mScene == GAME && mGameStart && mPlayer.GetSurvival() >= 1.0f)
 	{
 		mPlayer.PlayerKeyBoardInput(gt);
-		if (mPlayer.GetMoveStateDirty())
+		//if (mPlayer.GetMoveStateDirty())
 		{
 			DWORD iobyte;
 			cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
@@ -2296,15 +2296,15 @@ void Game::SetPosition(std::string name, XMFLOAT3 position)
 void Game::SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3 up)
 {
 	int id = mUserID[name];
-	mPlayer.mVector[id].mRight.x = right.x;
-	mPlayer.mVector[id].mRight.y = right.y;
-	mPlayer.mVector[id].mRight.z = right.z;
+	mPlayer.mVector[id].mRight.x = -right.x;
+	mPlayer.mVector[id].mRight.y = -right.y;
+	mPlayer.mVector[id].mRight.z = -right.z;
 	mPlayer.mVector[id].mUp.x = up.x;
 	mPlayer.mVector[id].mUp.y = up.y;
 	mPlayer.mVector[id].mUp.z = up.z;
-	mPlayer.mVector[id].mLook.x = look.x;
-	mPlayer.mVector[id].mLook.y = look.y;
-	mPlayer.mVector[id].mLook.z = look.z;
+	mPlayer.mVector[id].mLook.x = -look.x;
+	mPlayer.mVector[id].mLook.y = -look.y;
+	mPlayer.mVector[id].mLook.z = -look.z;
 	
 	mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].World = XMFLOAT4X4
 	{
@@ -2339,7 +2339,7 @@ void Game::SetTeam(std::string name, unsigned char team, float x, float y, float
 			teamTextureIndex = 15;
 
 		XMFLOAT4X4 w;
-		XMStoreFloat4x4(&w, XMMatrixScaling(0.1f, 0.1f, 0.1f)*XMMatrixRotationY(r*radian)*XMMatrixTranslation(x, y, z));
+		XMStoreFloat4x4(&w, XMMatrixScaling(0.25f, 0.25f, 0.25f)*XMMatrixRotationY(r*radian)*XMMatrixTranslation(x, y, z));
 		mPlayer.mVector[0].mRight	 = { w._11, w._12, w._13 };
 		mPlayer.mVector[0].mUp		 = { w._21, w._22, w._23 };
 		mPlayer.mVector[0].mLook	 = { w._31, w._32, w._33 };
@@ -2741,7 +2741,7 @@ void Game::ProcessPacket(char * ptr)
 		sc_angle_packet* agp = reinterpret_cast<sc_angle_packet*>(ptr);
 		char idbuff[10];
 		wcstombs(idbuff, agp->id, wcslen(agp->id) + 1);
-		SetRotation(idbuff, XMFLOAT3(agp->lookx, agp->looky, agp->lookz), XMFLOAT3(agp->rx, agp->ry, agp->rz), XMFLOAT3(0, 0.1f, 0));
+		SetRotation(idbuff, XMFLOAT3(agp->lookx, agp->looky, agp->lookz), XMFLOAT3(agp->rx, agp->ry, agp->rz), XMFLOAT3(0, 0.25f, 0));
 		break;
 	}
 	case SC_HIT:
