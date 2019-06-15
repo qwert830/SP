@@ -96,6 +96,7 @@ public:
 	//애니메이션 설정 및 업데이트
 
 	void ChangeAnimation(int index, int AnimationType);
+	unsigned int GetAnimationType(int index);
 	void UpdateTime(float dt);
 
 };

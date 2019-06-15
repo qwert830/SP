@@ -335,8 +335,15 @@ unsigned int ModelLoader::FindPosition(float AnimationTime, const aiNodeAnim * p
 
 void ModelLoader::ChangeAnimation(int index, int AnimationType)
 {
+	if (m_AnimationType[index] == AnimationType)
+		return;
 	m_AnimationType[index] = AnimationType;
 	m_CurrentAnimationTime[index] = 0;
+}
+
+unsigned int ModelLoader::GetAnimationType(int index)
+{
+	return m_AnimationType[index];
 }
 
 void ModelLoader::UpdateTime(float dt)
