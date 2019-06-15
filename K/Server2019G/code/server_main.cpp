@@ -1132,14 +1132,16 @@ void worker_thread()
 			tp.timer = g_rooms[g_clients[key].m_RoomNumber].timer;
 			SendPacket(key, &tp);
 
-			sc_movestatus_packet msp;
-			msp.size = sizeof(sc_movestatus_packet);
-			msp.type = g_clients[key].m_MoveDirection;
-			wcscpy(msp.id, g_clients[key].m_ID.c_str());
-			msp.x = g_clients[key].x;
-			msp.y = 0;
-			msp.z = g_clients[key].z;
-			SendPacket(key, &msp);
+			if (g_clients[key].hp > 0) {
+				sc_movestatus_packet msp;
+				msp.size = sizeof(sc_movestatus_packet);
+				msp.type = g_clients[key].m_MoveDirection;
+				wcscpy(msp.id, g_clients[key].m_ID.c_str());
+				msp.x = g_clients[key].x;
+				msp.y = 0;
+				msp.z = g_clients[key].z;
+				SendPacket(key, &msp);
+			}
 		}
 		else if (PXACTION == p_over->work) {
 
@@ -1332,10 +1334,9 @@ void Timer_Thread() {
 
 			if (!count) {
 				g_rooms[roomidx].timer--;
-				//for (int id : g_rooms[roomidx].m_JoinIdList) {
-				//	if (g_clients[id].hp <= 0) continue;
-				//		PostQueuedCompletionStatus(ghiocp, 1, id, &periodic.m_over);
-				//}
+				for (int id : g_rooms[roomidx].m_JoinIdList) {
+					PostQueuedCompletionStatus(ghiocp, 1, id, &periodic.m_over);
+				}
 			}
 		}
 		chrono::system_clock::time_point t2 = chrono::system_clock::now();
@@ -1349,7 +1350,7 @@ int main()
 {
 	vector <thread> w_threads;
 	Initialize();
-	for (int i = 0; i < 4; ++i)
+	for (int i = 0; i < 3; ++i)
 		w_threads.push_back(thread{ worker_thread });
 
 	thread a_thread{ Accept_Threads };
