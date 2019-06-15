@@ -106,14 +106,16 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>false</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;PX_PHYSX_CHARACTER_STATIC_LIB;WIN32;WIN64;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;_WINSOCK_DEPRECATED_NO_WARNINGS;PX_BUILD_NUMBER=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>physx\source\foundation\include;physx\include\common;physx\include;physx\pxshared\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>.\lib;x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>.\lib;x64\Debug;physx\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>FastXml_static_64Dbg.lib;LowLevel_static_64Dbg.lib;LowLevelAABB_static_64Dbg.lib;LowLevelDynamics_static_64Dbg.lib;SceneQuery_static_64Dbg.lib;SimulationController_static_64Dbg.lib;PhysX_64Dbg.lib;PhysXCharacterKinematic_static_64Dbg.lib;PhysXCommon_64Dbg.lib;PhysXCooking_64Dbg.lib;PhysXExtensions_static_64Dbg.lib;PhysXFoundation_64Dbg.lib;PhysXPvdSDK_static_64Dbg.lib;PhysXTask_static_64Dbg.lib;PhysXVehicle_static_64Dbg.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -168,6 +170,7 @@
     <ClInclude Include="ModelLoader.h" />
     <ClInclude Include="NetworkModule.h" />
     <ClInclude Include="Particle.h" />
+    <ClInclude Include="PhysXModule.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="ShadowMap.h" />
     <ClInclude Include="SoundManager.h" />
@@ -193,6 +196,7 @@
     <ClCompile Include="ModelLoader.cpp" />
     <ClCompile Include="NetworkModule.cpp" />
     <ClCompile Include="Particle.cpp" />
+    <ClCompile Include="PhysXModule.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="ShadowMap.cpp" />
     <ClCompile Include="SoundManager.cpp" />

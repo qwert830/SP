@@ -1,0 +1,32 @@
+인클루드 패스 추가
+Project1\physx\pxshared\include
+Project1\physx\source\foundation\include
+Project1\physx\include\common
+Project1\physx\include
+
+링커에 추가라이브러리 디렉터리 추가
+예) C:\Users\kds25\Desktop\Project1\physx\lib
+
+링커 입력에 추가종속성
+FastXml_static_64.lib
+LowLevel_static_64.lib
+LowLevelAABB_static_64.lib
+LowLevelDynamics_static_64.lib
+SceneQuery_static_64.lib
+SimulationController_static_64.lib
+PhysX_64.lib
+PhysXCharacterKinematic_static_64.lib
+PhysXCommon_64.lib
+PhysXCooking_64.lib
+PhysXExtensions_static_64.lib
+PhysXFoundation_64.lib
+PhysXPvdSDK_static_64.lib
+PhysXTask_static_64.lib
+PhysXVehicle_static_64.lib
+
+C/C++ 코드생성 런타임 라이브러리 다중스레드디버그(/MTd)로 변경
+
+전처리기 정의
+PX_PHYSX_CHARACTER_STATIC_LIB
+
+dll파일 디버그/릴리즈폴더에 넣기
