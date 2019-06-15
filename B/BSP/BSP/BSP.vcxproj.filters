@@ -28,6 +28,9 @@
     <Filter Include="유틸\소스 파일">
       <UniqueIdentifier>{e86fae86-6e47-4531-9055-67444d5a1eb0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="PhysX">
+      <UniqueIdentifier>{0f105608-2c1e-4acc-be80-84e440dbacae}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="d3dApp.h">
@@ -81,6 +84,9 @@
     <ClInclude Include="ModelLoader.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="PhysXModule.h">
+      <Filter>PhysX</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="d3dApp.cpp">
@@ -133,6 +139,9 @@
     </ClCompile>
     <ClCompile Include="ModelLoader.cpp">
       <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="PhysXModule.cpp">
+      <Filter>PhysX</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
