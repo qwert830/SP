@@ -143,7 +143,7 @@ void ModelLoader::InitAnimation()
 	AnimationLoad("Resource//Idle_Rifle.FBX", IDLE);
 	AnimationLoad("Resource//Fire_1Pistol.FBX", FIRE);
 	AnimationLoad("Resource//Run_Rifle.FBX", RUN);
-	AnimationLoad("Resource//Death_Rifle.FBX", DEATH);
+	AnimationLoad("Resource//Death_Rifle.FBX", DEAD);
 }
 
 void ModelLoader::GetAnimation()
@@ -350,6 +350,8 @@ void ModelLoader::UpdateTime(float dt)
 {
 	for (int i = 0; i < 10; ++i)
 	{
+		if (m_AnimationType[i] == DEAD && m_CurrentAnimationTime[i] >= 3.3f)
+			continue;
 		m_CurrentAnimationTime[i] += dt;
 	}
 }

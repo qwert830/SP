@@ -16,7 +16,7 @@
 const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = false;
+const bool testMode = true;
 
 float testTime = 0.0f;
 float testR = 0.0f;
@@ -380,7 +380,9 @@ void Game::Update(const GameTimer& gt)
 	UpdateAttackToServer();
 	for (int i = 0; i < 10; ++i)
 	{
-		if (mPlayer.IsAttack(i) < 0.0f)
+		if (mPlayer.GetSurvival(i))
+			mModelLoader.ChangeAnimation(i, DEAD);
+		else if (mPlayer.IsAttack(i) < 0.0f)
 			if (mPlayer.GetMoveState(i) == MOVE::STAND)
 				mModelLoader.ChangeAnimation(i, IDLE);
 			else
@@ -599,7 +601,7 @@ void Game::GameStateDraw(const GameTimer & gt)
 
 void Game::OnMouseDown(WPARAM btnState, int x, int y)
 {
-	if (mGameStart && mScene == GAME && mPlayer.GetSurvival() >= 1.0f )
+	if (mGameStart && mScene == GAME && mPlayer.GetSurvival(0) >= 1.0f )
 		mPlayer.PlayerMouseDown(btnState, x, y);
 
 	if (mScene == ROOM)
@@ -623,7 +625,7 @@ void Game::OnMouseMove(WPARAM btnState, int x, int y)
 	pos.x = x;
 	pos.y = y;
 	ClientToScreen(mhMainWnd, &pos);
-	if (mScene == GAME && mGameStart && mPlayer.GetSurvival() >= 1.0f)
+	if (mScene == GAME && mGameStart && mPlayer.GetSurvival(0) >= 1.0f)
 	{
 		mPlayer.PlayerMouseMove(btnState, pos.x, pos.y);
 		DWORD iobyte;
@@ -653,7 +655,7 @@ void Game::OnMouseMove(WPARAM btnState, int x, int y)
 
 void Game::OnKeyboardInput(const GameTimer& gt)
 {
-	if (mScene == GAME && mGameStart && mPlayer.GetSurvival() >= 1.0f)
+	if (mScene == GAME && mGameStart && mPlayer.GetSurvival(0) >= 1.0f)
 	{
 		mPlayer.PlayerKeyBoardInput(gt);
 		if (mPlayer.GetMoveStateDirty())
@@ -869,7 +871,7 @@ void Game::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.DeltaTime = gt.DeltaTime();
 	mMainPassCB.MaxHP = mPlayer.GetMaxHP();
 	mMainPassCB.CurrentHP = mPlayer.GetCurrentHP();
-	mMainPassCB.Survival = mPlayer.GetSurvival();
+	mMainPassCB.Survival = mPlayer.GetSurvival(0);
 	mMainPassCB.Hit = mPlayer.GetHit();
 	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
 	mMainPassCB.Lights[0].Direction = mBaseLightDirections[0];
@@ -2429,6 +2431,9 @@ void Game::SetRoom()
 	{
 		Ready(i, SC_UNREADY);
 		mPlayer.SetSurvival(i, true);
+		mPlayer.SetMoveState(i, MOVE::STAND);
+		mModelLoader.ChangeAnimation(i, DEAD);
+		mModelLoader.ChangeAnimation(i, IDLE);
 	}
 	mButton.readyButton = 0;
 
@@ -2782,6 +2787,7 @@ void Game::ProcessPacket(char * ptr)
 		wcstombs(idbuff, dp->id, wcslen(dp->id) + 1);
 		int id = mUserID[idbuff];
 		mPlayer.SetSurvival(id, false);
+		mModelLoader.ChangeAnimation(id, DEAD);
 		break;
 	}
 	case SC_GAMEOVER_REDWIN:

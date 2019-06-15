@@ -18,10 +18,8 @@
 
 enum AnimationName
 {
-	IDLE = 0, FIRE, RUN, DEATH
+	IDLE = 0, FIRE, RUN, DEAD
 };
-
-
 
 using namespace std;
 

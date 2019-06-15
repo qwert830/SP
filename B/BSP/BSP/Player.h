@@ -27,9 +27,9 @@ private:
 	float mSensitivity = 0;
 	unsigned char mPlayerTeam;
 
-	unsigned char mPreMoveState = { MOVE::STAND, };
-	unsigned char mMoveState[10] = { MOVE::STAND, };
-	unsigned char mAttackState[10] = { ATTACK::NOATTACK, };
+	unsigned char mPreMoveState = { MOVE::STAND };
+	unsigned char mMoveState[10];
+	unsigned char mAttackState[10];
 
 	const float mMoveSpeed = 400.0f;
 
@@ -90,7 +90,7 @@ public:
 	float GetMaxHP();
 	float GetCurrentHP();
 	float GetSuperheat();
-	float GetSurvival();
+	float GetSurvival(int index);
 	const char GetPlayerID();
 	unsigned char GetMoveState(int index);
 	unsigned char GetPlayerTeam();

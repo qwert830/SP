@@ -6,6 +6,10 @@ Player::Player()
 	mSensitivity = 0.25f;
 	mCameraOffsetY = 20;
 	offset = { 2.0f, 18.5, 2.0f };
+	
+	fill_n(mMoveState, 10, MOVE::STAND);
+	fill_n(mAttackState, 10, ATTACK::NOATTACK);
+
 	ZeroMemory(mVector, sizeof(mVector));
 }
 
@@ -343,9 +347,9 @@ float Player::GetHit()
 	return mHit;
 }
 
-float Player::GetSurvival()
+float Player::GetSurvival(int index)
 {
-	if (mSurvival[0])
+	if (mSurvival[index])
 	{
 		return 1.0f;
 	}
