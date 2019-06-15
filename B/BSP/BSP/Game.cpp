@@ -151,7 +151,7 @@ private:
 	void QuitUserID(std::string name); // 스트링으로 ID제거
 	void Ready(std::string name, int state);
 	void Ready(int index, int state);
-	void SetPosition(std::string name, XMFLOAT3 position);
+	void SetPosition(std::string name, XMFLOAT3 position, unsigned char state);
 	void SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3 up);
 	void SetAttack(std::string name, XMFLOAT3 particlePos, XMFLOAT3 charPos);
 	void SetTeam(std::string name, unsigned char team, float x, float y, float z, float r);
@@ -367,8 +367,8 @@ void Game::Update(const GameTimer& gt)
 
 	UpdateTime(gt);
 	UpdateObjectCBs(gt);
-	UpdatePlayerData();
 	mPlayer.Update(gt);
+	UpdatePlayerData();
 	UpdateParticle(gt);
 	UpdateButton();
 	UpdateInstanceData(gt);
@@ -378,6 +378,14 @@ void Game::Update(const GameTimer& gt)
 	UpdateShadowPassCB(gt);
 	UpdateAnimation(gt);
 	UpdateAttackToServer();
+	for (int i = 0; i < 10; ++i)
+	{
+		if (mPlayer.IsAttack(i) < 0.0f)
+			if (mPlayer.GetMoveState(i) == MOVE::STAND)
+				mModelLoader.ChangeAnimation(i, IDLE);
+			else
+				mModelLoader.ChangeAnimation(i, RUN);
+	}
 
 	if (mGameQuit)
 	{
@@ -648,13 +656,13 @@ void Game::OnKeyboardInput(const GameTimer& gt)
 	if (mScene == GAME && mGameStart && mPlayer.GetSurvival() >= 1.0f)
 	{
 		mPlayer.PlayerKeyBoardInput(gt);
-		//if (mPlayer.GetMoveStateDirty())
+		if (mPlayer.GetMoveStateDirty())
 		{
 			DWORD iobyte;
 			cs_movestatus_packet* msp = reinterpret_cast<cs_movestatus_packet*>(send_buffer);
 			send_wsabuf.len = sizeof(cs_movestatus_packet);
 			msp->size = sizeof(cs_movestatus_packet);
-			switch (mPlayer.GetMoveState()) {
+			switch (mPlayer.GetMoveState(0)) {
 			case MOVE::DOWN:
 				msp->type = move_direction::DOWN_DR;
 				break;
@@ -2278,12 +2286,19 @@ void Game::Ready(int index, int state)
 		mButton.readyUI[index] = 10;
 }
 
-void Game::SetPosition(std::string name, XMFLOAT3 position)
+void Game::SetPosition(std::string name, XMFLOAT3 position, unsigned char state)
 {
 	int id = mUserID[name];
 	mPlayer.mVector[id].mPosition.x = position.x;
 	mPlayer.mVector[id].mPosition.y = position.y;
 	mPlayer.mVector[id].mPosition.z = position.z;
+	
+	mPlayer.SetMoveState(id, state);
+	if (state != 100)
+		mModelLoader.ChangeAnimation(id, RUN);
+	else if (state == 100)
+		mModelLoader.ChangeAnimation(id, IDLE);
+
 	mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].World = XMFLOAT4X4
 	{
 		mPlayer.mVector[id].mRight.x,		mPlayer.mVector[id].mRight.y,		mPlayer.mVector[id].mRight.z,		0.0f,
@@ -2733,7 +2748,7 @@ void Game::ProcessPacket(char * ptr)
 		sc_movestatus_packet* msp = reinterpret_cast<sc_movestatus_packet*>(ptr);
 		char idbuff[10];
 		wcstombs(idbuff, msp->id, wcslen(msp->id) + 1);
-		SetPosition(idbuff, XMFLOAT3(msp->x, msp->y, msp->z));
+		SetPosition(idbuff, XMFLOAT3(msp->x, msp->y, msp->z), msp->type);
 		break;
 	}
 	case SC_ANGLE:

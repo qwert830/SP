@@ -32,64 +32,64 @@ void Player::PlayerKeyBoardInput(const GameTimer & gt)
 	// ------------------------------------------------------
 	if ((GetAsyncKeyState('W') & 0x8000) == 0)
 	{
-		if(mMoveState<=RIGHTUP)
-			mMoveState = STAND;
+		if(mMoveState[0]<=RIGHTUP)
+			mMoveState[0] = STAND;
 	}
 
 	if ((GetAsyncKeyState('S') & 0x8000) == 0)
 	{
-		if (mMoveState >= LEFTDOWN)
-			mMoveState = STAND;
+		if (mMoveState[0] >= LEFTDOWN)
+			mMoveState[0] = STAND;
 	}
 
 	if ((GetAsyncKeyState('A') & 0x8000) == 0)
 	{
-		if (mMoveState <= RIGHTUP)
-			mMoveState = UP;
-		else if (mMoveState >= LEFTDOWN)
-			mMoveState = DOWN;
+		if (mMoveState[0] <= RIGHTUP)
+			mMoveState[0] = UP;
+		else if (mMoveState[0] >= LEFTDOWN)
+			mMoveState[0] = DOWN;
 		else
-			mMoveState = STAND;
+			mMoveState[0] = STAND;
 	}
 
 	if ((GetAsyncKeyState('D') & 0x8000) == 0)
 	{
-		if (mMoveState <= RIGHTUP)
-			mMoveState = UP;
-		else if (mMoveState >= LEFTDOWN)
-			mMoveState = DOWN;
+		if (mMoveState[0] <= RIGHTUP)
+			mMoveState[0] = UP;
+		else if (mMoveState[0] >= LEFTDOWN)
+			mMoveState[0] = DOWN;
 		else
-			mMoveState = STAND;
+			mMoveState[0] = STAND;
 	}
 
 	if (GetAsyncKeyState('W') & 0x8000)
 	{
-		mMoveState = UP;
+		mMoveState[0] = UP;
 	}
 	
 	if (GetAsyncKeyState('S') & 0x8000)
 	{
-		mMoveState = DOWN;
+		mMoveState[0] = DOWN;
 	}
 	
 	if (GetAsyncKeyState('A') & 0x8000)
 	{
-		if (mMoveState <= RIGHTUP)
-			mMoveState = LEFTUP;
-		else if (mMoveState >= LEFTDOWN)
-			mMoveState = LEFTDOWN;
+		if (mMoveState[0] <= RIGHTUP)
+			mMoveState[0] = LEFTUP;
+		else if (mMoveState[0] >= LEFTDOWN)
+			mMoveState[0] = LEFTDOWN;
 		else
-			mMoveState = LEFT;
+			mMoveState[0] = LEFT;
 	}
 
 	if (GetAsyncKeyState('D') & 0x8000)
 	{
-		if (mMoveState <= RIGHTUP)
-			mMoveState = RIGHTUP;
-		else if (mMoveState >= LEFTDOWN)
-			mMoveState = RIGHTDOWN;
+		if (mMoveState[0] <= RIGHTUP)
+			mMoveState[0] = RIGHTUP;
+		else if (mMoveState[0] >= LEFTDOWN)
+			mMoveState[0] = RIGHTDOWN;
 		else
-			mMoveState = RIGHT;
+			mMoveState[0] = RIGHT;
 	}
 	// ------------------------------------------------------
 
@@ -101,21 +101,6 @@ void Player::PlayerKeyBoardInput(const GameTimer & gt)
 		mSensitivity = 0.4f;
 	if (GetAsyncKeyState('4') & 0x8000)
 		mSensitivity = 0.55f;
-
-
-
-	// test¿ë ÄÚµå
-	// --------------------------------
-		//if (GetAsyncKeyState('1') & 0x8000)
-		//	SelectPlayer(1);
-		//if (GetAsyncKeyState('2') & 0x8000)
-		//	SelectPlayer(2);
-		//if (GetAsyncKeyState('3') & 0x8000)
-		//	SelectPlayer(3);
-		//if (GetAsyncKeyState('4') & 0x8000)
-		//	SelectPlayer(4);
-	// --------------------------------
-
 }
 
 void Player::PlayerMouseMove(WPARAM btnState, int x, int y)
@@ -135,7 +120,7 @@ void Player::PlayerMouseDown(WPARAM btnState, int x, int y)
 {
 	if (btnState == VK_LBUTTON)
 	{
-		if (mAttackState != ATTACK::UNABLE_ATTACK)
+		if (mAttackState[0] != ATTACK::UNABLE_ATTACK)
 		{
 			mLButtonDown = true;
 			mRButtonDown = false;
@@ -143,7 +128,7 @@ void Player::PlayerMouseDown(WPARAM btnState, int x, int y)
 	}
 	if (btnState == VK_RBUTTON)
 	{
-		if (mAttackState != ATTACK::UNABLE_ATTACK)
+		if (mAttackState[0] != ATTACK::UNABLE_ATTACK)
 		{
 			mLButtonDown = false;
 			mRButtonDown = true;
@@ -163,27 +148,23 @@ void Player::SetMousePos(int x, int y)
 	mMousePos.y = y;
 }
 
-void Player::Forward(float d)
+void Player::Forward(float d, int index)
 {
-	if (mPlayerID < 0)
-		return;
 	DirectX::XMFLOAT3 up = { 0,1,0 };
 	DirectX::XMVECTOR s = DirectX::XMVectorReplicate(d);
-	DirectX::XMVECTOR r = DirectX::XMLoadFloat3(&mVector[mPlayerID].mRight);
+	DirectX::XMVECTOR r = DirectX::XMLoadFloat3(&mVector[index].mRight);
 	DirectX::XMVECTOR u = DirectX::XMLoadFloat3(&up);
 	DirectX::XMVECTOR l = DirectX::XMVector3Cross(r, u);
-	DirectX::XMVECTOR p = XMLoadFloat3(&mVector[mPlayerID].mPosition);
-	DirectX::XMStoreFloat3(&mVector[mPlayerID].mPosition, DirectX::XMVectorMultiplyAdd(s, l, p));
+	DirectX::XMVECTOR p = XMLoadFloat3(&mVector[index].mPosition);
+	DirectX::XMStoreFloat3(&mVector[index].mPosition, DirectX::XMVectorMultiplyAdd(s, l, p));
 }
 
-void Player::Strafe(float d)
+void Player::Strafe(float d, int index)
 {
-	if (mPlayerID < 0)
-		return;
 	DirectX::XMVECTOR s = DirectX::XMVectorReplicate(d);
-	DirectX::XMVECTOR r = DirectX::XMLoadFloat3(&mVector[mPlayerID].mRight);
-	DirectX::XMVECTOR p = DirectX::XMLoadFloat3(&mVector[mPlayerID].mPosition);
-	DirectX::XMStoreFloat3(&mVector[mPlayerID].mPosition, DirectX::XMVectorMultiplyAdd(s, r, p));
+	DirectX::XMVECTOR r = DirectX::XMLoadFloat3(&mVector[index].mRight);
+	DirectX::XMVECTOR p = DirectX::XMLoadFloat3(&mVector[index].mPosition);
+	DirectX::XMStoreFloat3(&mVector[index].mPosition, DirectX::XMVectorMultiplyAdd(s, r, p));
 }
 
 void Player::Pitch(float angle)
@@ -215,8 +196,7 @@ void Player::Update(const GameTimer& gt)
 	{
 		const float dt = gt.DeltaTime();
 		AttackUpdate(dt);
-		if (mTestMode)
-			MoveUpdate(dt);
+		MoveUpdate(dt);
 		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + mCameraOffsetY, mVector[mPlayerID].mPosition.z);
 		mCamera.UpdateViewMatrix();
 
@@ -232,78 +212,79 @@ void Player::AttackUpdate(const float & dt)
 	for (int i = 0; i < 10; ++i)
 		mAttackCools[i] += dt;
 
-	if (mAttackState != ATTACK::UNABLE_ATTACK)
+	if (mAttackState[0] != ATTACK::UNABLE_ATTACK)
 	{
 		if (mLButtonDown)
-			mAttackState = ATTACK::GUN;
+			mAttackState[0] = ATTACK::GUN;
 		else if (mRButtonDown)
-			mAttackState = ATTACK::LASER;
+			mAttackState[0] = ATTACK::LASER;
 	}
 	
-	switch (mAttackState)
+	switch (mAttackState[0])
 	{
 	case ATTACK::GUN:
 		if (mAttackCools[0] < ATTACK_DELAY)
 			break;
 		mSuperheat += 5;
 		RotateY(mCamera.ShakeCamera());
-		mAttackState = ATTACK::NOATTACK;
+		mAttackState[0] = ATTACK::NOATTACK;
 		mAttackCools[0] = 0;
 		mAttack = true;
 		break;
 	case ATTACK::LASER:
 		mSuperheat += 150 * dt;
-		mAttackState = ATTACK::NOATTACK;
+		mAttackState[0] = ATTACK::NOATTACK;
 		break;
 	case ATTACK::UNABLE_ATTACK:
 		mSuperheat -= 35 * dt;
 		if (mSuperheat <= 0)
 		{
 			mSuperheat = 0;
-			mAttackState = ATTACK::NOATTACK;
+			mAttackState[0] = ATTACK::NOATTACK;
 		}
 		break;
 	}
 	mSuperheat = ClampFloat(mSuperheat - 10.0f*dt, 0.0f, 100.0f);
 	if (mSuperheat >= 99.9f)
 	{
-		mAttackState = ATTACK::UNABLE_ATTACK;
+		mAttackState[0] = ATTACK::UNABLE_ATTACK;
 	}
 }
 
 void Player::MoveUpdate(const float & dt)
 {
-	switch (mMoveState)
-	{
-	case LEFTUP:
-		Strafe(-mMoveSpeed *dt);
-		Forward(mMoveSpeed*dt);
-		break;
-	case UP:
-		Forward(mMoveSpeed*dt);
-		break;
-	case RIGHTUP:
-		Strafe(mMoveSpeed*dt);
-		Forward(mMoveSpeed*dt);
-		break;
-	case LEFT:
-		Strafe(-mMoveSpeed *dt);
-		break;
-	case RIGHT:
-		Strafe(mMoveSpeed*dt);
-		break;
-	case LEFTDOWN:
-		Strafe(-mMoveSpeed *dt);
-		Forward(-mMoveSpeed *dt);
-		break;
-	case DOWN:
-		Forward(-mMoveSpeed *dt);
-		break;
-	case RIGHTDOWN:
-		Strafe(mMoveSpeed*dt);
-		Forward(-mMoveSpeed *dt);
-		break;
-	}
+	for(int i =0; i<10; ++i)
+		switch (mMoveState[i])
+		{
+		case LEFTUP:
+			Strafe(-mMoveSpeed * dt, i);
+			Forward(mMoveSpeed*dt, i);
+			break;
+		case UP:
+			Forward(mMoveSpeed*dt, i);
+			break;
+		case RIGHTUP:
+			Strafe(mMoveSpeed*dt, i);
+			Forward(mMoveSpeed*dt, i);
+			break;
+		case LEFT:
+			Strafe(-mMoveSpeed * dt, i);
+			break;
+		case RIGHT:
+			Strafe(mMoveSpeed*dt, i);
+			break;
+		case LEFTDOWN:
+			Strafe(-mMoveSpeed * dt, i);
+			Forward(-mMoveSpeed * dt, i);
+			break;
+		case DOWN:
+			Forward(-mMoveSpeed * dt, i);
+			break;
+		case RIGHTDOWN:
+			Strafe(mMoveSpeed*dt, i);
+			Forward(-mMoveSpeed * dt, i);
+			break;
+		}
 }
 
 const char Player::GetPlayerID()
@@ -311,9 +292,9 @@ const char Player::GetPlayerID()
 	return mPlayerID;
 }
 
-unsigned char Player::GetMoveState()
+unsigned char Player::GetMoveState(int index)
 {
-	return mMoveState;
+	return mMoveState[index];
 }
 
 unsigned char Player::GetPlayerTeam()
@@ -348,11 +329,11 @@ bool Player::GetAttackState()
 
 bool Player::GetMoveStateDirty()
 {
-	if (mPreMoveState == mMoveState)
+	if (mPreMoveState == mMoveState[0])
 		return false;
 	else
 	{
-		mPreMoveState = mMoveState;
+		mPreMoveState = mMoveState[0];
 		return true;
 	}
 }
@@ -387,6 +368,11 @@ void Player::SetTestMode(const bool test)
 void Player::SetSurvival(int index, const bool survival)
 {
 	mSurvival[index] = survival;
+}
+
+void Player::SetMoveState(int index, unsigned char state)
+{
+	mMoveState[index] = state;
 }
 
 void Player::SetHit()

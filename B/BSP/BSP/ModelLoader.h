@@ -18,7 +18,7 @@
 
 enum AnimationName
 {
-	IDLE = 0, FIRE
+	IDLE = 0, FIRE, RUN, DEATH
 };
 
 
@@ -61,7 +61,6 @@ private:
 
 	unsigned int m_NumVertices = -1;
 	unsigned int m_NumBones = -1;
-
 
 	XMMATRIX m_GlobalInverseTransform;
 

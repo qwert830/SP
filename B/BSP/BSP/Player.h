@@ -27,9 +27,9 @@ private:
 	float mSensitivity = 0;
 	unsigned char mPlayerTeam;
 
-	unsigned char mPreMoveState = MOVE::STAND;
-	unsigned char mMoveState = MOVE::STAND;
-	unsigned char mAttackState = ATTACK::NOATTACK;
+	unsigned char mPreMoveState = { MOVE::STAND, };
+	unsigned char mMoveState[10] = { MOVE::STAND, };
+	unsigned char mAttackState[10] = { ATTACK::NOATTACK, };
 
 	const float mMoveSpeed = 400.0f;
 
@@ -67,8 +67,8 @@ public:
 	void PlayerKeyBoardInput(const GameTimer& gt);
 
 	void Pitch(float angle);
-	void Strafe(float d);
-	void Forward(float d);
+	void Strafe(float d, int index);
+	void Forward(float d, int index);
 	void RotateY(float angle);
 	
 	void Update(const GameTimer& gt);
@@ -80,6 +80,7 @@ public:
 	void SetAttack(int index);
 	void SetTestMode(const bool test);
 	void SetSurvival(int index, const bool survival);
+	void SetMoveState(int index, unsigned char state);
 	void SetHit();
 
 	bool GetAttackState();
@@ -91,7 +92,7 @@ public:
 	float GetSuperheat();
 	float GetSurvival();
 	const char GetPlayerID();
-	unsigned char GetMoveState();
+	unsigned char GetMoveState(int index);
 	unsigned char GetPlayerTeam();
 
 	DirectX::XMFLOAT3 GetPlayerLookVector();

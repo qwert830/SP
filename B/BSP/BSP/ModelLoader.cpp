@@ -142,6 +142,8 @@ void ModelLoader::InitAnimation()
 {
 	AnimationLoad("Resource//Idle_Rifle.FBX", IDLE);
 	AnimationLoad("Resource//Fire_1Pistol.FBX", FIRE);
+	AnimationLoad("Resource//Run_Rifle.FBX", RUN);
+	AnimationLoad("Resource//Death_Rifle.FBX", DEATH);
 }
 
 void ModelLoader::GetAnimation()
