@@ -9,6 +9,7 @@ Player::Player()
 	
 	fill_n(mMoveState, 10, MOVE::STAND);
 	fill_n(mAttackState, 10, ATTACK::NOATTACK);
+	fill_n(mSurvival, 10, true);
 
 	ZeroMemory(mVector, sizeof(mVector));
 }
@@ -196,7 +197,7 @@ void Player::RotateY(float angle)
 
 void Player::Update(const GameTimer& gt)
 {
-	if (mSurvival)
+	if (mSurvival[0])
 	{
 		const float dt = gt.DeltaTime();
 		AttackUpdate(dt);
@@ -257,11 +258,12 @@ void Player::AttackUpdate(const float & dt)
 
 void Player::MoveUpdate(const float & dt)
 {
-	for(int i =0; i<10; ++i)
+	for (int i = 0; i < 10; ++i)
+	{
 		switch (mMoveState[i])
 		{
 		case LEFTUP:
-			Strafe(-mMoveSpeed * dt, i);
+			Strafe(-mMoveSpeed*dt, i);
 			Forward(mMoveSpeed*dt, i);
 			break;
 		case UP:
@@ -272,23 +274,24 @@ void Player::MoveUpdate(const float & dt)
 			Forward(mMoveSpeed*dt, i);
 			break;
 		case LEFT:
-			Strafe(-mMoveSpeed * dt, i);
+			Strafe(-mMoveSpeed*dt, i);
 			break;
 		case RIGHT:
 			Strafe(mMoveSpeed*dt, i);
 			break;
 		case LEFTDOWN:
-			Strafe(-mMoveSpeed * dt, i);
-			Forward(-mMoveSpeed * dt, i);
+			Strafe(-mMoveSpeed*dt, i);
+			Forward(-mMoveSpeed*dt, i);
 			break;
 		case DOWN:
-			Forward(-mMoveSpeed * dt, i);
+			Forward(-mMoveSpeed*dt, i);
 			break;
 		case RIGHTDOWN:
 			Strafe(mMoveSpeed*dt, i);
-			Forward(-mMoveSpeed * dt, i);
+			Forward(-mMoveSpeed*dt, i);
 			break;
 		}
+	}
 }
 
 const char Player::GetPlayerID()

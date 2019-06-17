@@ -16,7 +16,7 @@
 const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = true;
+const bool testMode = false;
 
 float testTime = 0.0f;
 float testR = 0.0f;
@@ -31,11 +31,48 @@ enum RENDERITEM
 	UI, OPAQUEITEM, PLAYER, DEBUG, TRANSPARENTITEM, DEFERRED, PLAYERGUN, BILLBOARDITEM, PARTICLE
 };
 
+
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
 int const gNumFrameResources = 3;
+
+unsigned int ConvertMoveState(int i)
+{
+	int v;
+	switch (i)
+	{
+	case 105:
+		v = LEFTUP;
+		break;
+	case 101:
+		v = UP;
+		break;
+	case 106:
+		v = RIGHTUP;
+		break;
+	case 103:
+		v = LEFT;
+		break;
+	case 100:
+		v = STAND;
+		break;
+	case 104:
+		v = RIGHT;
+		break;
+	case 107:
+		v = LEFTDOWN;
+		break;
+	case 102:
+		v = DOWN;
+		break;
+	case 108:
+		v = RIGHTDOWN;
+		break;
+	}
+	return v;
+}
 
 struct RenderItem
 {
@@ -151,7 +188,7 @@ private:
 	void QuitUserID(std::string name); // 스트링으로 ID제거
 	void Ready(std::string name, int state);
 	void Ready(int index, int state);
-	void SetPosition(std::string name, XMFLOAT3 position, unsigned char state);
+	void SetPosition(std::string name, XMFLOAT3 position, unsigned int state);
 	void SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3 up);
 	void SetAttack(std::string name, XMFLOAT3 particlePos, XMFLOAT3 charPos);
 	void SetTeam(std::string name, unsigned char team, float x, float y, float z, float r);
@@ -380,13 +417,15 @@ void Game::Update(const GameTimer& gt)
 	UpdateAttackToServer();
 	for (int i = 0; i < 10; ++i)
 	{
-		if (mPlayer.GetSurvival(i))
+		if (mPlayer.GetSurvival(i)<0)
 			mModelLoader.ChangeAnimation(i, DEAD);
 		else if (mPlayer.IsAttack(i) < 0.0f)
+		{
 			if (mPlayer.GetMoveState(i) == MOVE::STAND)
 				mModelLoader.ChangeAnimation(i, IDLE);
 			else
 				mModelLoader.ChangeAnimation(i, RUN);
+		}
 	}
 
 	if (mGameQuit)
@@ -721,14 +760,12 @@ void Game::UpdateObjectCBs(const GameTimer& gt)
 
 void Game::UpdatePlayerData() // 렌더러아이템에 월드행렬을 플레이어에 벡터들을 이용해서 수정함.
 {
-	int id = mPlayer.GetPlayerID();
-	if (id < 0)
-		return;
-	mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].World = XMFLOAT4X4
+	for (int id = 0; id < 10; id++)
+		mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].World = XMFLOAT4X4
 	{
-		mPlayer.mVector[id].mRight.x,		mPlayer.mVector[id].mRight.y,		mPlayer.mVector[id].mRight.z,		0.0f,
+		-mPlayer.mVector[id].mRight.x,		-mPlayer.mVector[id].mRight.y,		-mPlayer.mVector[id].mRight.z,		0.0f,
 		mPlayer.mVector[id].mUp.x,			mPlayer.mVector[id].mUp.y,			mPlayer.mVector[id].mUp.z,			0.0f,
-		mPlayer.mVector[id].mLook.x,		mPlayer.mVector[id].mLook.y,		mPlayer.mVector[id].mLook.z,		0.0f,
+		-mPlayer.mVector[id].mLook.x,		-mPlayer.mVector[id].mLook.y,		-mPlayer.mVector[id].mLook.z,		0.0f,
 		mPlayer.mVector[id].mPosition.x,	mPlayer.mVector[id].mPosition.y,	mPlayer.mVector[id].mPosition.z,	1.0f
 	};
 
@@ -741,6 +778,9 @@ void Game::UpdatePlayerData() // 렌더러아이템에 월드행렬을 플레이어에 벡터들을 �
 	};
 	XMFLOAT4 Offset = XMFLOAT4(mPlayer.offset.x, mPlayer.offset.y, mPlayer.offset.z, 1.0f);
 
+	int id = mPlayer.GetPlayerID();
+	if (id < 0)
+		return;
 	XMStoreFloat4x4
 	(
 		&mRenderItems[GAME].renderItems[PLAYERGUN][0]->Instances[0].World,
@@ -774,8 +814,8 @@ void Game::UpdatePlayerData() // 렌더러아이템에 월드행렬을 플레이어에 벡터들을 �
 		XMStoreFloat4x4
 		(
 			&mRenderItems[GAME].renderItems[BILLBOARDITEM][0]->Instances[i].World,
-			XMMatrixScaling(100.0f, 100.0f, 1.0f)*
-			XMMatrixTranslation(Offset.x, 0, Offset.z + 15.5f)*
+			XMMatrixScaling(25.0f, 25.0f, 1.0f)*
+			XMMatrixTranslation(Offset.x, 0, Offset.z + 40.0f)*
 			XMLoadFloat4x4(&ShotMatrix)*
 			XMMatrixTranslation(mPlayer.mVector[i].mPosition.x, mPlayer.mVector[i].mPosition.y+17.5f, mPlayer.mVector[i].mPosition.z)
 		);
@@ -2288,14 +2328,15 @@ void Game::Ready(int index, int state)
 		mButton.readyUI[index] = 10;
 }
 
-void Game::SetPosition(std::string name, XMFLOAT3 position, unsigned char state)
+void Game::SetPosition(std::string name, XMFLOAT3 position, unsigned int state)
 {
 	int id = mUserID[name];
 	mPlayer.mVector[id].mPosition.x = position.x;
 	mPlayer.mVector[id].mPosition.y = position.y;
 	mPlayer.mVector[id].mPosition.z = position.z;
 	
-	mPlayer.SetMoveState(id, state);
+	mPlayer.SetMoveState(id, ConvertMoveState(state));
+
 	if (state != 100)
 		mModelLoader.ChangeAnimation(id, RUN);
 	else if (state == 100)
@@ -2313,15 +2354,15 @@ void Game::SetPosition(std::string name, XMFLOAT3 position, unsigned char state)
 void Game::SetRotation(std::string name, XMFLOAT3 look, XMFLOAT3 right, XMFLOAT3 up)
 {
 	int id = mUserID[name];
-	mPlayer.mVector[id].mRight.x = -right.x;
-	mPlayer.mVector[id].mRight.y = -right.y;
-	mPlayer.mVector[id].mRight.z = -right.z;
+	mPlayer.mVector[id].mRight.x = right.x;
+	mPlayer.mVector[id].mRight.y = right.y;
+	mPlayer.mVector[id].mRight.z = right.z;
 	mPlayer.mVector[id].mUp.x = up.x;
 	mPlayer.mVector[id].mUp.y = up.y;
 	mPlayer.mVector[id].mUp.z = up.z;
-	mPlayer.mVector[id].mLook.x = -look.x;
-	mPlayer.mVector[id].mLook.y = -look.y;
-	mPlayer.mVector[id].mLook.z = -look.z;
+	mPlayer.mVector[id].mLook.x = look.x;
+	mPlayer.mVector[id].mLook.y = look.y;
+	mPlayer.mVector[id].mLook.z = look.z;
 	
 	mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].World = XMFLOAT4X4
 	{
@@ -2453,8 +2494,14 @@ void Game::GameStart()
 {
 	mTime = 600.0f;
 	mRenderItems[GAME].renderItems[UI][1]->Instances[0].UIPos = XMFLOAT4(-0.2f, -0.78f, 0.2f, -0.88f);
-	mPlayer.SetSurvival(0, true);
-
+	
+	for (int i = 0; i < 10; i++)
+	{
+		if(mIDSearch[i])
+			mPlayer.SetSurvival(i, true);
+		else
+			mPlayer.SetSurvival(i, false);
+	}
 	mGameStart = true;
 }
 
@@ -2786,13 +2833,27 @@ void Game::ProcessPacket(char * ptr)
 		char idbuff[10];
 		wcstombs(idbuff, dp->id, wcslen(dp->id) + 1);
 		int id = mUserID[idbuff];
-		mPlayer.SetSurvival(id, false);
 		mModelLoader.ChangeAnimation(id, DEAD);
+		mPlayer.SetSurvival(id, false);
+		mPlayer.SetMoveState(id, STAND);
+		break;
+	}
+	case SC_TIMER:
+	{
+		sc_timer_packet* tp = reinterpret_cast<sc_timer_packet*>(ptr);
+		mTime = (float)tp->timer;
 		break;
 	}
 	case SC_GAMEOVER_REDWIN:
 	case SC_GAMEOVER_BLUEWIN:
 	{
+		sc_gameover_packet* dp = reinterpret_cast<sc_gameover_packet*>(ptr);
+		char idbuff[10];
+		wcstombs(idbuff, dp->id, wcslen(dp->id) + 1);
+		int id = mUserID[idbuff];
+		mModelLoader.ChangeAnimation(id, DEAD);
+		mPlayer.SetSurvival(id, false);
+
 		unsigned char t = mPlayer.GetPlayerTeam();
 		mPlayer.SetSurvival(0, false);
 		if (ptr[1] == SC_GAMEOVER_REDWIN)

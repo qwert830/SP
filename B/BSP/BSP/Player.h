@@ -30,6 +30,7 @@ private:
 	unsigned char mPreMoveState = { MOVE::STAND };
 	unsigned char mMoveState[10];
 	unsigned char mAttackState[10];
+	bool mSurvival[10];
 
 	const float mMoveSpeed = 400.0f;
 
@@ -43,7 +44,6 @@ private:
 	bool mLButtonDown = false;
 	bool mRButtonDown = false;
 	bool mAttack = false;
-	bool mSurvival[10] = { true, };
 
 	bool mTestMode = false;
 	
