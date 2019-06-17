@@ -197,11 +197,13 @@ void Player::RotateY(float angle)
 
 void Player::Update(const GameTimer& gt)
 {
+	const float dt = gt.DeltaTime();
+	for (int i = 0; i < 10; ++i)
+		mAttackCools[i] += dt;
+
 	if (mSurvival[0])
 	{
-		const float dt = gt.DeltaTime();
 		AttackUpdate(dt);
-		MoveUpdate(dt);
 		mCamera.SetPosition(mVector[mPlayerID].mPosition.x, mVector[mPlayerID].mPosition.y + mCameraOffsetY, mVector[mPlayerID].mPosition.z);
 		mCamera.UpdateViewMatrix();
 
@@ -209,14 +211,16 @@ void Player::Update(const GameTimer& gt)
 
 		mHit = max(mHit, 0);
 	}
+	for (int i = 0; i < 10; ++i)
+	{
+		if (mSurvival[i])
+			MoveUpdate(dt, i);
+	}
 
 }
 
 void Player::AttackUpdate(const float & dt)
 {
-	for (int i = 0; i < 10; ++i)
-		mAttackCools[i] += dt;
-
 	if (mAttackState[0] != ATTACK::UNABLE_ATTACK)
 	{
 		if (mLButtonDown)
@@ -256,41 +260,38 @@ void Player::AttackUpdate(const float & dt)
 	}
 }
 
-void Player::MoveUpdate(const float & dt)
+void Player::MoveUpdate(const float & dt, int i)
 {
-	for (int i = 0; i < 10; ++i)
+	switch (mMoveState[i])
 	{
-		switch (mMoveState[i])
-		{
-		case LEFTUP:
-			Strafe(-mMoveSpeed*dt, i);
-			Forward(mMoveSpeed*dt, i);
-			break;
-		case UP:
-			Forward(mMoveSpeed*dt, i);
-			break;
-		case RIGHTUP:
-			Strafe(mMoveSpeed*dt, i);
-			Forward(mMoveSpeed*dt, i);
-			break;
-		case LEFT:
-			Strafe(-mMoveSpeed*dt, i);
-			break;
-		case RIGHT:
-			Strafe(mMoveSpeed*dt, i);
-			break;
-		case LEFTDOWN:
-			Strafe(-mMoveSpeed*dt, i);
-			Forward(-mMoveSpeed*dt, i);
-			break;
-		case DOWN:
-			Forward(-mMoveSpeed*dt, i);
-			break;
-		case RIGHTDOWN:
-			Strafe(mMoveSpeed*dt, i);
-			Forward(-mMoveSpeed*dt, i);
-			break;
-		}
+	case LEFTUP:
+		Strafe(-mMoveSpeed * dt, i);
+		Forward(mMoveSpeed*dt, i);
+		break;
+	case UP:
+		Forward(mMoveSpeed*dt, i);
+		break;
+	case RIGHTUP:
+		Strafe(mMoveSpeed*dt, i);
+		Forward(mMoveSpeed*dt, i);
+		break;
+	case LEFT:
+		Strafe(-mMoveSpeed * dt, i);
+		break;
+	case RIGHT:
+		Strafe(mMoveSpeed*dt, i);
+		break;
+	case LEFTDOWN:
+		Strafe(-mMoveSpeed * dt, i);
+		Forward(-mMoveSpeed * dt, i);
+		break;
+	case DOWN:
+		Forward(-mMoveSpeed * dt, i);
+		break;
+	case RIGHTDOWN:
+		Strafe(mMoveSpeed*dt, i);
+		Forward(-mMoveSpeed * dt, i);
+		break;
 	}
 }
 

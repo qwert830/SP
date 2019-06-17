@@ -73,7 +73,7 @@ public:
 	
 	void Update(const GameTimer& gt);
 	void AttackUpdate(const float& dt);
-	void MoveUpdate(const float& dt);
+	void MoveUpdate(const float& dt, int i);
 	
 	void SetHP(float hp);
 	void SetTeam(unsigned char team);

@@ -404,8 +404,8 @@ void Game::Update(const GameTimer& gt)
 
 	UpdateTime(gt);
 	UpdateObjectCBs(gt);
-	mPlayer.Update(gt);
 	UpdatePlayerData();
+	mPlayer.Update(gt);
 	UpdateParticle(gt);
 	UpdateButton();
 	UpdateInstanceData(gt);
@@ -2833,7 +2833,6 @@ void Game::ProcessPacket(char * ptr)
 		char idbuff[10];
 		wcstombs(idbuff, dp->id, wcslen(dp->id) + 1);
 		int id = mUserID[idbuff];
-		mModelLoader.ChangeAnimation(id, DEAD);
 		mPlayer.SetSurvival(id, false);
 		mPlayer.SetMoveState(id, STAND);
 		break;
@@ -2851,7 +2850,6 @@ void Game::ProcessPacket(char * ptr)
 		char idbuff[10];
 		wcstombs(idbuff, dp->id, wcslen(dp->id) + 1);
 		int id = mUserID[idbuff];
-		mModelLoader.ChangeAnimation(id, DEAD);
 		mPlayer.SetSurvival(id, false);
 
 		unsigned char t = mPlayer.GetPlayerTeam();
