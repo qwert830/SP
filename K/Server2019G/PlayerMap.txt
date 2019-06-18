@@ -1,5 +1,5 @@
 tx=0 ty=0 tz=350 r=180 
-tx=0 ty=0 tz=-350 r=180  
+tx=0 ty=0 tz=-350 r=0 
 
 tx=-50 ty=0 tz=0 r=90 
 tx=50 ty=0 tz=0 r=-90 

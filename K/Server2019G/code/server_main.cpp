@@ -45,7 +45,6 @@ public:
 
 	//피직스 이동함수에 쓸 변수
 	atomic<char> m_MoveDirection;
-	PxVec3 moveVec;
 	PxVec3 look;
 	PxVec3 right;
 	float x;
@@ -67,9 +66,6 @@ public:
 		m_ID = L"Temp";
 		m_Score = 0;
 		m_IsConnected = false;
-		moveVec.x = 0;
-		moveVec.y = 0;
-		moveVec.z = 0;
 		look.x = 0;
 		look.y = 0;
 		look.z = 0;
@@ -96,9 +92,6 @@ public:
 		m_ID = L"Temp";
 		m_Score = 0;
 		m_IsConnected = false;
-		moveVec.x = 0;
-		moveVec.y = 0;
-		moveVec.z = 0;
 		look.x = 0;
 		look.y = 0;
 		look.z = 0;
@@ -129,6 +122,7 @@ public:
 	mutex m_RoomMutex;
 	atomic<char> m_RoomStatus;
 	PhysXModule* m_PhysXModule;
+	chrono::system_clock::time_point delay;
 
 	int m_StartCount;
 	int timer;
@@ -139,6 +133,7 @@ public:
 		m_RoomStatus = RS_EMPTY;
 		m_StartCount = 300;
 		timer = 605;
+		delay = chrono::system_clock::now();
 	}
 
 	bool join(const int id) {
@@ -199,12 +194,14 @@ public:
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_READER;
 				tip.type = RED_READER;
-				clients[d].look.x = 0;
+				clients[d].look.x = sin(180 * (3.141592f / 180.0f));
 				clients[d].look.y = 0;
-				clients[d].look.z = 0;
-				clients[d].right.x = 0;
+				clients[d].look.z = cos(180 * (3.141592f / 180.0f));
+				clients[d].right.x = cos(180 * (3.141592f / 180.0f));
 				clients[d].right.y = 0;
-				clients[d].right.z = 0;
+				clients[d].right.z = -sin(180 * (3.141592f / 180.0f));
+				clients[d].look.normalize();
+				clients[d].right.normalize();
 				break;
 			case 1:
 				clients[d].hp = 300;
@@ -213,8 +210,8 @@ public:
 				tip.type = BLUE_READER;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
-				clients[d].look.z = 0;
-				clients[d].right.x = 0;
+				clients[d].look.z = 1;
+				clients[d].right.x = 1;
 				clients[d].right.y = 0;
 				clients[d].right.z = 0;
 				break;
@@ -223,24 +220,28 @@ public:
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_TEAM;
 				tip.type = BLUE_TEAM;
-				clients[d].look.x = 0;
+				clients[d].look.x = sin(90 * (3.141592f / 180.0f));
 				clients[d].look.y = 0;
-				clients[d].look.z = 0;
-				clients[d].right.x = 0;
+				clients[d].look.z = cos(90 * (3.141592f / 180.0f));
+				clients[d].right.x = cos(90 * (3.141592f / 180.0f));
 				clients[d].right.y = 0;
-				clients[d].right.z = 0;
+				clients[d].right.z = -sin(90 * (3.141592f / 180.0f));
+				clients[d].look.normalize();
+				clients[d].right.normalize();
 				break;
 			case 3:
 				clients[d].hp = 100;
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
 				tip.type = RED_TEAM;
-				clients[d].look.x = 0;
+				clients[d].look.x = sin(-90 * (3.141592f / 180.0f));
 				clients[d].look.y = 0;
-				clients[d].look.z = 0;
-				clients[d].right.x = 0;
+				clients[d].look.z = cos(-90 * (3.141592f / 180.0f));
+				clients[d].right.x = cos(-90 * (3.141592f / 180.0f));
 				clients[d].right.y = 0;
-				clients[d].right.z = 0;
+				clients[d].right.z = -sin(-90 * (3.141592f / 180.0f));
+				clients[d].look.normalize();
+				clients[d].right.normalize();
 				break;
 			case 4:
 				clients[d].hp = 100;
@@ -249,8 +250,8 @@ public:
 				tip.type = BLUE_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
-				clients[d].look.z = 0;
-				clients[d].right.x = 0;
+				clients[d].look.z = 1;
+				clients[d].right.x = 1;
 				clients[d].right.y = 0;
 				clients[d].right.z = 0;
 				break;
@@ -259,12 +260,14 @@ public:
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
 				tip.type = RED_TEAM;
-				clients[d].look.x = 0;
+				clients[d].look.x = sin(180 * (3.141592f / 180.0f));
 				clients[d].look.y = 0;
-				clients[d].look.z = 0;
-				clients[d].right.x = 0;
+				clients[d].look.z = cos(180 * (3.141592f / 180.0f));
+				clients[d].right.x = cos(180 * (3.141592f / 180.0f));
 				clients[d].right.y = 0;
-				clients[d].right.z = 0;
+				clients[d].right.z = -sin(180 * (3.141592f / 180.0f));
+				clients[d].look.normalize();
+				clients[d].right.normalize();
 				break;
 			case 6:
 				clients[d].hp = 100;
@@ -273,8 +276,8 @@ public:
 				tip.type = BLUE_TEAM;
 				clients[d].look.x = 0;
 				clients[d].look.y = 0;
-				clients[d].look.z = 0;
-				clients[d].right.x = 0;
+				clients[d].look.z = 1;
+				clients[d].right.x = 1;
 				clients[d].right.y = 0;
 				clients[d].right.z = 0;
 				break;
@@ -283,36 +286,42 @@ public:
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
 				tip.type = RED_TEAM;
-				clients[d].look.x = 0;
+				clients[d].look.x = sin(180 * (3.141592f / 180.0f));
 				clients[d].look.y = 0;
-				clients[d].look.z = 0;
-				clients[d].right.x = 0;
+				clients[d].look.z = cos(180 * (3.141592f / 180.0f));
+				clients[d].right.x = cos(180 * (3.141592f / 180.0f));
 				clients[d].right.y = 0;
-				clients[d].right.z = 0;
+				clients[d].right.z = -sin(180 * (3.141592f / 180.0f));
+				clients[d].look.normalize();
+				clients[d].right.normalize();
 				break;
 			case 8:
 				clients[d].hp = 100;
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_TEAM;
 				tip.type = BLUE_TEAM;
-				clients[d].look.x = 0;
+				clients[d].look.x = sin(-90 * (3.141592f / 180.0f));
 				clients[d].look.y = 0;
-				clients[d].look.z = 0;
-				clients[d].right.x = 0;
+				clients[d].look.z = cos(-90 * (3.141592f / 180.0f));
+				clients[d].right.x = cos(-90 * (3.141592f / 180.0f));
 				clients[d].right.y = 0;
-				clients[d].right.z = 0;
+				clients[d].right.z = -sin(-90 * (3.141592f / 180.0f));
+				clients[d].look.normalize();
+				clients[d].right.normalize();
 				break;
 			case 9:
 				clients[d].hp = 100;
 				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
 				tip.type = RED_TEAM;
-				clients[d].look.x = 0;
+				clients[d].look.x = sin(270 * (3.141592f / 180.0f));
 				clients[d].look.y = 0;
-				clients[d].look.z = 0;
-				clients[d].right.x = 0;
+				clients[d].look.z = cos(270 * (3.141592f / 180.0f));
+				clients[d].right.x = cos(270 * (3.141592f / 180.0f));
 				clients[d].right.y = 0;
-				clients[d].right.z = 0;
+				clients[d].right.z = -sin(270 * (3.141592f / 180.0f));
+				clients[d].look.normalize();
+				clients[d].right.normalize();
 				break;
 			}
 			clients[d].m_Condition = US_PLAY;
@@ -340,6 +349,7 @@ public:
 			m_RoomStatus = RS_JOINABLE;
 		m_StartCount = 300;
 		timer = 605;
+
 	}
 
 	void attack(const PxVec3& pos, const PxVec3& rayDir, array <Client, MAX_USER>& clients, int id) {
@@ -393,8 +403,9 @@ public:
 			}
 			else {
 				p.type = SC_DEAD;
-				wcscpy(p.id, clients[hitTarget.first].m_ID.c_str());
+				clients[hitTarget.first].mCapsuleController->release();
 			}
+			wcscpy(p.id, clients[hitTarget.first].m_ID.c_str());
 			for(int d : m_JoinIdList)
 				SendPacket(d, &p);
 		}
@@ -882,6 +893,7 @@ inline void ProcessPacket(int id, char *packet)
 	{
 		g_rooms[g_clients[id].m_RoomNumber].m_RoomMutex.lock();
 		g_rooms[g_clients[id].m_RoomNumber].quit(id);
+		g_rooms[g_clients[id].m_RoomNumber].m_RoomMutex.unlock();
 		sc_player_quit_packet p;
 		wcscpy(p.id, g_clients[id].m_ID.c_str());
 		p.type = SC_QUIT_PLAYER;
@@ -890,7 +902,6 @@ inline void ProcessPacket(int id, char *packet)
 		for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
 			SendPacket(d, &p);
 		}
-		g_rooms[g_clients[id].m_RoomNumber].m_RoomMutex.unlock();
 		g_clients[id].m_RoomNumber = LOBBYNUMBER;
 		break;
 	}
@@ -1076,55 +1087,6 @@ void worker_thread()
 			}
 			StartRecv(key);
 		}
-		/*else if (GAMEACTION == p_over->work)
-		{
-			PxVec3 spdL = g_clients[key].look * 600.0f / 60.0f;
-			PxVec3 spdR = g_clients[key].right * 600.0f / 60.0f;
-
-			switch (g_clients[key].m_MoveDirection) {
-			case LEFT_DR:
-				g_clients[key].moveVec.x = -spdR.x;
-				g_clients[key].moveVec.z = -spdR.z;
-				break;
-			case RIGHT_DR:
-				g_clients[key].moveVec.x = spdR.x;
-				g_clients[key].moveVec.z = spdR.z;
-				break;
-			case UP_DR:
-				g_clients[key].moveVec.x = spdL.x;
-				g_clients[key].moveVec.z = spdL.z;
-				break;
-			case DOWN_DR:
-				g_clients[key].moveVec.x = -spdL.x;
-				g_clients[key].moveVec.z = -spdL.z;
-				break;
-			case ULEFT_DR:
-				g_clients[key].moveVec.x = spdL.x - spdR.x;
-				g_clients[key].moveVec.z = spdL.z - spdR.z;
-				break;
-			case URIGHT_DR:
-				g_clients[key].moveVec.x = spdL.x + spdR.x;
-				g_clients[key].moveVec.z = spdL.z + spdR.z;
-				break;
-			case DLEFT_DR:
-				g_clients[key].moveVec.x = -spdL.x - spdR.x;
-				g_clients[key].moveVec.z = -spdL.z - spdR.z;
-				break;
-			case DRIGHT_DR:
-				g_clients[key].moveVec.x = -spdL.x + spdR.x;
-				g_clients[key].moveVec.z = -spdL.z + spdR.z;
-				break;
-			case STOP_DR:
-				g_clients[key].moveVec.x = 0;
-				g_clients[key].moveVec.z = 0;
-				break;
-			}
-			g_clients[key].moveVec.y = 0;
-			PxControllerFilters filter;
-			g_clients[key].mCapsuleController->move(PxVec3(g_clients[key].moveVec.x, g_clients[key].moveVec.y, g_clients[key].moveVec.z), 0.001f, FRAME_PER_SEC, filter);
-			g_clients[key].x = g_clients[key].mCapsuleController->getPosition().x;
-			g_clients[key].z = g_clients[key].mCapsuleController->getPosition().z;
-		}*/
 		else if (PERIODICACTION == p_over->work) {
 			sc_timer_packet tp;
 			tp.size = sizeof(sc_timer_packet);
@@ -1144,57 +1106,6 @@ void worker_thread()
 			}
 		}
 		else if (PXACTION == p_over->work) {
-
-			for (int id : g_rooms[key].m_JoinIdList) {
-				if (g_clients[id].hp <= 0) {
-					continue;
-				}
-				PxVec3 spdL = g_clients[id].look * 400.0f / 60.0f;
-				PxVec3 spdR = g_clients[id].right * 400.0f / 60.0f;
-				switch (g_clients[id].m_MoveDirection) {
-				case LEFT_DR:
-					g_clients[id].moveVec.x = -spdR.x;
-					g_clients[id].moveVec.z = -spdR.z;
-					break;
-				case RIGHT_DR:
-					g_clients[id].moveVec.x = spdR.x;
-					g_clients[id].moveVec.z = spdR.z;
-					break;
-				case UP_DR:
-					g_clients[id].moveVec.x = spdL.x;
-					g_clients[id].moveVec.z = spdL.z;
-					break;
-				case DOWN_DR:
-					g_clients[id].moveVec.x = -spdL.x;
-					g_clients[id].moveVec.z = -spdL.z;
-					break;
-				case ULEFT_DR:
-					g_clients[id].moveVec.x = spdL.x - spdR.x;
-					g_clients[id].moveVec.z = spdL.z - spdR.z;
-					break;
-				case URIGHT_DR:
-					g_clients[id].moveVec.x = spdL.x + spdR.x;
-					g_clients[id].moveVec.z = spdL.z + spdR.z;
-					break;
-				case DLEFT_DR:
-					g_clients[id].moveVec.x = -spdL.x - spdR.x;
-					g_clients[id].moveVec.z = -spdL.z - spdR.z;
-					break;
-				case DRIGHT_DR:
-					g_clients[id].moveVec.x = -spdL.x + spdR.x;
-					g_clients[id].moveVec.z = -spdL.z + spdR.z;
-					break;
-				case STOP_DR:
-					g_clients[id].moveVec.x = 0;
-					g_clients[id].moveVec.z = 0;
-					break;
-				}
-				g_clients[id].moveVec.y = 0;
-				PxControllerFilters filter;
-				g_clients[id].mCapsuleController->move(PxVec3(g_clients[id].moveVec.x, g_clients[id].moveVec.y, g_clients[id].moveVec.z), 0.001f, FRAME_PER_SEC, filter);
-				g_clients[id].x = g_clients[id].mCapsuleController->getPosition().x;
-				g_clients[id].z = g_clients[id].mCapsuleController->getPosition().z;
-			}
 			if (g_rooms[key].timer <= 0) {
 				sc_gameover_packet gop;
 				gop.size = sizeof(sc_gameover_packet);
@@ -1218,13 +1129,51 @@ void worker_thread()
 				}
 				g_rooms[key].gameover();
 			}
-			
-			if (g_rooms[key].m_RoomStatus != RS_PLAY) {
-				for (int d : g_rooms[key].m_JoinIdList) {
-					g_clients[d].mCapsuleController->release();
+
+			for (int id : g_rooms[key].m_JoinIdList) {
+				if (g_clients[id].hp <= 0) {
+					continue;
 				}
+				PxVec3 spdL = g_clients[id].look * 400.0f / 60.0f;
+				PxVec3 spdR = g_clients[id].right * 400.0f / 60.0f;
+				PxControllerFilters filter;
+				chrono::system_clock::time_point tp = chrono::system_clock::now();
+				chrono::duration<double> sptime = chrono::duration_cast<chrono::duration<double>>(tp - g_rooms[key].delay);
+				switch (g_clients[id].m_MoveDirection) {
+				case LEFT_DR:
+					g_clients[id].mCapsuleController->move(PxVec3(-spdR.x, 0, -spdR.z), 0.001f, sptime.count(), filter);
+					break;
+				case RIGHT_DR:
+					g_clients[id].mCapsuleController->move(PxVec3(spdR.x, 0, spdR.z), 0.001f, sptime.count(), filter);
+					break;
+				case UP_DR:
+					g_clients[id].mCapsuleController->move(PxVec3(spdL.x, 0, spdL.z), 0.001f, sptime.count(), filter);
+					break;
+				case DOWN_DR:
+					g_clients[id].mCapsuleController->move(PxVec3(-spdL.x, 0, -spdL.z), 0.001f, sptime.count(), filter);
+					break;
+				case ULEFT_DR:
+					g_clients[id].mCapsuleController->move(PxVec3(spdL.x - spdR.x, 0, spdL.z - spdR.z), 0.001f, sptime.count(), filter);
+					break;
+				case URIGHT_DR:
+					g_clients[id].mCapsuleController->move(PxVec3(spdL.x + spdR.x, 0, spdL.z + spdR.z), 0.001f, sptime.count(), filter);
+					break;
+				case DLEFT_DR:
+					g_clients[id].mCapsuleController->move(PxVec3(-spdL.x - spdR.x, 0, -spdL.z - spdR.z), 0.001f, sptime.count(), filter);
+					break;
+				case DRIGHT_DR:
+					g_clients[id].mCapsuleController->move(PxVec3(-spdL.x + spdR.x, 0, -spdL.z + spdR.z), 0.001f, sptime.count(), filter);
+					break;
+				case STOP_DR:
+					break;
+				}
+				g_clients[id].x = g_clients[id].mCapsuleController->getPosition().x;
+				g_clients[id].z = g_clients[id].mCapsuleController->getPosition().z;
 			}
-			g_rooms[key].m_PhysXModule->stepPhysics(FRAME_PER_SEC);
+			chrono::system_clock::time_point tp = chrono::system_clock::now();
+			chrono::duration<double> sptime = chrono::duration_cast<chrono::duration<double>>(tp - g_rooms[key].delay);
+			g_rooms[key].m_PhysXModule->stepPhysics(sptime.count());
+			g_rooms[key].delay = chrono::system_clock::now();
 		}
 		else
 		{
@@ -1298,11 +1247,7 @@ void Accept_Threads()
 void Timer_Thread() {
 	double delay;
 	int count = 0;
-	EXOVER over, periodic, pxact;
-	ZeroMemory(&over.m_over, sizeof(WSAOVERLAPPED));
-	over.m_wsabuf.buf = over.m_iobuf;
-	over.m_wsabuf.len = sizeof(over.m_wsabuf.buf);
-	over.work = GAMEACTION;
+	EXOVER periodic, pxact;
 
 	ZeroMemory(&periodic.m_over, sizeof(WSAOVERLAPPED));
 	periodic.m_wsabuf.buf = periodic.m_iobuf;
@@ -1314,8 +1259,9 @@ void Timer_Thread() {
 	pxact.m_wsabuf.len = sizeof(pxact.m_wsabuf.buf);
 	pxact.work = PXACTION;
 
+	chrono::system_clock::time_point t1, t2;
 	while (true) {
-		chrono::system_clock::time_point t1 = chrono::system_clock::now();
+		t1 = chrono::system_clock::now();
 		count = (count + 1) % 60;
 		for (int roomidx = 0; roomidx < MAX_ROOMNUMBER; ++roomidx) {
 			if (g_rooms[roomidx].m_RoomStatus != RS_PLAY) continue;
@@ -1331,7 +1277,6 @@ void Timer_Thread() {
 				}
 			}
 			PostQueuedCompletionStatus(ghiocp, 1, roomidx, &pxact.m_over);
-
 			if (!count) {
 				g_rooms[roomidx].timer--;
 				for (int id : g_rooms[roomidx].m_JoinIdList) {
@@ -1339,7 +1284,7 @@ void Timer_Thread() {
 				}
 			}
 		}
-		chrono::system_clock::time_point t2 = chrono::system_clock::now();
+		t2 = chrono::system_clock::now();
 		chrono::duration<double> sptime = chrono::duration_cast<chrono::duration<double>>(t2 - t1);
 		delay = MAX(0, 1 - sptime.count());
 		Sleep(delay / 0.06);
