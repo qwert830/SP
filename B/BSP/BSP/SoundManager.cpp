@@ -42,16 +42,16 @@ void SoundManager::SetSound(int index, XMFLOAT3 pos, XMFLOAT3 soundPos)
 	float y = (float)fabs(pos.y - sp.y);
 	float z = (float)fabs(pos.z - sp.z);
 
-	float volume = 20.0f / (x + y + z);
+	float volume = 20.0f / (x + y + z); // 거리에 따른 볼륨크기 설정
 
-	volume = min(max(volume, 0), 1);
+	volume = min(max(volume, 0), 1); 
 	
-	mSystem->playSound(mSound[index], 0, false, &mChannel[channelCount]);
-	mChannel[channelCount]->set3DAttributes(&sp, &vel);
-	mChannel[channelCount++]->setVolume(volume);
+	mSystem->playSound(mSound[index], 0, false, &mChannel[channelCount]); // 재생할 사운드와 채널 설정
+	mChannel[channelCount]->set3DAttributes(&sp, &vel); // 3D정보 설정
+	mChannel[channelCount++]->setVolume(volume); // 볼륨설정
 	
-	mSystem->update();
+	mSystem->update(); //시스템에 볼륨과 3D효과, 채널과 재생사운드를 업데이트
 
 	if (channelCount >= 100)
-		channelCount = 0;
+		channelCount = 0; //최대 100개까지 채널을 순차적으로 이용
 }

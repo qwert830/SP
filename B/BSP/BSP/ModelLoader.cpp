@@ -163,15 +163,22 @@ void ModelLoader::BoneTransform(XMFLOAT4X4* Transforms, int index)
 
 	float TicksPerSecond = (float)(m_pAnimScene[m_AnimationType[index]]->mAnimations[0]->mTicksPerSecond != 0 ?
 		m_pAnimScene[m_AnimationType[index]]->mAnimations[0]->mTicksPerSecond : 25.0f);
+	// 프레임수
+	
 	float TimeInTicks = m_CurrentAnimationTime[index] * TicksPerSecond;
+	// 시간에 해당하는 프레임 계산
+	
 	float AnimationTime = (float)fmod(TimeInTicks, m_pAnimScene[m_AnimationType[index]]->mAnimations[0]->mDuration);
+	// 총 프레임수로 애니메이션 프레임 계산
 
 	ReadNodeHeirarchy(AnimationTime, m_pAnimScene[m_AnimationType[index]]->mRootNode, Identity, index);
+	// 재귀함수를 이용하여 루트노드부터 행렬을 누적계산하여 m_Bones[i].second에 저장
 
 	for (unsigned int i = 0; i < m_NumBones; i++)
 	{
 		XMStoreFloat4x4(&Transforms[i], m_Bones[i].second.TransFormation);
 	}
+	// 함수외부에서 받은 행렬에 값을 직접 대입함
 }
 
 void ModelLoader::ReadNodeHeirarchy(float AnimationTime, const aiNode * pNode, const XMMATRIX & ParentTransform, int index)

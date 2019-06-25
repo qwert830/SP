@@ -133,10 +133,9 @@ private:
 	virtual LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)override;
 	virtual void ProcessPacket(char * ptr);
 
-	void DeferredDraw(const GameTimer& gt);
-
 	void RoomStateDraw(const GameTimer& gt);
 	void GameStateDraw(const GameTimer& gt);
+	void DeferredDraw(const GameTimer& gt);
 
     virtual void OnMouseDown(WPARAM btnState, int x, int y)override;
     virtual void OnMouseUp(WPARAM btnState, int x, int y)override;
@@ -177,12 +176,13 @@ private:
 	void CreateRenderItems(const char* geoName, int instancesCount, SCENENAME sceneName, RENDERITEM itemType, float isDraw, int matIndex);
 	void CreateRenderItems(const char* geoName, int instancesCount, SCENENAME sceneName, RENDERITEM itemType, float isDraw, int matIndex, 
 		XMFLOAT3 tex, XMFLOAT3 worldScaling = XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3 worldRotation = XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3 worldTrans = XMFLOAT3(0.0f,0.0f,0.0f));
+	
+	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
+	
 	void RoomCheckButton(float x, float y);
 	void ButtonClick();
-
 	void ChangeUserName(int id, const char* name, unsigned int nameCount); // 룸씬에서 플레이어 아이디를 변경함
 	void SelectID(int id);
-
 	void SearchID(); // 비어있는 mIDNumber값을 검색함
 	void JoinUserID(std::string name); // 스트링을 키값으로 ID값을 배정함
 	void QuitUserID(std::string name); // 스트링으로 ID제거
@@ -198,11 +198,9 @@ private:
 	void SetParticle(float x, float y, float z, float charX, float charY, float charZ);
 	void SetGameResult(bool win);
 	void SetRoom();
-
 	void TeamCheck();
 	void GameStart();
 
-	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 private:
 
 	SCENENAME	mScene = ROOM;
@@ -217,23 +215,23 @@ private:
 	MapLoader			mMapLoader;
 	Particle			mParticle[PARTICLEOBJECT];
 
-	bool mIDSearch[10] = { false, };
-	unsigned int mIDNumber = 0;
-	unsigned int mParticleCount = 0;
-	float mGameQuitCount = 0;
+	bool mIDSearch[10] = { false, }; // 해당 아이디가 있는지 검사
+	unsigned int mIDNumber = 0; // 서버에게 부여받는 아이디 순서
+	unsigned int mParticleCount = 0; // 사용할 파티클 인덱스
+	float mGameQuitCount = 0; //게임종료 시간 카운트다운
 
-	std::unordered_map<std::string, unsigned int> mUserID;
-
-	std::unique_ptr<ShadowMap> mShadowMap;
+	float mTime = 600.0f; //초단위
 	
-	Microsoft::WRL::ComPtr<ID3D12Resource> mDeferredResource[4] = { nullptr, };
+	std::unordered_map<std::string, unsigned int> mUserID; // 유저의 아이디저장 스트링으로 접근해서 unsigned int값을 인덱스로 사용
 
-	DirectX::BoundingSphere mSceneBounds;
+	std::unique_ptr<ShadowMap> mShadowMap; // 그림자 매핑을 위한 쉐도우맵
+	Microsoft::WRL::ComPtr<ID3D12Resource> mDeferredResource[4] = { nullptr, }; // 디퍼드렌더링을 위한 리소스
 
-	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
+	DirectX::BoundingSphere mSceneBounds; // 그림자 매핑을 위한 바운딩스피어 
+	std::vector<std::unique_ptr<FrameResource>> mFrameResources; // 매 프레임 사용할 자원리소스	
 	FrameResource* mCurrFrameResource = nullptr;
+	
 	int mCurrFrameResourceIndex = 0;
-
 	UINT mCbvSrvDescriptorSize = 0;
 
     ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
@@ -268,6 +266,7 @@ private:
 	PassConstants mMainPassCB;
 	PassConstants mShadowPassCB;
 	AnimationData mAnimationData;
+
     XMFLOAT4X4 mWorld = MathHelper::Identity4x4();
 
     float mTheta = 1.5f*XM_PI;
@@ -285,9 +284,6 @@ private:
 		XMFLOAT3(-0.57735f, -0.57735f, 0.57735f),
 		XMFLOAT3(0.0f, -0.707f, -0.707f)
 	};
-
-	float mTime = 600.0f;//초단위
-
 };
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
@@ -2437,13 +2433,13 @@ void Game::SetCurrentHP(float hp)
 void Game::SetParticle(XMFLOAT3 pos, XMFLOAT3 charPos)
 {
 	mParticle[mParticleCount++].SetStartPaticle(pos, charPos);
-	mParticleCount = mParticleCount % 10;
+	mParticleCount = mParticleCount % PARTICLEOBJECT;
 }
 
 void Game::SetParticle(float x, float y, float z, float charX, float charY, float charZ)
 {
 	mParticle[mParticleCount++].SetStartPaticle(XMFLOAT3(x,y,z), mPlayer.GetCameraPosition());
-	mParticleCount = mParticleCount % 10;
+	mParticleCount = mParticleCount % PARTICLEOBJECT;
 }
 
 void Game::SetGameResult(bool win)

@@ -424,9 +424,9 @@ DeferredVSOut DVS(ShadowVertexIn vin, uint vertexID : SV_VertexID)
 
 float4 DPS(DeferredVSOut pin) : SV_Target
 {
-    float depth = gDepthResource.Load(float3(pin.Pos.xy, 0)).x;
+    float depth = gDepthResource.Load(float3(pin.Pos.xy, 0)).x; //깊이값
 
-    float lineardepth = ConvertDepthToLinear(depth);
+    float lineardepth = ConvertDepthToLinear(depth); // 투영전 선형 깊이값
     
     float4 temp = gBufferResource[0].Load(float3(pin.Pos.xy, 0)); // 색상
     float3 color = temp.xyz;
@@ -436,38 +436,38 @@ float4 DPS(DeferredVSOut pin) : SV_Target
     float3 normal = normalize(temp.xyz * 2.0f - 1.0f);
     float shininess = temp.a;
 
-    float4 ambient = gAmbientLight * float4(color, 1.0f);
-    float3 position = CalcWorldPos(pin.UV, lineardepth);
+    float4 ambient = gAmbientLight * float4(color, 1.0f); // AmbientLight 색상 계산
+    float3 position = CalcWorldPos(pin.UV, lineardepth); // 리소스버퍼에서 월드포지션값 추출
 
     float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
-    shadowFactor[0] = CalcShadowFactor(mul(float4(position, 1.0f), gShadowTransform));
+    shadowFactor[0] = CalcShadowFactor(mul(float4(position, 1.0f), gShadowTransform)); // 그림자값 추출
     
-    float3 toEyeW = normalize(gEyePosW - position);
+    float3 toEyeW = normalize(gEyePosW - position); // 카메라 look벡터
     
-    float distToEye = length(gEyePosW - position);
+    float distToEye = length(gEyePosW - position); // 카메라에서 위치까지의 거리
 
-    Material mat = { float4(color, 1.0f), fresnelR0, shininess };
+    Material mat = { float4(color, 1.0f), fresnelR0, shininess }; // 재질정보
     
     float4 directLight = ComputeLighting(gLights, mat, position,
-       normal, toEyeW, shadowFactor);
+       normal, toEyeW, shadowFactor); // 조명정보 계산
 
-    float fog = clamp((depth - 0.9f) * 2, 0, 1);
+    float fog = clamp((depth - 0.9f) * 2, 0, 1); // 안개설정값
     
-    float4 fogColor = float4(0.7f, 0.7f, 0.7f, 1.0f);
+    float4 fogColor = float4(0.7f, 0.7f, 0.7f, 1.0f); // 안개색상
 
-    float4 litcolor = ambient + directLight - fog;
+    float4 litcolor = ambient + directLight - fog; // 최종색상
 
-    litcolor = lerp(litcolor, fogColor, saturate((distToEye - 5.0f) / 350.0f));
+    litcolor = lerp(litcolor, fogColor, saturate((distToEye - 5.0f) / 350.0f)); // 거리에 따른 안개 효과 추가
 
-    litcolor.r += Hit;
+    litcolor.r += Hit; // 피격시 색상 변화
 
     if (Survival < 0)
     {
         float a = (litcolor.r + litcolor.g + litcolor.b) / 3 * 0.5f;
         litcolor = float4(a, a, a, 1.0f);
-    }
+    } // 사망시 회색화면 설정
 
-    return litcolor;
+    return litcolor; // 최종색상 출력
 }
 
 VertexOut UI_VS(VertexIn vin, uint instanceID : SV_InstanceID, uint vertexID : SV_VertexID)
@@ -594,7 +594,7 @@ ShadowVertexOut SHADOW_VS(ShadowVertexIn vin, uint instanceID : SV_InstanceID)
         vout.PosH = float4(-100000.0f, -100000.0f, 0.0f, 0.0f);
 
         return vout;
-    }
+    }// 그려지는 그림자인지 판단
 
     vout.MatIndex = matIndex;
     if (matIndex == 3)
@@ -614,12 +614,14 @@ ShadowVertexOut SHADOW_VS(ShadowVertexIn vin, uint instanceID : SV_InstanceID)
         }
 
         vin.PosL = float4(posL, 1.0f);
-    }
-    float4 posW = mul(float4(vin.PosL, 1.0f), world);
+    }// 플레이어의 경우 애니메이션이 동작하여 그림자에 애니메이션일 적용
 
-    vout.PosH = mul(posW, gViewProj);
+
+    float4 posW = mul(float4(vin.PosL, 1.0f), world); // 월드좌표계로 변환
+
+    vout.PosH = mul(posW, gViewProj); // 카메라 및 투영좌표계로 변환
 	
-    float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), texTransform);
+    float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), texTransform); // 텍스쳐 변환행렬을 적용하여 uv값 생성
     vout.TexC = mul(texC, matData.MatTransform).xy;
 	
     return vout;
