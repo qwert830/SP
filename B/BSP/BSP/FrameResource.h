@@ -64,7 +64,7 @@ struct PassConstants
 
 struct AnimationData
 {
-	XMFLOAT4X4 gBoneTransforms[10][44];
+	XMFLOAT4X4 gBoneTransforms[10][45];
 };
 
 struct FrameResource

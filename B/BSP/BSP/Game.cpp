@@ -16,7 +16,7 @@
 const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = false;
+const bool testMode = true;
 
 float testTime = 0.0f;
 float testR = 0.0f;
@@ -28,7 +28,7 @@ enum SCENENAME
 
 enum RENDERITEM
 {
-	UI, OPAQUEITEM, PLAYER, DEBUG, TRANSPARENTITEM, DEFERRED, PLAYERGUN, BILLBOARDITEM, PARTICLE
+	UI, OPAQUEITEM, PLAYER, DEBUG, TRANSPARENTITEM, DEFERRED, UIGUN, BILLBOARDITEM, PARTICLE, PLAYERGUN
 };
 
 
@@ -153,6 +153,7 @@ private:
 	void UpdateButton();
 	void UpdateAttackToServer();
 	void UpdateParticle(const GameTimer& gt);
+	void UpdateGunPosition();
 	void OnKeyboardInput(const GameTimer& gt);
 
 	void LoadTextures();
@@ -403,6 +404,7 @@ void Game::Update(const GameTimer& gt)
 	UpdatePlayerData();
 	mPlayer.Update(gt);
 	UpdateParticle(gt);
+	UpdateGunPosition();
 	UpdateButton();
 	UpdateInstanceData(gt);
 	UpdateMaterialCBs(gt);
@@ -417,10 +419,13 @@ void Game::Update(const GameTimer& gt)
 			mModelLoader.ChangeAnimation(i, DEAD);
 		else if (mPlayer.IsAttack(i) < 0.0f)
 		{
-			if (mPlayer.GetMoveState(i) == MOVE::STAND)
-				mModelLoader.ChangeAnimation(i, IDLE);
-			else
-				mModelLoader.ChangeAnimation(i, RUN);
+			if (!testMode)
+			{
+				if (mPlayer.GetMoveState(i) == MOVE::STAND)
+					mModelLoader.ChangeAnimation(i, IDLE);
+				else
+					mModelLoader.ChangeAnimation(i, RUN);
+			}
 		}
 	}
 
@@ -473,12 +478,12 @@ void Game::DeferredDraw(const GameTimer & gt)
 
 	//인스턴싱으로 리소스 생성 : ui / 반투명은 따로 그리기
 	mCommandList->SetPipelineState(mPSOs["DeferredResource"].Get()); // 파이프라인 설정
-
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[OPAQUEITEM]);
-	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYERGUN]);
+	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[UIGUN]);
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PARTICLE]);
 
 	mCommandList->SetPipelineState(mPSOs["DeferredPlayerResource"].Get());
+	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYERGUN]);
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[PLAYER]);
 
 	mCommandList->SetPipelineState(mPSOs["DeferredTransparentResource"].Get());
@@ -779,7 +784,7 @@ void Game::UpdatePlayerData() // 렌더러아이템에 월드행렬을 플레이어에 벡터들을 �
 		return;
 	XMStoreFloat4x4
 	(
-		&mRenderItems[GAME].renderItems[PLAYERGUN][0]->Instances[0].World,
+		&mRenderItems[GAME].renderItems[UIGUN][0]->Instances[0].World,
 		XMMatrixScaling(0.05f, 0.05f, 0.05f)*
 		XMMatrixRotationY(180 * radian)*
 		XMMatrixTranslation(Offset.x, 0, Offset.z)*
@@ -925,8 +930,11 @@ void Game::UpdateAnimation(const GameTimer & gt)
 {
 	for (int i = 0; i < 10; ++i)
 	{
+		mModelLoader.ChangeAnimation(i, WALK);
 		mModelLoader.BoneTransform(mAnimationData.gBoneTransforms[i], i);
+		XMStoreFloat4x4(&mAnimationData.gBoneTransforms[i][44], mModelLoader.GetGunTransFormation());
 	}
+
 	auto currAniData = mCurrFrameResource->AnimationCB.get();
 	currAniData->CopyData(0, mAnimationData);
 
@@ -1078,6 +1086,15 @@ void Game::UpdateParticle(const GameTimer& gt)
 				mRenderItems[GAME].renderItems[PARTICLE][i]->Instances[k].IsDraw = mParticle[i].GetIsDraw(k);
 			}
 		}
+	}
+}
+
+void Game::UpdateGunPosition()
+{
+	for (int id = 0; id < 9; id++)
+	{
+		auto m = XMLoadFloat4x4(&mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id + 1].World);
+		XMStoreFloat4x4(&mRenderItems[GAME].renderItems[PLAYERGUN][0]->Instances[id].World, m);
 	}
 }
 
@@ -1406,10 +1423,19 @@ void Game::BuildShapeGeometry()
 	auto vertexData3 = CubeLoader.GetMesh()[0].m_vertices;
 	auto indicesData3 = CubeLoader.GetMesh()[0].m_indices;
 
+	auto vertexData4 = vertexData2;
+	auto indicesData4 = indicesData2;
+
+	for (int i =0; i <vertexData4.size(); ++i)
+	{
+		auto p = XMLoadFloat4(&vertexData4[i].Pos);
+		XMVector4Transform(p, XMMatrixRotationY(90 * radian) * XMMatrixRotationX(-90 * radian) * XMMatrixRotationZ(45 * radian));
+		XMStoreFloat4(&vertexData4[i].Pos, p);
+	}
 
 	// 모델 데이터 입력
-	auto totalVertexCount = grid.Vertices.size()+ vertexData.size() + uiGrid.Vertices.size() + quad.Vertices.size() + vertexData2.size() + vertexData3.size()
-							+ miniBox.Vertices.size();
+	auto totalVertexCount = grid.Vertices.size() + vertexData.size() + uiGrid.Vertices.size() + quad.Vertices.size() + vertexData2.size() + vertexData3.size()
+		+ miniBox.Vertices.size() + vertexData4.size();
 	
 	std::vector<Vertex> vertices(totalVertexCount);
 	std::vector<uint16_t> indices;
@@ -1484,6 +1510,18 @@ void Game::BuildShapeGeometry()
 	}
 	indices.insert(indices.end(), miniBox.Indices32.begin(), miniBox.Indices32.end());
 
+	for (int i = 0; i < vertexData4.size(); ++i, ++k)
+	{
+		vertices[k].Pos = vertexData4[i].Pos;
+		vertices[k].Normal = vertexData4[i].Normal;
+		vertices[k].Tex = vertexData4[i].Tex;
+		vertices[k].BoneWeights = vertexData4[i].BoneWeights;
+		for (int j = 0; j < 4; ++j)
+			vertices[k].BoneIndices[j] = vertexData4[i].BoneIndices[j];
+	}
+	indices.insert(indices.end(), indicesData4.begin(), indicesData4.end());
+	UINT PlayerWorldGun = (UINT)indicesData4.size();
+
     const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
@@ -1507,6 +1545,9 @@ void Game::BuildShapeGeometry()
 
 	UINT miniBoxIndexOffset = (UINT)indicesData3.size() + CubeIndexOffset;
 	UINT miniBoxVertexOffset = (UINT)vertexData3.size() + CubeVertexOffset;
+
+	UINT GunIndexOffset = (UINT)miniBox.Indices32.size() + miniBoxIndexOffset;
+	UINT GunVertexOffset = (UINT)miniBox.Vertices.size() + miniBoxVertexOffset;
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = "shapeGeo";
@@ -1566,6 +1607,11 @@ void Game::BuildShapeGeometry()
 	MiniBoxSubmesh.StartIndexLocation = miniBoxIndexOffset;
 	MiniBoxSubmesh.BaseVertexLocation = miniBoxVertexOffset;
 
+	SubmeshGeometry GunSubmesh;
+	GunSubmesh.IndexCount = (UINT)indicesData4.size();
+	GunSubmesh.StartIndexLocation = GunIndexOffset;
+	GunSubmesh.BaseVertexLocation = GunVertexOffset;
+
 	geo->DrawArgs["grid"] = gridSubmesh;
 	geo->DrawArgs["uiGrid"] = uiGridSubmesh;
 	geo->DrawArgs["PlayerChar"] = PlayerSubmesh;
@@ -1573,6 +1619,7 @@ void Game::BuildShapeGeometry()
 	geo->DrawArgs["playerGun"] = PlayerGunSubmesh;
 	geo->DrawArgs["cube"] = CubeSubmesh;
 	geo->DrawArgs["miniBox"] = MiniBoxSubmesh;
+	geo->DrawArgs["gun"] = GunSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
 }
@@ -1889,7 +1936,7 @@ void Game::BuildRenderItemsGame()
 	CreateRenderItems("quad", 1, GAME, DEFERRED, 1, 0);
 
 	//플레이어 총
-	CreateRenderItems("playerGun", 1, GAME, PLAYERGUN, 1, 6, XMFLOAT3(1.0f, 1.0f, 1.0f),XMFLOAT3(0.1f,0.1f,0.1f));
+	CreateRenderItems("playerGun", 1, GAME, UIGUN, 1, 6, XMFLOAT3(1.0f, 1.0f, 1.0f),XMFLOAT3(0.1f,0.1f,0.1f));
 
 	//총 발사 이펙트
 	CreateRenderItems("quad", 10, GAME, BILLBOARDITEM, -1, 7, XMFLOAT3(0.5f, 0.5f, 1.0f));
@@ -1900,6 +1947,9 @@ void Game::BuildRenderItemsGame()
 	//파티클
 	for (int i = 0; i < PARTICLEOBJECT; ++i)
 		CreateRenderItems("miniBox", COUNT, GAME, PARTICLE, 1, 17);
+
+	//총
+	CreateRenderItems("gun", 9, GAME, PLAYERGUN, 1, 6, XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.25f, 0.25f, 0.25f),XMFLOAT3(0.0f,15.0f,0.0f));
 }
 
 void Game::BuildRenderItemsRoom()
@@ -2331,12 +2381,20 @@ void Game::SetPosition(std::string name, XMFLOAT3 position, unsigned int state)
 	mPlayer.mVector[id].mPosition.y = position.y;
 	mPlayer.mVector[id].mPosition.z = position.z;
 	
-	mPlayer.SetMoveState(id, ConvertMoveState(state));
+	unsigned int convertState = ConvertMoveState(state);
+	mPlayer.SetMoveState(id, convertState);
 
-	if (state != 100)
-		mModelLoader.ChangeAnimation(id, RUN);
-	else if (state == 100)
+	if (convertState != STAND )
+	{
+		if (convertState == LEFTDOWN || convertState == DOWN || convertState == RIGHTDOWN)
+			mModelLoader.ChangeAnimation(id, WALK);
+		else
+			mModelLoader.ChangeAnimation(id, RUN);
+	}
+	else if (convertState == STAND)
+	{
 		mModelLoader.ChangeAnimation(id, IDLE);
+	}
 
 	mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].World = XMFLOAT4X4
 	{

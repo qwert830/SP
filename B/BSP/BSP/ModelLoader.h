@@ -18,7 +18,7 @@
 
 enum AnimationName
 {
-	IDLE = 0, FIRE, RUN, DEAD
+	IDLE = 0, FIRE, RUN, DEAD, WALK
 };
 
 using namespace std;
@@ -56,6 +56,8 @@ private:
 	
 	vector<mesh>				m_Meshes;
 	vector<pair<string, Bone>>	m_Bones;
+
+	XMMATRIX GunTransFormation = XMMatrixIdentity();
 
 	unsigned int m_NumVertices = -1;
 	unsigned int m_NumBones = -1;
@@ -96,6 +98,8 @@ public:
 	void ChangeAnimation(int index, int AnimationType);
 	unsigned int GetAnimationType(int index);
 	void UpdateTime(float dt);
+
+	XMMATRIX GetGunTransFormation();
 
 };
 

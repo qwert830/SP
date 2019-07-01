@@ -70,7 +70,7 @@ cbuffer cbPass : register(b0)
 
 cbuffer cbSkinned : register(b1)
 {
-    float4x4 gBoneTransforms[10][44];
+    float4x4 gBoneTransforms[10][45];
 };
 
 Texture2D gDiffuseMap[20] : register(t0);
@@ -304,23 +304,39 @@ VertexOut PlayerVS(VertexIn vin, uint instanceID : SV_InstanceID)
         return vout;
     }
 
-    float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    weights[0] = vin.BoneWeights.x;
-    weights[1] = vin.BoneWeights.y;
-    weights[2] = vin.BoneWeights.z;
-    weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
-
-    float3 posL = float3(0.0f, 0.0f, 0.0f);
-    float3 normalL = float3(0.0f, 0.0f, 0.0f);
-
-    for (int i = 0; i < 4; ++i)
+    if (matIndex == 3)
     {
-        posL += weights[i] * mul(float4(vin.PosL.xyz, 1.0f), gBoneTransforms[instanceID][vin.BoneIndices[i]]).xyz;
-        normalL += weights[i] * mul(vin.NormalL, (float3x3) gBoneTransforms[instanceID][vin.BoneIndices[i]]).xyz;
-    }
+    
+        float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        weights[0] = vin.BoneWeights.x;
+        weights[1] = vin.BoneWeights.y;
+        weights[2] = vin.BoneWeights.z;
+        weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
 
-    vin.PosL = float4(posL, 1.0f);
-    vin.NormalL = normalL;
+        float3 posL = float3(0.0f, 0.0f, 0.0f);
+        float3 normalL = float3(0.0f, 0.0f, 0.0f);
+
+        for (int i = 0; i < 4; ++i)
+        {
+            posL += weights[i] * mul(float4(vin.PosL.xyz, 1.0f), gBoneTransforms[instanceID][vin.BoneIndices[i]]).xyz;
+            normalL += weights[i] * mul(vin.NormalL, (float3x3) gBoneTransforms[instanceID][vin.BoneIndices[i]]).xyz;
+        }
+
+        vin.PosL = float4(posL, 1.0f);
+        vin.NormalL = normalL;
+    }
+    
+    if (matIndex == 6)
+    {
+        float3 posL = float3(0.0f, 0.0f, 0.0f);
+        float3 normalL = float3(0.0f, 0.0f, 0.0f);
+
+        posL = mul(float4(vin.PosL.xyz, 1.0f), gBoneTransforms[instanceID+1][44]).xyz;
+        normalL = mul(vin.NormalL, (float3x3) gBoneTransforms[instanceID+1][44]).xyz;
+
+        vin.PosL = float4(posL, 1.0f);
+        vin.NormalL = normalL;
+    }
 
     vout.MatIndex = matIndex;
     float4 posW = mul(float4(vin.PosL.xyz, 1.0f), world); // 모델좌표 -> 월드좌표
@@ -386,7 +402,6 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
 
     float4 pos = float4(pin.PosW, 0.0f);
     
-
     if(diffuseAlbedo.a < 0.1)
         discard;
 
@@ -613,7 +628,7 @@ ShadowVertexOut SHADOW_VS(ShadowVertexIn vin, uint instanceID : SV_InstanceID)
             posL += weights[i] * mul(float4(vin.PosL.xyz, 1.0f), gBoneTransforms[instanceID][vin.BoneIndices[i]]).xyz;
         }
 
-        vin.PosL = float4(posL, 1.0f);
+        vin.PosL = float4(posL, 1.0f).xyz;
     }// 플레이어의 경우 애니메이션이 동작하여 그림자에 애니메이션일 적용
 
 

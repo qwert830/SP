@@ -92,7 +92,7 @@ void ModelLoader::InitBone(unsigned int index, const aiMesh* pMesh)
 
 void ModelLoader::ModelLoad(const std::string & file, bool isStatic)
 {
-	UINT flag = 
+	UINT flag =
 		aiProcess_JoinIdenticalVertices |			// join identical vertices/ optimize indexing
 		aiProcess_ValidateDataStructure |			// perform a full validation of the loader's output
 		aiProcess_ImproveCacheLocality |			// improve the cache locality of the output vertices
@@ -106,7 +106,8 @@ void ModelLoader::ModelLoad(const std::string & file, bool isStatic)
 		aiProcess_SplitLargeMeshes |				// split large, unrenderable meshes into sub-meshes
 		aiProcess_Triangulate |						// triangulate polygons with more than 3 edges
 		aiProcess_ConvertToLeftHanded |				// convert everything to D3D left handed space
-		aiProcess_SortByPType;						// make 'clean' meshes which consist of a single type of primitives
+		aiProcess_SortByPType |						// make 'clean' meshes which consist of a single type of primitives
+		0;
 
 	if (isStatic)
 		flag |= aiProcess_PreTransformVertices;			// preTransform Vertices (no bone & animation flag)
@@ -144,6 +145,7 @@ void ModelLoader::InitAnimation()
 	AnimationLoad("Resource//Fire_1Pistol.FBX", FIRE);
 	AnimationLoad("Resource//Run_Rifle.FBX", RUN);
 	AnimationLoad("Resource//Death_Rifle.FBX", DEAD);
+	AnimationLoad("Resource//Walk_Rifle.FBX", WALK);
 }
 
 void ModelLoader::GetAnimation()
@@ -213,14 +215,23 @@ void ModelLoader::ReadNodeHeirarchy(float AnimationTime, const aiNode * pNode, c
 	}
 
 	XMMATRIX GlobalTransformation = ParentTransform * NodeTransformation;
+	XMMATRIX GunOffset = XMMatrixIdentity();
+	const char* a = "RigArmRightFing25";
 
 	for (auto& p : m_Bones)
 	{
 		if (p.first == pNode->mName.data)
 		{
 			p.second.TransFormation = m_GlobalInverseTransform * GlobalTransformation * p.second.BoneOffset;
-			break;
 		}
+		if (strcmp(p.first.c_str(), "RigArmRightFing22")==0)
+		{
+			GunOffset = p.second.BoneOffset;
+		}
+	}
+	if (strcmp(pNode->mName.data,a)==0)
+	{
+		GunTransFormation = m_GlobalInverseTransform * GlobalTransformation * GunOffset;
 	}
 
 	for (unsigned int i = 0; i < pNode->mNumChildren; ++i) {
@@ -361,4 +372,9 @@ void ModelLoader::UpdateTime(float dt)
 			continue;
 		m_CurrentAnimationTime[i] += dt;
 	}
+}
+
+XMMATRIX ModelLoader::GetGunTransFormation()
+{
+	return GunTransFormation;
 }
