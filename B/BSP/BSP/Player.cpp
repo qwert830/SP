@@ -12,10 +12,13 @@ Player::Player()
 	fill_n(mSurvival, 10, true);
 
 	ZeroMemory(mVector, sizeof(mVector));
+
+	mPxMod = new PhysXModule;
 }
 
 Player::~Player()
 {
+	delete mPxMod;
 }
 
 void Player::SelectPlayer(const int i)
@@ -197,6 +200,7 @@ void Player::RotateY(float angle)
 
 void Player::Update(const GameTimer& gt)
 {
+	mPxMod->stepPhysics(gt.DeltaTime());
 	const float dt = gt.DeltaTime();
 	for (int i = 0; i < 10; ++i)
 		mAttackCools[i] += dt;

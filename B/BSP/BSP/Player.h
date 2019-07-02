@@ -1,8 +1,9 @@
 #pragma once
-#include"NetworkModule.h"
-#include"d3dUtil.h"
-#include"GameTimer.h"
-#include"Camera.h"
+#include "d3dUtil.h"
+#include "GameTimer.h"
+#include "Camera.h"
+#include "PhysXModule.h"
+#include "../../../../../K/Server2019G/header/protocol.h"
 
 #define ATTACK_DELAY 0.1f
 
@@ -48,6 +49,8 @@ private:
 	bool mTestMode = false;
 	
 	POINT mMousePos;
+	PhysXModule* mPxMod;
+
 
 public:
 	Player();
