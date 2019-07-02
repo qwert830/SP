@@ -282,15 +282,15 @@ void Player::MoveUpdate(const float & dt, int i)
 		Strafe(mMoveSpeed*dt, i);
 		break;
 	case LEFTDOWN:
-		Strafe(-mMoveSpeed * dt, i);
-		Forward(-mMoveSpeed * dt, i);
+		Strafe(-mMoveSpeed*0.5f * dt, i);
+		Forward(-mMoveSpeed * 0.5f * dt, i);
 		break;
 	case DOWN:
-		Forward(-mMoveSpeed * dt, i);
+		Forward(-mMoveSpeed * 0.5f * dt, i);
 		break;
 	case RIGHTDOWN:
 		Strafe(mMoveSpeed*dt, i);
-		Forward(-mMoveSpeed * dt, i);
+		Forward(-mMoveSpeed * 0.5f * dt, i);
 		break;
 	}
 }

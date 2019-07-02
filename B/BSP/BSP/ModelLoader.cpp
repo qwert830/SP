@@ -4,6 +4,8 @@
 
 ModelLoader::ModelLoader()
 {
+	for (int i = 0; i < 10; i++)
+		m_AnimationType[i] = FIRE;
 }
 
 ModelLoader::~ModelLoader()
@@ -142,7 +144,7 @@ vector<mesh> ModelLoader::GetMesh()
 void ModelLoader::InitAnimation()
 {
 	AnimationLoad("Resource//Idle_Rifle.FBX", IDLE);
-	AnimationLoad("Resource//Fire_1Pistol.FBX", FIRE);
+	AnimationLoad("Resource//Fire_SniperRifle.FBX", FIRE);
 	AnimationLoad("Resource//Run_Rifle.FBX", RUN);
 	AnimationLoad("Resource//Death_Rifle.FBX", DEAD);
 	AnimationLoad("Resource//Walk_Rifle.FBX", WALK);
@@ -216,7 +218,7 @@ void ModelLoader::ReadNodeHeirarchy(float AnimationTime, const aiNode * pNode, c
 
 	XMMATRIX GlobalTransformation = ParentTransform * NodeTransformation;
 	XMMATRIX GunOffset = XMMatrixIdentity();
-	const char* a = "RigArmRightFing25";
+	const char* a = "RigArmRightFing22";
 
 	for (auto& p : m_Bones)
 	{
@@ -226,12 +228,14 @@ void ModelLoader::ReadNodeHeirarchy(float AnimationTime, const aiNode * pNode, c
 		}
 		if (strcmp(p.first.c_str(), "RigArmRightFing22")==0)
 		{
-			GunOffset = p.second.BoneOffset;
+			XMFLOAT4X4 m;
+			XMStoreFloat4x4(&m, p.second.BoneOffset);
+			GunOffset = XMMatrixScaling(0.3f, 0.3f, 0.3f);
 		}
 	}
 	if (strcmp(pNode->mName.data,a)==0)
 	{
-		GunTransFormation = m_GlobalInverseTransform * GlobalTransformation * GunOffset;
+		GunTransFormation = m_GlobalInverseTransform * GlobalTransformation *GunOffset;
 	}
 
 	for (unsigned int i = 0; i < pNode->mNumChildren; ++i) {

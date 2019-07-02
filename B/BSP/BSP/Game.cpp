@@ -16,7 +16,7 @@
 const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = true;
+const bool testMode = false;
 
 float testTime = 0.0f;
 float testR = 0.0f;
@@ -930,7 +930,6 @@ void Game::UpdateAnimation(const GameTimer & gt)
 {
 	for (int i = 0; i < 10; ++i)
 	{
-		mModelLoader.ChangeAnimation(i, WALK);
 		mModelLoader.BoneTransform(mAnimationData.gBoneTransforms[i], i);
 		XMStoreFloat4x4(&mAnimationData.gBoneTransforms[i][44], mModelLoader.GetGunTransFormation());
 	}
@@ -1428,9 +1427,15 @@ void Game::BuildShapeGeometry()
 
 	for (int i =0; i <vertexData4.size(); ++i)
 	{
-		auto p = XMLoadFloat4(&vertexData4[i].Pos);
-		XMVector4Transform(p, XMMatrixRotationY(90 * radian) * XMMatrixRotationX(-90 * radian) * XMMatrixRotationZ(45 * radian));
-		XMStoreFloat4(&vertexData4[i].Pos, p);
+		XMMATRIX m;
+		XMVECTOR v;
+		XMFLOAT4 vf;
+		v = XMLoadFloat4(&vertexData4[i].Pos);
+		m = XMMatrixRotationQuaternion(XMQuaternionRotationRollPitchYaw(170.0f*radian, 90.0f*radian, 90.0f*radian)) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+		
+		v = XMVector4Transform(v, m);
+		XMStoreFloat4(&vf, v);
+		vertexData4[i].Pos = vf;
 	}
 
 	// 모델 데이터 입력
