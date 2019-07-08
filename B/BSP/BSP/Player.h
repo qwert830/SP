@@ -1,9 +1,9 @@
 #pragma once
+#include "NetworkModule.h"
 #include "d3dUtil.h"
 #include "GameTimer.h"
 #include "Camera.h"
 #include "PhysXModule.h"
-#include "../../../../../K/Server2019G/header/protocol.h"
 
 #define ATTACK_DELAY 0.1f
 
@@ -47,14 +47,17 @@ private:
 	bool mAttack = false;
 
 	bool mTestMode = false;
-	
+
 	POINT mMousePos;
 	PhysXModule* mPxMod;
+	PxCapsuleController* mCapsuleController[10];
 
 
 public:
 	Player();
 	~Player();
+
+	bool startchk = false;
 
 	Camera mCamera;
 	WorldVecter mVector[10];
@@ -97,6 +100,10 @@ public:
 	const char GetPlayerID();
 	unsigned char GetMoveState(int index);
 	unsigned char GetPlayerTeam();
+	PhysXModule* GetPx();
+	PxCapsuleController* GetCapsCont(const int idx);
+	void SetCapsCont(const int idx, PxCapsuleController* caps);
+
 
 	DirectX::XMFLOAT3 GetPlayerLookVector();
 	DirectX::XMFLOAT3 GetPlayerRightVector();

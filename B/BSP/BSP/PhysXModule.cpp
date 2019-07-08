@@ -43,13 +43,14 @@ void PhysXModule::init()
 	mDispatcher = PxDefaultCpuDispatcherCreate(2);
 	sceneDesc.cpuDispatcher = mDispatcher;
 	sceneDesc.filterShader = PxDefaultSimulationFilterShader;
-	//	sceneDesc.flags |= PxSceneFlag::eREQUIRE_RW_LOCK;
 	mScene = mPhysics->createScene(sceneDesc);
 
 	mMaterial = mPhysics->createMaterial(0.5f, 0.5f, 0.6f);
 	mCooking = PxCreateCooking(PX_PHYSICS_VERSION, *mFoundation, PxCookingParams(PxTolerancesScale()));
 
 	mControllerManager = PxCreateControllerManager(*mScene);
+
+	mControllerManager->setOverlapRecoveryModule(true);
 
 }
 

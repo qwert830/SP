@@ -1,10 +1,9 @@
-#include "NetworkModule.h"
+#include "Player.h"
 #include "d3dApp.h"
 #include "MathHelper.h"
 #include "UploadBuffer.h"
 #include "FrameResource.h"
 #include "GeometryGenerator.h"
-#include "Player.h"
 #include "ShadowMap.h"
 #include "FontManager.h"
 #include "MapLoader.h"
@@ -16,7 +15,7 @@
 const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = false;
+const bool testMode = true;
 
 float testTime = 0.0f;
 float testR = 0.0f;
@@ -132,6 +131,8 @@ private:
     virtual void Draw(const GameTimer& gt)override;
 	virtual LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)override;
 	virtual void ProcessPacket(char * ptr);
+
+	void PxMapSetting();
 
 	void RoomStateDraw(const GameTimer& gt);
 	void GameStateDraw(const GameTimer& gt);
@@ -356,6 +357,8 @@ bool Game::Initialize()
 	BuildFrameResources();
 	BuildPlayerData();
     BuildPSOs();
+	PxMapSetting();
+	mPlayer.startchk = true;
 	
 	mPlayer.SetTestMode(testMode);
 	mPlayer.mCamera.SetPosition(0.0f, 5.0f, -15.0f);
@@ -2029,7 +2032,9 @@ void Game::BuildPlayerData() // 생성된 렌더러 아이템에 좌표로 플레이어에 월드벡�
 		mPlayer.mVector[i].mUp			= { data[i].World._21, data[i].World._22, data[i].World._23 };
 		mPlayer.mVector[i].mLook		= { data[i].World._31, data[i].World._32, data[i].World._33 };
 		mPlayer.mVector[i].mPosition	= { data[i].World._41, data[i].World._42, data[i].World._43 };
+		mPlayer.SetCapsCont(i, mPlayer.GetPx()->setCapsuleController(PxExtendedVec3(data[i].World._41, data[i].World._42 + 12, data[i].World._43), 21, 3, i));
 	}
+
 }
 
 void Game::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
@@ -2938,4 +2943,14 @@ void Game::ProcessPacket(char * ptr)
 		break;
 	}
 	}
+}
+
+void Game::PxMapSetting() {
+	for (int i = 0; i < mMapLoader.GetSizeofMapData(); ++i) {
+		mPlayer.GetPx()->createBoxObj(
+			PxVec3(-mMapLoader.GetMapData(i).offsetX, mMapLoader.GetMapData(i).offsetY + (100 * mMapLoader.GetMapData(i).scalingY), -mMapLoader.GetMapData(i).offsetZ),
+			mMapLoader.GetMapData(i).rotationY + 180,
+			PxVec3(100 * mMapLoader.GetMapData(i).scalingX, 100 * mMapLoader.GetMapData(i).scalingY, 100 * mMapLoader.GetMapData(i).scalingZ));
+	}
+
 }

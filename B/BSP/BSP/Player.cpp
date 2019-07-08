@@ -200,7 +200,6 @@ void Player::RotateY(float angle)
 
 void Player::Update(const GameTimer& gt)
 {
-	mPxMod->stepPhysics(gt.DeltaTime());
 	const float dt = gt.DeltaTime();
 	for (int i = 0; i < 10; ++i)
 		mAttackCools[i] += dt;
@@ -217,8 +216,17 @@ void Player::Update(const GameTimer& gt)
 	}
 	for (int i = 0; i < 10; ++i)
 	{
-		if (mSurvival[i])
-			MoveUpdate(dt, i);
+		if (!mSurvival[i]) continue;
+		MoveUpdate(dt, i);
+	}
+	mPxMod->stepPhysics(gt.DeltaTime());
+
+	if (startchk) {
+		for (int i = 0; i < 10; ++i) {
+			mVector[i].mPosition.x = mCapsuleController[i]->getPosition().x;
+			mVector[i].mPosition.y = mCapsuleController[i]->getPosition().y - 12;
+			mVector[i].mPosition.z = mCapsuleController[i]->getPosition().z;
+		}
 	}
 
 }
@@ -266,35 +274,46 @@ void Player::AttackUpdate(const float & dt)
 
 void Player::MoveUpdate(const float & dt, int i)
 {
+	PxVec3 spdL = PxVec3(mVector[i].mLook.x * mMoveSpeed * dt, mVector[i].mLook.y * mMoveSpeed * dt, mVector[i].mLook.z * mMoveSpeed * dt);
+	PxVec3 spdR = PxVec3(mVector[i].mRight.x * mMoveSpeed * dt, mVector[i].mRight.y * mMoveSpeed * dt, mVector[i].mRight.z * mMoveSpeed * dt);
+	PxControllerFilters filter;
 	switch (mMoveState[i])
 	{
 	case LEFTUP:
-		Strafe(-mMoveSpeed * dt, i);
-		Forward(mMoveSpeed*dt, i);
+		//Strafe(-mMoveSpeed * dt, i);
+		//Forward(mMoveSpeed*dt, i);
+		mCapsuleController[i]->move(PxVec3(spdL.x - spdR.x, 0, spdL.z - spdR.z), 0.001f, dt, filter);
 		break;
 	case UP:
-		Forward(mMoveSpeed*dt, i);
+		//Forward(mMoveSpeed*dt, i);
+		mCapsuleController[i]->move(PxVec3(spdL.x, 0, spdL.z), 0.001f, dt, filter);
 		break;
 	case RIGHTUP:
-		Strafe(mMoveSpeed*dt, i);
-		Forward(mMoveSpeed*dt, i);
+		//Strafe(mMoveSpeed*dt, i);
+		//Forward(mMoveSpeed*dt, i);
+		mCapsuleController[i]->move(PxVec3(spdL.x + spdR.x, 0, spdL.z + spdR.z), 0.001f, dt, filter);
 		break;
 	case LEFT:
-		Strafe(-mMoveSpeed * dt, i);
+		//Strafe(-mMoveSpeed * dt, i);
+		mCapsuleController[i]->move(PxVec3(-spdR.x, 0, -spdR.z), 0.001f, dt, filter);
 		break;
 	case RIGHT:
-		Strafe(mMoveSpeed*dt, i);
+		//Strafe(mMoveSpeed*dt, i);
+		mCapsuleController[i]->move(PxVec3(spdR.x, 0, spdR.z), 0.001f, dt, filter);
 		break;
 	case LEFTDOWN:
-		Strafe(-mMoveSpeed*0.5f * dt, i);
-		Forward(-mMoveSpeed * 0.5f * dt, i);
+		//Strafe(-mMoveSpeed*0.5f * dt, i);
+		//Forward(-mMoveSpeed * 0.5f * dt, i);
+		mCapsuleController[i]->move(PxVec3(-spdL.x - spdR.x, 0, -spdL.z - spdR.z), 0.001f, dt, filter);
 		break;
 	case DOWN:
-		Forward(-mMoveSpeed * 0.5f * dt, i);
+		//Forward(-mMoveSpeed * 0.5f * dt, i);
+		mCapsuleController[i]->move(PxVec3(-spdL.x, 0, -spdL.z), 0.001f, dt, filter);
 		break;
 	case RIGHTDOWN:
-		Strafe(mMoveSpeed*dt, i);
-		Forward(-mMoveSpeed * 0.5f * dt, i);
+		//Strafe(mMoveSpeed*dt, i);
+		//Forward(-mMoveSpeed * 0.5f * dt, i);
+		mCapsuleController[i]->move(PxVec3(spdL.x + spdR.x, 0, spdL.z + spdR.z), 0.001f, dt, filter);
 		break;
 	}
 }
@@ -312,6 +331,21 @@ unsigned char Player::GetMoveState(int index)
 unsigned char Player::GetPlayerTeam()
 {
 	return mPlayerTeam;
+}
+
+PhysXModule* Player::GetPx()
+{
+	return mPxMod;
+}
+
+PxCapsuleController * Player::GetCapsCont(const int idx)
+{
+	return mCapsuleController[idx];
+}
+
+void Player::SetCapsCont(const int idx, PxCapsuleController * caps)
+{
+	mCapsuleController[idx] = caps;
 }
 
 float Player::GetSuperheat()
