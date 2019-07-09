@@ -15,7 +15,7 @@
 const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = true;
+const bool testMode = false;
 
 float testTime = 0.0f;
 float testR = 0.0f;
@@ -1054,19 +1054,46 @@ void Game::UpdateAttackToServer()
 	{
 		XMFLOAT3 position = mPlayer.GetCameraPosition();
 		XMFLOAT3 look = mPlayer.GetCameraLookVector();
+		string id = reinterpret_cast<char*>(mPlayer.GetCapsCont(0)->getActor()->userData);
 
+
+		pair<string, PxVec3> hitted = mPlayer.GetPx()->doRaycast(PxVec3(position.x, position.y, position.z), PxVec3(look.x, look.y, look.z), 1000.0f, id);
+		
 		DWORD iobyte;
 		cs_attack_packet* atp = reinterpret_cast<cs_attack_packet*>(send_buffer);
 		send_wsabuf.len = sizeof(cs_attack_packet);
 		atp->size = sizeof(cs_attack_packet);
 		atp->type = CS_ATTACK;
-		atp->cameraPosx = position.x;
-		atp->cameraPosy = position.y;
-		atp->cameraPosz = position.z;
-		atp->lx = look.x;
-		atp->ly = look.y;
-		atp->lz = look.z;
 
+		if (hitted.first == "-1") {
+			//아무것도 안맞았을 경우
+			mbstowcs(atp->attacker, id.c_str(), 10);
+			mbstowcs(atp->hitted, hitted.first.c_str(), 10);
+			atp->px = 0;
+			atp->py = -10000;
+			atp->pz = 0;
+			return;
+		}
+		else if (hitted.first == "0") {
+			//장애물 맞은 경우
+			mbstowcs(atp->attacker, id.c_str(), 10);
+			mbstowcs(atp->hitted, hitted.first.c_str(), 10);
+			atp->px = hitted.second.x;
+			atp->py = hitted.second.y;
+			atp->pz = hitted.second.z;
+			return;
+		}
+		else {
+			//플레이어 맞은 경우
+			mbstowcs(atp->attacker, id.c_str(), 10);
+			mbstowcs(atp->hitted, hitted.first.c_str(), 10);
+			atp->px = hitted.second.x;
+			atp->py = hitted.second.y;
+			atp->pz = hitted.second.z;
+		}
+		atp->cx = look.x;
+		atp->cy = look.y;
+		atp->cz = look.z;
 		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
 	}
 }
@@ -2032,9 +2059,14 @@ void Game::BuildPlayerData() // 생성된 렌더러 아이템에 좌표로 플레이어에 월드벡�
 		mPlayer.mVector[i].mUp			= { data[i].World._21, data[i].World._22, data[i].World._23 };
 		mPlayer.mVector[i].mLook		= { data[i].World._31, data[i].World._32, data[i].World._33 };
 		mPlayer.mVector[i].mPosition	= { data[i].World._41, data[i].World._42, data[i].World._43 };
-		mPlayer.SetCapsCont(i, mPlayer.GetPx()->setCapsuleController(PxExtendedVec3(data[i].World._41, data[i].World._42 + 12, data[i].World._43), 21, 3, i));
+		mPlayer.SetCapsCont(i, mPlayer.GetPx()->setCapsuleController(PxExtendedVec3(data[i].World._41, data[i].World._42 + 12, data[i].World._43), 21, 3));	
+		mPlayer.GetCapsCont(i)->getActor()->userData = new char[10];
+		if (testMode) {
+			string a("응애");
+			a += i;
+			strcpy_s((char*)mPlayer.GetCapsCont(i)->getActor()->userData, 10, a.c_str());
+		}
 	}
-
 }
 
 void Game::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
@@ -2448,6 +2480,11 @@ void Game::SetAttack(std::string name, XMFLOAT3 particlePos, XMFLOAT3 charPos)
 void Game::SetTeam(std::string name, unsigned char team, float x, float y, float z, float r)
 {
 	int id = mUserID[name];
+
+	//캡슐 컨트롤러에 유저정보 부여
+	mPlayer.GetCapsCont(id)->getActor()->userData = new char[10];
+	strcpy_s((char*)mPlayer.GetCapsCont(id)->getActor()->userData, 10, name.c_str());
+
 	if (id == 0)
 	{
 		int teamTextureIndex;

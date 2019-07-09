@@ -54,10 +54,10 @@ public:
 	void stepPhysics(const PxReal& frame);
 
 	//void setCapsuleController(PxCapsuleController* mCapsuleController, PxExtendedVec3 pos, float height, float radius, PxUserControllerHitReport * collisionCallback);
-	PxCapsuleController* setCapsuleController(PxExtendedVec3 pos, float height, float radius, int key);
+	PxCapsuleController* setCapsuleController(PxExtendedVec3 pos, float height, float radius);
 
 	void createBoxObj(const PxVec3& t, PxReal rotateDeg, const PxVec3& sizeofBox);
 	
-	pair<int, PxVec3> doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange, int id);
+	pair<string, PxVec3> doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange, string id);
 };
 

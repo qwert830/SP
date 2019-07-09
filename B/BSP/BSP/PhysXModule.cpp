@@ -65,7 +65,7 @@ void PhysXModule::stepPhysics(const PxReal& frame)
 
 }
 
-pair<int, PxVec3> PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange, int id)
+pair<string, PxVec3> PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxVec3& rayDirection, const PxReal& rayRange, string id)
 {
 
 	//레이가 관통하여 여러번 체크하고싶다면 히트버퍼를 배열로 선언할 것
@@ -85,7 +85,7 @@ pair<int, PxVec3> PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxV
 		int residx = -1;
 		for (int i = 0; i < buf.nbTouches; ++i) {
 			if (buf.touches[i].actor->userData) {
-				if (id != reinterpret_cast<int*>(buf.touches[i].actor->userData)[0]) {
+				if (id != reinterpret_cast<char*>(buf.touches[i].actor->userData)) {
 					distance = sqrtf(((buf.touches[i].position.x - cameraPosition.x)*(buf.touches[i].position.x - cameraPosition.x)) +
 						((buf.touches[i].position.y - cameraPosition.y)*(buf.touches[i].position.y - cameraPosition.y)) +
 						((buf.touches[i].position.z - cameraPosition.z)*(buf.touches[i].position.z - cameraPosition.z)));
@@ -97,13 +97,13 @@ pair<int, PxVec3> PhysXModule::doRaycast(const PxVec3& cameraPosition, const PxV
 			}
 		}
 		if(residx != -1)
-			return pair<int, PxVec3>(reinterpret_cast<int*>(buf.touches[residx].actor->userData)[0], buf.touches[residx].position);
+			return pair<string, PxVec3>(string(reinterpret_cast<char*>(buf.touches[residx].actor->userData)), buf.touches[residx].position);
 	}
-	return pair<int, PxVec3>(-1, PxVec3(0, 0, 0));
+	return pair<string, PxVec3>("-1", PxVec3(0, 0, 0));
 }
 
 
-PxCapsuleController* PhysXModule::setCapsuleController(PxExtendedVec3 pos, float height, float radius, int key)
+PxCapsuleController* PhysXModule::setCapsuleController(PxExtendedVec3 pos, float height, float radius)
 {
 	PxCapsuleControllerDesc capsuleDesc;
 	capsuleDesc.height = height; //Height of capsule
@@ -123,11 +123,6 @@ PxCapsuleController* PhysXModule::setCapsuleController(PxExtendedVec3 pos, float
 
 	PxCapsuleController* PC = static_cast<PxCapsuleController*>(mControllerManager->createController(capsuleDesc));
 
-	//캡슐 컨트롤러에 유저정보 부여
-	PC->getActor()->userData = (new int(key));
-	//불러올때 쓰는 방법
-	//reinterpret_cast<저장한데이터형*>(mCapsuleController->getUserData())[0];
-
 	
 	//캡슐 컨트롤러 생성
 	return PC;
@@ -146,7 +141,8 @@ void PhysXModule::createBoxObj(const PxVec3& pos, PxReal rotateDeg, const PxVec3
 	PxTransform tmp(pos, rotation);
 	PxRigidStatic* obj = mPhysics->createRigidStatic(tmp);
 	obj->attachShape(*shape);
-	obj->userData = (new int(-2));
+	obj->userData = new char[10];
+	strcpy_s((char*)obj->userData, 10, "0");
 	mScene->addActor(*obj);
 	shape->release();
 }

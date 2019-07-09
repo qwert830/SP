@@ -975,8 +975,47 @@ inline void ProcessPacket(int id, char *packet)
 	case CS_ATTACK:
 	{
 		cs_attack_packet* packet_atk = reinterpret_cast<cs_attack_packet*>(packet);
-		if(g_rooms[g_clients[id].m_RoomNumber].m_RoomStatus == RS_PLAY)
-			g_rooms[g_clients[id].m_RoomNumber].attack(PxVec3(packet_atk->cameraPosx, packet_atk->cameraPosy, packet_atk->cameraPosz), PxVec3(packet_atk->lx, packet_atk->ly, packet_atk->lz), g_clients, id);
+		sc_attack_packet atkp;
+		atkp.type = SC_ATTACK;
+		atkp.size = sizeof(sc_attack_packet);
+		wcscpy(atkp.id, packet_atk->attacker);
+		atkp.cx = packet_atk->cx;
+		atkp.cy = packet_atk->cy;
+		atkp.cz = packet_atk->cz;
+		atkp.px = packet_atk->px;
+		atkp.py = packet_atk->py;
+		atkp.pz = packet_atk->pz;
+		for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
+			if(g_clients[d].m_ID == packet_atk->attacker) continue;
+			else if (g_clients[d].m_ID == packet_atk->hitted) {
+				g_clients[d].hp -= 10;
+				if (g_clients[d].hp <= 0) {
+					sc_gameover_packet p;
+					p.size = sizeof(sc_gameover_packet);
+					if (g_clients[d].team == RED_READER) {
+						p.type = SC_GAMEOVER_BLUEWIN;
+						g_rooms[g_clients[id].m_RoomNumber].gameover();
+					}
+					else if (g_clients[d].team == BLUE_READER) {
+						p.type = SC_GAMEOVER_REDWIN;
+						g_rooms[g_clients[id].m_RoomNumber].gameover();
+					}
+					else {
+						p.type = SC_DEAD;
+						g_clients[d].mCapsuleController->release();
+					}
+					wcscpy(p.id, g_clients[d].m_ID.c_str());
+					for (int f : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList)
+						SendPacket(f, &p);
+				}
+				sc_hit_packet hitp;
+				hitp.type = SC_HIT;
+				hitp.size = sizeof(sc_hit_packet);
+				hitp.hp = g_clients[d].hp;
+				SendPacket(d, &hitp);
+			}
+			SendPacket(d, &atkp);
+		}
 		break;
 	}
 	case CS_ANGLE:

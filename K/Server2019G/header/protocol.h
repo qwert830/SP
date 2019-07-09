@@ -112,12 +112,10 @@ struct cs_ready_packet {
 struct cs_attack_packet {
 	unsigned char size;
 	unsigned char type;
-	float cameraPosx;
-	float cameraPosy;
-	float cameraPosz;
-	float lx;
-	float ly;
-	float lz;
+	wchar_t attacker[10];
+	wchar_t hitted[10];
+	float cx, cy, cz;
+	float px, py, pz;
 };
 
 struct cs_angle_packet {
