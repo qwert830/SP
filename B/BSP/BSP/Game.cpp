@@ -1971,7 +1971,7 @@ void Game::BuildRenderItemsGame()
 	CreateRenderItems("quad", 1, GAME, DEFERRED, 1, 0);
 
 	//ÇÃ·¹ÀÌ¾î ÃÑ
-	CreateRenderItems("playerGun", 1, GAME, UIGUN, 1, 6, XMFLOAT3(1.0f, 1.0f, 1.0f),XMFLOAT3(0.1f,0.1f,0.1f));
+	CreateRenderItems("playerGun", 1, GAME, UIGUN, 1000, 6, XMFLOAT3(1.0f, 1.0f, 1.0f),XMFLOAT3(0.1f,0.1f,0.1f));
 
 	//ÃÑ ¹ß»ç ÀÌÆåÆ®
 	CreateRenderItems("quad", 10, GAME, BILLBOARDITEM, -1, 7, XMFLOAT3(0.5f, 0.5f, 1.0f));
@@ -1984,7 +1984,7 @@ void Game::BuildRenderItemsGame()
 		CreateRenderItems("miniBox", COUNT, GAME, PARTICLE, 1, 17);
 
 	//ÃÑ
-	CreateRenderItems("gun", 9, GAME, PLAYERGUN, 1, 6, XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.25f, 0.25f, 0.25f),XMFLOAT3(0.0f,15.0f,0.0f));
+	CreateRenderItems("gun", 9, GAME, PLAYERGUN, -1, 6, XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.25f, 0.25f, 0.25f),XMFLOAT3(0.0f,15.0f,0.0f));
 }
 
 void Game::BuildRenderItemsRoom()
@@ -2517,10 +2517,12 @@ void Game::SetTeam(std::string name, unsigned char team, float x, float y, float
 		if (team == RED_READER)
 		{
 			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = 11;
+			mRenderItems[GAME].renderItems[PLAYERGUN][0]->Instances[id - 1].IsDraw = 1;
 		}
 		if (team == BLUE_READER)
 		{
 			mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = 101;
+			mRenderItems[GAME].renderItems[PLAYERGUN][0]->Instances[id - 1].IsDraw = 1;
 		}
 	}
 }
@@ -2577,6 +2579,11 @@ void Game::SetRoom()
 		mModelLoader.ChangeAnimation(i, DEAD);
 		mModelLoader.ChangeAnimation(i, IDLE);
 	}
+	for (int i = 0; i < 9; ++i)
+	{
+		mRenderItems[GAME].renderItems[PLAYERGUN][0]->Instances[i].IsDraw = -1;
+	}
+	
 	mButton.readyButton = 0;
 
 	mGameQuit = false;

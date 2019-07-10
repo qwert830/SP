@@ -70,7 +70,7 @@ cbuffer cbPass : register(b0)
 
 cbuffer cbSkinned : register(b1)
 {
-    float4x4 gBoneTransforms[10][44];
+    float4x4 gBoneTransforms[10][45];
 };
 
 Texture2D gDiffuseMap[20] : register(t0);
@@ -304,23 +304,39 @@ VertexOut PlayerVS(VertexIn vin, uint instanceID : SV_InstanceID)
         return vout;
     }
 
-    float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    weights[0] = vin.BoneWeights.x;
-    weights[1] = vin.BoneWeights.y;
-    weights[2] = vin.BoneWeights.z;
-    weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
-
-    float3 posL = float3(0.0f, 0.0f, 0.0f);
-    float3 normalL = float3(0.0f, 0.0f, 0.0f);
-
-    for (int i = 0; i < 4; ++i)
+    if (matIndex == 3)
     {
-        posL += weights[i] * mul(float4(vin.PosL.xyz, 1.0f), gBoneTransforms[instanceID][vin.BoneIndices[i]]).xyz;
-        normalL += weights[i] * mul(vin.NormalL, (float3x3) gBoneTransforms[instanceID][vin.BoneIndices[i]]).xyz;
-    }
+    
+        float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        weights[0] = vin.BoneWeights.x;
+        weights[1] = vin.BoneWeights.y;
+        weights[2] = vin.BoneWeights.z;
+        weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
 
-    vin.PosL = float4(posL, 1.0f);
-    vin.NormalL = normalL;
+        float3 posL = float3(0.0f, 0.0f, 0.0f);
+        float3 normalL = float3(0.0f, 0.0f, 0.0f);
+
+        for (int i = 0; i < 4; ++i)
+        {
+            posL += weights[i] * mul(float4(vin.PosL.xyz, 1.0f), gBoneTransforms[instanceID][vin.BoneIndices[i]]).xyz;
+            normalL += weights[i] * mul(vin.NormalL, (float3x3) gBoneTransforms[instanceID][vin.BoneIndices[i]]).xyz;
+        }
+
+        vin.PosL = float4(posL, 1.0f);
+        vin.NormalL = normalL;
+    }
+    
+    if (matIndex == 6)
+    {
+        float3 posL = float3(0.0f, 0.0f, 0.0f);
+        float3 normalL = float3(0.0f, 0.0f, 0.0f);
+
+        posL = mul(float4(vin.PosL.xyz, 1.0f), gBoneTransforms[instanceID+1][44]).xyz;
+        normalL = mul(vin.NormalL, (float3x3) gBoneTransforms[instanceID+1][44]).xyz;
+
+        vin.PosL = float4(posL, 1.0f);
+        vin.NormalL = normalL;
+    }
 
     vout.MatIndex = matIndex;
     float4 posW = mul(float4(vin.PosL.xyz, 1.0f), world); // 모델좌표 -> 월드좌표
@@ -386,7 +402,6 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
 
     float4 pos = float4(pin.PosW, 0.0f);
     
-
     if(diffuseAlbedo.a < 0.1)
         discard;
 
@@ -424,9 +439,9 @@ DeferredVSOut DVS(ShadowVertexIn vin, uint vertexID : SV_VertexID)
 
 float4 DPS(DeferredVSOut pin) : SV_Target
 {
-    float depth = gDepthResource.Load(float3(pin.Pos.xy, 0)).x;
+    float depth = gDepthResource.Load(float3(pin.Pos.xy, 0)).x; //깊이값
 
-    float lineardepth = ConvertDepthToLinear(depth);
+    float lineardepth = ConvertDepthToLinear(depth); // 투영전 선형 깊이값
     
     float4 temp = gBufferResource[0].Load(float3(pin.Pos.xy, 0)); // 색상
     float3 color = temp.xyz;
@@ -436,38 +451,38 @@ float4 DPS(DeferredVSOut pin) : SV_Target
     float3 normal = normalize(temp.xyz * 2.0f - 1.0f);
     float shininess = temp.a;
 
-    float4 ambient = gAmbientLight * float4(color, 1.0f);
-    float3 position = CalcWorldPos(pin.UV, lineardepth);
+    float4 ambient = gAmbientLight * float4(color, 1.0f); // AmbientLight 색상 계산
+    float3 position = CalcWorldPos(pin.UV, lineardepth); // 리소스버퍼에서 월드포지션값 추출
 
     float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
-    shadowFactor[0] = CalcShadowFactor(mul(float4(position, 1.0f), gShadowTransform));
+    shadowFactor[0] = CalcShadowFactor(mul(float4(position, 1.0f), gShadowTransform)); // 그림자값 추출
     
-    float3 toEyeW = normalize(gEyePosW - position);
+    float3 toEyeW = normalize(gEyePosW - position); // 카메라 look벡터
     
-    float distToEye = length(gEyePosW - position);
+    float distToEye = length(gEyePosW - position); // 카메라에서 위치까지의 거리
 
-    Material mat = { float4(color, 1.0f), fresnelR0, shininess };
+    Material mat = { float4(color, 1.0f), fresnelR0, shininess }; // 재질정보
     
     float4 directLight = ComputeLighting(gLights, mat, position,
-       normal, toEyeW, shadowFactor);
+       normal, toEyeW, shadowFactor); // 조명정보 계산
 
-    float fog = clamp((depth - 0.9f) * 2, 0, 1);
+    float fog = clamp((depth - 0.9f) * 2, 0, 1); // 안개설정값
     
-    float4 fogColor = float4(0.7f, 0.7f, 0.7f, 1.0f);
+    float4 fogColor = float4(0.7f, 0.7f, 0.7f, 1.0f); // 안개색상
 
-    float4 litcolor = ambient + directLight - fog;
+    float4 litcolor = ambient + directLight - fog; // 최종색상
 
-    litcolor = lerp(litcolor, fogColor, saturate((distToEye - 5.0f) / 350.0f));
+    litcolor = lerp(litcolor, fogColor, saturate((distToEye - 5.0f) / 350.0f)); // 거리에 따른 안개 효과 추가
 
-    litcolor.r += Hit;
+    litcolor.r += Hit; // 피격시 색상 변화
 
     if (Survival < 0)
     {
         float a = (litcolor.r + litcolor.g + litcolor.b) / 3 * 0.5f;
         litcolor = float4(a, a, a, 1.0f);
-    }
+    } // 사망시 회색화면 설정
 
-    return litcolor;
+    return litcolor; // 최종색상 출력
 }
 
 VertexOut UI_VS(VertexIn vin, uint instanceID : SV_InstanceID, uint vertexID : SV_VertexID)
@@ -594,7 +609,7 @@ ShadowVertexOut SHADOW_VS(ShadowVertexIn vin, uint instanceID : SV_InstanceID)
         vout.PosH = float4(-100000.0f, -100000.0f, 0.0f, 0.0f);
 
         return vout;
-    }
+    }// 그려지는 그림자인지 판단
 
     vout.MatIndex = matIndex;
     if (matIndex == 3)
@@ -613,13 +628,15 @@ ShadowVertexOut SHADOW_VS(ShadowVertexIn vin, uint instanceID : SV_InstanceID)
             posL += weights[i] * mul(float4(vin.PosL.xyz, 1.0f), gBoneTransforms[instanceID][vin.BoneIndices[i]]).xyz;
         }
 
-        vin.PosL = float4(posL, 1.0f);
-    }
-    float4 posW = mul(float4(vin.PosL, 1.0f), world);
+        vin.PosL = float4(posL, 1.0f).xyz;
+    }// 플레이어의 경우 애니메이션이 동작하여 그림자에 애니메이션일 적용
 
-    vout.PosH = mul(posW, gViewProj);
+
+    float4 posW = mul(float4(vin.PosL, 1.0f), world); // 월드좌표계로 변환
+
+    vout.PosH = mul(posW, gViewProj); // 카메라 및 투영좌표계로 변환
 	
-    float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), texTransform);
+    float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), texTransform); // 텍스쳐 변환행렬을 적용하여 uv값 생성
     vout.TexC = mul(texC, matData.MatTransform).xy;
 	
     return vout;
