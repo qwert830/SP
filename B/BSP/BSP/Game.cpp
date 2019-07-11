@@ -2491,6 +2491,7 @@ void Game::SetTeam(std::string name, unsigned char team, float x, float y, float
 	//캡슐 컨트롤러에 유저정보 부여
 	mPlayer.GetCapsCont(id)->getActor()->userData = new char[10];
 	strcpy_s((char*)mPlayer.GetCapsCont(id)->getActor()->userData, 10, name.c_str());
+	mPlayer.GetCapsCont(id)->setPosition(PxExtendedVec3(x, y + 11.5, z));
 
 	if (id == 0)
 	{
