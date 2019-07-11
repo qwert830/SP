@@ -128,6 +128,7 @@ struct cs_angle_packet {
 struct cs_movestatus_packet {
 	unsigned char size;
 	unsigned char type;
+	float x, y, z;
 };
 // 서버 -> 클라이언트------------------------
 

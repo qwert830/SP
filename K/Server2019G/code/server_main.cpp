@@ -14,7 +14,6 @@
 #include <string>
 #include <sqlext.h>  
 #include <locale.h>
-#include "../header/PhysXModule.h"
 #include <atomic>
 #include "MapLoader.h"
 
@@ -45,8 +44,6 @@ public:
 
 	//피직스 이동함수에 쓸 변수
 	atomic<char> m_MoveDirection;
-	PxVec3 look;
-	PxVec3 right;
 	float x;
 	float y;
 	float z;
@@ -56,7 +53,6 @@ public:
 
 	atomic<int> m_RoomNumber;
 	char m_Condition;
-	PxCapsuleController*	mCapsuleController;
 
 	EXOVER m_rxover;
 	int m_packet_size;
@@ -66,12 +62,6 @@ public:
 		m_ID = L"Temp";
 		m_Score = 0;
 		m_IsConnected = false;
-		look.x = 0;
-		look.y = 0;
-		look.z = 0;
-		right.x = 0;
-		right.y = 0;
-		right.z = 0;
 		x = 0;
 		y = 0;
 		z = 0;
@@ -92,12 +82,6 @@ public:
 		m_ID = L"Temp";
 		m_Score = 0;
 		m_IsConnected = false;
-		look.x = 0;
-		look.y = 0;
-		look.z = 0;
-		right.x = 0;
-		right.y = 0;
-		right.z = 0;
 		x = 0;
 		y = 0;
 		z = 0;
@@ -121,7 +105,6 @@ public:
 	atomic<char> m_CurrentNum;
 	mutex m_RoomMutex;
 	atomic<char> m_RoomStatus;
-	PhysXModule* m_PhysXModule;
 	chrono::system_clock::time_point delay;
 
 	int m_StartCount;
@@ -171,18 +154,8 @@ public:
 		}
 		m_RoomMutex.unlock();
 
-		if (!m_PhysXModule) {
-			m_PhysXModule = new PhysXModule;
-			for (MapData& d : map.mMapInfo) {
-				m_PhysXModule->createBoxObj(PxVec3(-d.offsetX, d.offsetY + (100 * d.scalingY), -d.offsetZ), d.rotationY + 180, PxVec3(100 * d.scalingX, 100 * d.scalingY, 100 * d.scalingZ));
-			}
-		}
 		int i = 0;
 
-		for (int d : m_JoinIdList) {
-			if(clients[d].mCapsuleController)
-				clients[d].mCapsuleController->release();
-		}
 		
 		sc_teaminfo_packet tip;
 		tip.size = sizeof(sc_teaminfo_packet);
@@ -191,141 +164,40 @@ public:
 			switch (i) {
 			case 0:
 				clients[d].hp = 300;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_READER;
-				tip.type = RED_READER;
-				clients[d].look.x = sin(180 * (3.141592f / 180.0f));
-				clients[d].look.y = 0;
-				clients[d].look.z = cos(180 * (3.141592f / 180.0f));
-				clients[d].right.x = cos(180 * (3.141592f / 180.0f));
-				clients[d].right.y = 0;
-				clients[d].right.z = -sin(180 * (3.141592f / 180.0f));
-				clients[d].look.normalize();
-				clients[d].right.normalize();
 				break;
 			case 1:
 				clients[d].hp = 300;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_READER;
-				tip.type = BLUE_READER;
-				clients[d].look.x = 0;
-				clients[d].look.y = 0;
-				clients[d].look.z = 1;
-				clients[d].right.x = 1;
-				clients[d].right.y = 0;
-				clients[d].right.z = 0;
 				break;
 			case 2:
-				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_TEAM;
-				tip.type = BLUE_TEAM;
-				clients[d].look.x = sin(90 * (3.141592f / 180.0f));
-				clients[d].look.y = 0;
-				clients[d].look.z = cos(90 * (3.141592f / 180.0f));
-				clients[d].right.x = cos(90 * (3.141592f / 180.0f));
-				clients[d].right.y = 0;
-				clients[d].right.z = -sin(90 * (3.141592f / 180.0f));
-				clients[d].look.normalize();
-				clients[d].right.normalize();
 				break;
 			case 3:
-				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
-				tip.type = RED_TEAM;
-				clients[d].look.x = sin(-90 * (3.141592f / 180.0f));
-				clients[d].look.y = 0;
-				clients[d].look.z = cos(-90 * (3.141592f / 180.0f));
-				clients[d].right.x = cos(-90 * (3.141592f / 180.0f));
-				clients[d].right.y = 0;
-				clients[d].right.z = -sin(-90 * (3.141592f / 180.0f));
-				clients[d].look.normalize();
-				clients[d].right.normalize();
 				break;
 			case 4:
-				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_TEAM;
-				tip.type = BLUE_TEAM;
-				clients[d].look.x = 0;
-				clients[d].look.y = 0;
-				clients[d].look.z = 1;
-				clients[d].right.x = 1;
-				clients[d].right.y = 0;
-				clients[d].right.z = 0;
 				break;
 			case 5:
-				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
-				tip.type = RED_TEAM;
-				clients[d].look.x = sin(180 * (3.141592f / 180.0f));
-				clients[d].look.y = 0;
-				clients[d].look.z = cos(180 * (3.141592f / 180.0f));
-				clients[d].right.x = cos(180 * (3.141592f / 180.0f));
-				clients[d].right.y = 0;
-				clients[d].right.z = -sin(180 * (3.141592f / 180.0f));
-				clients[d].look.normalize();
-				clients[d].right.normalize();
 				break;
 			case 6:
-				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_TEAM;
-				tip.type = BLUE_TEAM;
-				clients[d].look.x = 0;
-				clients[d].look.y = 0;
-				clients[d].look.z = 1;
-				clients[d].right.x = 1;
-				clients[d].right.y = 0;
-				clients[d].right.z = 0;
 				break;
 			case 7:
-				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
-				tip.type = RED_TEAM;
-				clients[d].look.x = sin(180 * (3.141592f / 180.0f));
-				clients[d].look.y = 0;
-				clients[d].look.z = cos(180 * (3.141592f / 180.0f));
-				clients[d].right.x = cos(180 * (3.141592f / 180.0f));
-				clients[d].right.y = 0;
-				clients[d].right.z = -sin(180 * (3.141592f / 180.0f));
-				clients[d].look.normalize();
-				clients[d].right.normalize();
 				break;
 			case 8:
-				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = BLUE_TEAM;
-				tip.type = BLUE_TEAM;
-				clients[d].look.x = sin(-90 * (3.141592f / 180.0f));
-				clients[d].look.y = 0;
-				clients[d].look.z = cos(-90 * (3.141592f / 180.0f));
-				clients[d].right.x = cos(-90 * (3.141592f / 180.0f));
-				clients[d].right.y = 0;
-				clients[d].right.z = -sin(-90 * (3.141592f / 180.0f));
-				clients[d].look.normalize();
-				clients[d].right.normalize();
 				break;
 			case 9:
-				clients[d].hp = 100;
-				clients[d].mCapsuleController = m_PhysXModule->setCapsuleController(PxExtendedVec3(map.mPlayerInfo[i].tx, 12, map.mPlayerInfo[i].tz), 21, 3, d);
 				clients[d].team = RED_TEAM;
-				tip.type = RED_TEAM;
-				clients[d].look.x = sin(270 * (3.141592f / 180.0f));
-				clients[d].look.y = 0;
-				clients[d].look.z = cos(270 * (3.141592f / 180.0f));
-				clients[d].right.x = cos(270 * (3.141592f / 180.0f));
-				clients[d].right.y = 0;
-				clients[d].right.z = -sin(270 * (3.141592f / 180.0f));
-				clients[d].look.normalize();
-				clients[d].right.normalize();
 				break;
 			}
 			clients[d].m_Condition = US_PLAY;
 			wcscpy(tip.id, clients[d].m_ID.c_str());
+			tip.type = clients[d].team;
 			tip.x = map.mPlayerInfo[i].tx;
 			tip.y = map.mPlayerInfo[i].ty;
 			tip.z = map.mPlayerInfo[i].tz;
@@ -352,84 +224,6 @@ public:
 
 	}
 
-	void attack(const PxVec3& pos, const PxVec3& rayDir, array <Client, MAX_USER>& clients, int id) {
-		pair<int, PxVec3> hitTarget = m_PhysXModule->doRaycast(pos, rayDir, 1000.0f, id);
-		//아무것도 체크되지 않았을 경우
-		if (hitTarget.first == -1) {
-			sc_attack_packet atkp;
-			atkp.type = SC_ATTACK;
-			atkp.size = sizeof(sc_attack_packet);
-			wcscpy(atkp.id, clients[id].m_ID.c_str());
-			atkp.cx = 0;
-			atkp.cy = 0;
-			atkp.cz = 0;
-			atkp.px = 0;
-			atkp.py = -10000;
-			atkp.pz = 0;
-			for (int d : m_JoinIdList) {
-				SendPacket(d, &atkp);
-			}
-			return;
-		}
-		if (hitTarget.first == -2) {
-			sc_attack_packet atkp;
-			atkp.type = SC_ATTACK;
-			atkp.size = sizeof(sc_attack_packet);
-			wcscpy(atkp.id, clients[id].m_ID.c_str());
-			atkp.cx = pos.x;
-			atkp.cy = pos.y;
-			atkp.cz = pos.z;
-			atkp.px = hitTarget.second.x;
-			atkp.py = hitTarget.second.y;
-			atkp.pz = hitTarget.second.z;
-			for (int d : m_JoinIdList) {
-				SendPacket(d, &atkp);
-			}
-			return;
-		}
-		clients[hitTarget.first].hp -= 10;
-
-		//죽었을때 캡슐을 릴리즈하든 캡슐액터를 릴리즈하든 할 것.
-		if (clients[hitTarget.first].hp <= 0) {
-			sc_gameover_packet p;
-			p.size = sizeof(sc_gameover_packet);
-			if (clients[hitTarget.first].team == RED_READER) {
-				p.type = SC_GAMEOVER_BLUEWIN;
-				gameover();
-			}
-			else if (clients[hitTarget.first].team == BLUE_READER) {
-				p.type = SC_GAMEOVER_REDWIN;
-				gameover();
-			}
-			else {
-				p.type = SC_DEAD;
-				clients[hitTarget.first].mCapsuleController->release();
-			}
-			wcscpy(p.id, clients[hitTarget.first].m_ID.c_str());
-			for(int d : m_JoinIdList)
-				SendPacket(d, &p);
-		}
-		else {
-			sc_hit_packet hitp;
-			hitp.type = SC_HIT;
-			hitp.size = sizeof(sc_hit_packet);
-			hitp.hp = clients[hitTarget.first].hp;
-			SendPacket(hitTarget.first, &hitp);
-		}
-		sc_attack_packet atkp;
-		atkp.type = SC_ATTACK;
-		atkp.size = sizeof(sc_attack_packet);
-		wcscpy(atkp.id, clients[id].m_ID.c_str());
-		atkp.cx = pos.x;
-		atkp.cy = pos.y;
-		atkp.cz = pos.z;
-		atkp.px = hitTarget.second.x;
-		atkp.py = hitTarget.second.y;
-		atkp.pz = hitTarget.second.z;
-		for (int d : m_JoinIdList) {
-			SendPacket(d, &atkp);
-		}
-	}
 };
 
 HANDLE ghiocp;
@@ -959,13 +753,14 @@ inline void ProcessPacket(int id, char *packet)
 	{
 		g_clients[id].m_MoveDirection = packet[1];
 		{
+			cs_movestatus_packet* cmsp = reinterpret_cast<cs_movestatus_packet*>(packet);
 			sc_movestatus_packet p;
 			p.size = sizeof(sc_movestatus_packet);
 			p.type = packet[1];
 			wcscpy(p.id, g_clients[id].m_ID.c_str());
-			p.x = g_clients[id].x;
-			p.y = 0;
-			p.z = g_clients[id].z;
+			p.x = cmsp->x;
+			p.y = cmsp->y;
+			p.z = cmsp->z;
 			for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
 				SendPacket(d, &p);
 			}
@@ -1002,7 +797,6 @@ inline void ProcessPacket(int id, char *packet)
 					}
 					else {
 						p.type = SC_DEAD;
-						g_clients[d].mCapsuleController->release();
 					}
 					wcscpy(p.id, g_clients[d].m_ID.c_str());
 					for (int f : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList)
@@ -1021,22 +815,16 @@ inline void ProcessPacket(int id, char *packet)
 	case CS_ANGLE:
 	{
 		cs_angle_packet* packet_agl = reinterpret_cast<cs_angle_packet*>(packet);
-		g_clients[id].look.x = packet_agl->lookx;
-		g_clients[id].look.y = packet_agl->looky;
-		g_clients[id].look.z = packet_agl->lookz;
-		g_clients[id].right.x = packet_agl->rx;
-		g_clients[id].right.y = packet_agl->ry;
-		g_clients[id].right.z = packet_agl->rz;
 		sc_angle_packet p;
 		p.size = sizeof(sc_angle_packet);
 		p.type = SC_ANGLE;
 		wcscpy(p.id, g_clients[id].m_ID.c_str());
-		p.lookx = g_clients[id].look.x;
-		p.looky = g_clients[id].look.y;
-		p.lookz = g_clients[id].look.z;
-		p.rx = g_clients[id].right.x;
-		p.ry = g_clients[id].right.y;
-		p.rz = g_clients[id].right.z;
+		p.lookx = packet_agl->lookx;
+		p.looky = packet_agl->looky;
+		p.lookz = packet_agl->lookz;
+		p.rx = packet_agl->rx;
+		p.ry = packet_agl->ry;
+		p.rz = packet_agl->rz;
 		for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
 			if (d == id) continue;
 			SendPacket(d, &p);
@@ -1141,7 +929,7 @@ void worker_thread()
 				msp.x = g_clients[key].x;
 				msp.y = 0;
 				msp.z = g_clients[key].z;
-				SendPacket(key, &msp);
+				//SendPacket(key, &msp);
 			}
 		}
 		else if (PXACTION == p_over->work) {
@@ -1173,45 +961,31 @@ void worker_thread()
 				if (g_clients[id].hp <= 0) {
 					continue;
 				}
-				PxVec3 spdL = g_clients[id].look * 400.0f / 60.0f;
-				PxVec3 spdR = g_clients[id].right * 400.0f / 60.0f;
-				PxControllerFilters filter;
 				chrono::system_clock::time_point tp = chrono::system_clock::now();
 				chrono::duration<double> sptime = chrono::duration_cast<chrono::duration<double>>(tp - g_rooms[key].delay);
 				switch (g_clients[id].m_MoveDirection) {
 				case LEFT_DR:
-					g_clients[id].mCapsuleController->move(PxVec3(-spdR.x, 0, -spdR.z), 0.001f, sptime.count(), filter);
 					break;
 				case RIGHT_DR:
-					g_clients[id].mCapsuleController->move(PxVec3(spdR.x, 0, spdR.z), 0.001f, sptime.count(), filter);
 					break;
 				case UP_DR:
-					g_clients[id].mCapsuleController->move(PxVec3(spdL.x, 0, spdL.z), 0.001f, sptime.count(), filter);
 					break;
 				case DOWN_DR:
-					g_clients[id].mCapsuleController->move(PxVec3(-spdL.x, 0, -spdL.z), 0.001f, sptime.count(), filter);
 					break;
 				case ULEFT_DR:
-					g_clients[id].mCapsuleController->move(PxVec3(spdL.x - spdR.x, 0, spdL.z - spdR.z), 0.001f, sptime.count(), filter);
 					break;
 				case URIGHT_DR:
-					g_clients[id].mCapsuleController->move(PxVec3(spdL.x + spdR.x, 0, spdL.z + spdR.z), 0.001f, sptime.count(), filter);
 					break;
 				case DLEFT_DR:
-					g_clients[id].mCapsuleController->move(PxVec3(-spdL.x - spdR.x, 0, -spdL.z - spdR.z), 0.001f, sptime.count(), filter);
 					break;
 				case DRIGHT_DR:
-					g_clients[id].mCapsuleController->move(PxVec3(-spdL.x + spdR.x, 0, -spdL.z + spdR.z), 0.001f, sptime.count(), filter);
 					break;
 				case STOP_DR:
 					break;
 				}
-				g_clients[id].x = g_clients[id].mCapsuleController->getPosition().x;
-				g_clients[id].z = g_clients[id].mCapsuleController->getPosition().z;
 			}
 			chrono::system_clock::time_point tp = chrono::system_clock::now();
 			chrono::duration<double> sptime = chrono::duration_cast<chrono::duration<double>>(tp - g_rooms[key].delay);
-			g_rooms[key].m_PhysXModule->stepPhysics(sptime.count());
 			g_rooms[key].delay = chrono::system_clock::now();
 		}
 		else

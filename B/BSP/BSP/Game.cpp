@@ -736,6 +736,9 @@ void Game::OnKeyboardInput(const GameTimer& gt)
 				msp->type = move_direction::UP_DR;
 				break;
 			}
+			msp->x = mPlayer.GetCapsCont(0)->getPosition().x;
+			msp->y = mPlayer.GetCapsCont(0)->getPosition().y;
+			msp->z = mPlayer.GetCapsCont(0)->getPosition().z;
 			WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
 		}
 	}
@@ -2420,9 +2423,9 @@ void Game::SetPosition(std::string name, XMFLOAT3 position, unsigned int state)
 {
 	int id = mUserID[name];
 	mPlayer.mVector[id].mPosition.x = position.x;
-	mPlayer.mVector[id].mPosition.y = position.y;
+	mPlayer.mVector[id].mPosition.y = position.y - 12;
 	mPlayer.mVector[id].mPosition.z = position.z;
-	
+	mPlayer.GetCapsCont(id)->setPosition(PxExtendedVec3(position.x, position.y, position.z));
 	unsigned int convertState = ConvertMoveState(state);
 	mPlayer.SetMoveState(id, convertState);
 
