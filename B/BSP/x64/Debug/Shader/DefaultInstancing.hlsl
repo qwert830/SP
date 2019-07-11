@@ -405,7 +405,7 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
     if(diffuseAlbedo.a < 0.1)
         discard;
 
-    if(pin.MatIndex == 6)
+    if(pin.MatIndex == 6 && pin.IsDraw >= 1000)
         diffuseAlbedo.x += superheat / 100.0f;
 
     if(pin.MatIndex == 3)

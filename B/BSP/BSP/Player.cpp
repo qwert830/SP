@@ -304,16 +304,16 @@ void Player::MoveUpdate(const float & dt, int i)
 	case LEFTDOWN:
 		//Strafe(-mMoveSpeed*0.5f * dt, i);
 		//Forward(-mMoveSpeed * 0.5f * dt, i);
-		mCapsuleController[i]->move(PxVec3(-spdL.x - spdR.x, 0, -spdL.z - spdR.z), 0.001f, dt, filter);
+		mCapsuleController[i]->move(PxVec3(-spdL.x - spdR.x, 0, -spdL.z - spdR.z)*0.5f, 0.001f, dt, filter);
 		break;
 	case DOWN:
 		//Forward(-mMoveSpeed * 0.5f * dt, i);
-		mCapsuleController[i]->move(PxVec3(-spdL.x, 0, -spdL.z), 0.001f, dt, filter);
+		mCapsuleController[i]->move(PxVec3(-spdL.x, 0, -spdL.z)*0.5f, 0.001f, dt, filter);
 		break;
 	case RIGHTDOWN:
 		//Strafe(mMoveSpeed*dt, i);
 		//Forward(-mMoveSpeed * 0.5f * dt, i);
-		mCapsuleController[i]->move(PxVec3(spdL.x + spdR.x, 0, spdL.z + spdR.z), 0.001f, dt, filter);
+		mCapsuleController[i]->move(PxVec3(-spdL.x + spdR.x, 0, -spdL.z + spdR.z)*0.5f, 0.001f, dt, filter);
 		break;
 	}
 }

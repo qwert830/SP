@@ -402,7 +402,7 @@ void Game::Update(const GameTimer& gt)
 		CloseHandle(eventHandle);
 	}
 
-	UpdateTime(gt);
+	//UpdateTime(gt);
 	UpdateObjectCBs(gt);
 	UpdatePlayerData();
 	mPlayer.Update(gt);
@@ -422,11 +422,15 @@ void Game::Update(const GameTimer& gt)
 			mModelLoader.ChangeAnimation(i, DEAD);
 		else if (mPlayer.IsAttack(i) < 0.0f)
 		{
+			auto moveState = mPlayer.GetMoveState(i);
+
 			if (!testMode)
 			{
-				if (mPlayer.GetMoveState(i) == MOVE::STAND)
+				if (moveState == MOVE::STAND)
 					mModelLoader.ChangeAnimation(i, IDLE);
-				else
+				else if(moveState == MOVE::DOWN || moveState == MOVE::LEFTDOWN || moveState == MOVE::RIGHTDOWN)
+					mModelLoader.ChangeAnimation(i, WALK);
+				else	
 					mModelLoader.ChangeAnimation(i, RUN);
 			}
 		}
