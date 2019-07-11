@@ -402,7 +402,7 @@ void Game::Update(const GameTimer& gt)
 		CloseHandle(eventHandle);
 	}
 
-	//UpdateTime(gt);
+	UpdateTime(gt);
 	UpdateObjectCBs(gt);
 	UpdatePlayerData();
 	mPlayer.Update(gt);
@@ -1021,8 +1021,8 @@ void Game::UpdateShadowTransform(const GameTimer & gt)
 
 void Game::UpdateTime(const GameTimer & gt)
 {
-	if (mGameStart && mScene == GAME)
-		mTime -= gt.DeltaTime();
+	//if (mGameStart && mScene == GAME)
+	//	mTime -= gt.DeltaTime();
 	if (mTime <= 0)
 		mTime = 0;
 	int tempTime = (int)mTime;
