@@ -1087,6 +1087,7 @@ void Game::UpdateAttackToServer()
 			atp->px = hitted.second.x;
 			atp->py = hitted.second.y;
 			atp->pz = hitted.second.z;
+			SetParticle(hitted.second.x, hitted.second.y, hitted.second.z, position.x, position.y, position.z);
 		}
 		else {
 			//플레이어 맞은 경우
@@ -1095,6 +1096,7 @@ void Game::UpdateAttackToServer()
 			atp->px = hitted.second.x;
 			atp->py = hitted.second.y;
 			atp->pz = hitted.second.z;
+			SetParticle(hitted.second.x, hitted.second.y, hitted.second.z, position.x, position.y, position.z);
 		}
 		atp->cx = look.x;
 		atp->cy = look.y;
