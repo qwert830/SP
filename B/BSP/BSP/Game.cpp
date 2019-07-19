@@ -1079,7 +1079,6 @@ void Game::UpdateAttackToServer()
 			atp->px = 0;
 			atp->py = -10000;
 			atp->pz = 0;
-			return;
 		}
 		else if (hitted.first == "0") {
 			//장애물 맞은 경우
@@ -1088,7 +1087,6 @@ void Game::UpdateAttackToServer()
 			atp->px = hitted.second.x;
 			atp->py = hitted.second.y;
 			atp->pz = hitted.second.z;
-			return;
 		}
 		else {
 			//플레이어 맞은 경우
