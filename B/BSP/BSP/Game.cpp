@@ -27,7 +27,7 @@ enum SCENENAME
 
 enum RENDERITEM
 {
-	UI, OPAQUEITEM, PLAYER, DEBUG, TRANSPARENTITEM, DEFERRED, UIGUN, BILLBOARDITEM, PARTICLE, PLAYERGUN
+	UI, OPAQUEITEM, PLAYER, DEBUG, TRANSPARENTITEM, DEFERRED, UIGUN, BILLBOARDITEM, PARTICLE, PLAYERGUN, BOARDBG, BOARDCHAR
 };
 
 
@@ -527,6 +527,7 @@ void Game::DeferredDraw(const GameTimer & gt)
 			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COMMON));
 	}
 
+	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &h);
 }
 
 void Game::RoomStateDraw(const GameTimer & gt)
@@ -611,14 +612,19 @@ void Game::GameStateDraw(const GameTimer & gt)
 	shadowTexDescriptor.Offset(mShadowMapHeapIndex, mCbvSrvUavDescriptorSize);
 	mCommandList->SetGraphicsRootDescriptorTable(5, shadowTexDescriptor);
 
+	// 디퍼드
 	DeferredDraw(gt);
+	// 디퍼드 끝
 
 	// UI 그리기
 
+	// 반투명 UI
+	mCommandList->SetPipelineState(mPSOs["TransparentUI"].Get());
+	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[BOARDBG]);
+
 	mCommandList->SetPipelineState(mPSOs["UI"].Get());
-
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[UI]);
-
+	   
 	// UI 그리기 끝
 
 	// 디버그
@@ -1063,7 +1069,6 @@ void Game::UpdateAttackToServer()
 		XMFLOAT3 look = mPlayer.GetCameraLookVector();
 		string id = reinterpret_cast<char*>(mPlayer.GetCapsCont(0)->getActor()->userData);
 
-
 		pair<string, PxVec3> hitted = mPlayer.GetPx()->doRaycast(PxVec3(position.x, position.y, position.z), PxVec3(look.x, look.y, look.z), 1000.0f, id);
 		
 		DWORD iobyte;
@@ -1101,6 +1106,9 @@ void Game::UpdateAttackToServer()
 		atp->cx = look.x;
 		atp->cy = look.y;
 		atp->cz = look.z;
+		
+		mSoundManager.SetSound(FIRESOUND, mPlayer.GetCameraPosition(), mPlayer.GetCameraPosition());
+
 		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
 	}
 }
@@ -1148,6 +1156,7 @@ void Game::LoadTextures()
 		"playerShotTex",
 		"ReadyRoomTex",
 		"ReadyButtonTex",
+
 		"QuitButtonTex",
 		"CubeTex",
 		"RedReaderTex",
@@ -1157,7 +1166,10 @@ void Game::LoadTextures()
 		"HPTex",
 		"ParticleTex",
 		"WinTex",
-		"LoseTex"
+		"LoseTex",
+
+		"BackBoardTex",
+		"BoardCharTex"
 	};
 
 	std::vector<std::wstring> fileNames =
@@ -1182,7 +1194,10 @@ void Game::LoadTextures()
 		L"Resource/HP.dds",
 		L"Resource/Particle.dds",
 		L"Resource/Win.dds",
-		L"Resource/Lose.dds"
+		L"Resource/Lose.dds",
+
+		L"Resource/BackBoard.dds",
+		L"Resource/BoardChar.dds"
 	};
 
 	for (int i = 0; i < texNames.size(); ++i)
@@ -1242,7 +1257,7 @@ void Game::BuildInstancingRootSignature()
 	// 디스크립터 바꿀댄 셰이더 코드를 꼭 바꾸자 젭라..
 	int num = 0;
 
-	int tex = 20;
+	int tex = 22;
 	CD3DX12_DESCRIPTOR_RANGE texTable;
 	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, tex, num, 0);
 	num += tex;
@@ -1303,7 +1318,7 @@ void Game::BuildDescriptorHeaps()
 	//디스크립터 힙에 쉐이더 리소스 뷰를 하나씩 탑재
 
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 25;
+	srvHeapDesc.NumDescriptors = 27;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
@@ -1331,7 +1346,9 @@ void Game::BuildDescriptorHeaps()
 		mTextures["HPTex"]->Resource,
 		mTextures["ParticleTex"]->Resource,
 		mTextures["WinTex"]->Resource,
-		mTextures["LoseTex"]->Resource
+		mTextures["LoseTex"]->Resource,
+		mTextures["BackBoardTex"]->Resource,
+		mTextures["BoardCharTex"]->Resource
 	};
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -1726,6 +1743,39 @@ void Game::BuildPSOs()
 	uiPsoDesc.DepthStencilState.DepthEnable = false;
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&uiPsoDesc, IID_PPV_ARGS(&mPSOs["UI"])));
 
+
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentUiPsoDesc = instancingPsoDesc;
+
+	D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
+	transparencyBlendDesc.BlendEnable = true;
+	transparencyBlendDesc.LogicOpEnable = false;
+	transparencyBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	transparencyBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	transparencyBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+	transparencyBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+	transparencyBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
+	transparencyBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	transparentUiPsoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
+	transparentUiPsoDesc.VS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["uiVS"]->GetBufferPointer()),
+		mShaders["uiVS"]->GetBufferSize()
+	};
+	transparentUiPsoDesc.PS =
+	{
+		reinterpret_cast<BYTE*>(mShaders["uiPS"]->GetBufferPointer()),
+		mShaders["uiPS"]->GetBufferSize()
+	};
+	transparentUiPsoDesc.DepthStencilState.DepthEnable = false;
+	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&transparentUiPsoDesc, IID_PPV_ARGS(&mPSOs["TransparentUI"])));
+
+
+
+
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPsoDesc = instancingPsoDesc;
 	shadowPsoDesc.RasterizerState.DepthBias = 100000;
 	shadowPsoDesc.RasterizerState.DepthBiasClamp = 0.0f;
@@ -1955,6 +2005,28 @@ void Game::CreateUIItemsGame()
 	mInstanceCount.push_back((unsigned int)UIRitem3->Instances.size());
 	mRenderItems[GAME].renderItems[UI].push_back(UIRitem3.get());
 	mRenderItems[GAME].allItems.push_back(std::move(UIRitem3));
+
+	auto UIRitem4 = std::make_unique<RenderItem>();
+	UIRitem4->World = MathHelper::Identity4x4();
+	UIRitem4->TexTransform = MathHelper::Identity4x4();
+	UIRitem4->ObjCBIndex = mObjectCount++;
+	UIRitem4->Mat = mMaterials["seafloor0"].get();
+	UIRitem4->Geo = mGeometries["shapeGeo"].get();
+	UIRitem4->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	UIRitem4->InstanceCount = 0;
+	UIRitem4->IndexCount = UIRitem4->Geo->DrawArgs["uiGrid"].IndexCount;
+	UIRitem4->StartIndexLocation = UIRitem4->Geo->DrawArgs["uiGrid"].StartIndexLocation;
+	UIRitem4->BaseVertexLocation = UIRitem4->Geo->DrawArgs["uiGrid"].BaseVertexLocation;
+
+	// 점수판 배경 ui
+	UIRitem4->Instances.resize(1);
+	UIRitem4->Instances[0].UIPos = XMFLOAT4(-1.0f, 0.75f, -0.75f, -0.75f);
+	UIRitem4->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+	UIRitem4->Instances[0].MaterialIndex = 20;
+
+	mInstanceCount.push_back((unsigned int)UIRitem4->Instances.size());
+	mRenderItems[GAME].renderItems[BOARDBG].push_back(UIRitem4.get());
+	mRenderItems[GAME].allItems.push_back(std::move(UIRitem4));
 }
 
 void Game::BuildRenderItemsGame()
