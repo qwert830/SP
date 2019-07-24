@@ -15,7 +15,7 @@
 const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = false;
+const bool testMode = true;
 
 float testTime = 0.0f;
 float testR = 0.0f;
@@ -621,9 +621,11 @@ void Game::GameStateDraw(const GameTimer & gt)
 	// 반투명 UI
 	mCommandList->SetPipelineState(mPSOs["TransparentUI"].Get());
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[BOARDBG]);
+	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[BOARDCHAR]);
 
 	mCommandList->SetPipelineState(mPSOs["UI"].Get());
 	DrawInstancingRenderItems(mCommandList.Get(), mRenderItems[GAME].renderItems[UI]);
+
 	   
 	// UI 그리기 끝
 
@@ -2020,13 +2022,38 @@ void Game::CreateUIItemsGame()
 
 	// 점수판 배경 ui
 	UIRitem4->Instances.resize(1);
-	UIRitem4->Instances[0].UIPos = XMFLOAT4(-1.0f, 0.75f, -0.75f, -0.75f);
+	UIRitem4->Instances[0].UIPos = XMFLOAT4(-1.0f, 0.70f, -0.85f, -0.60f);
 	UIRitem4->Instances[0].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
 	UIRitem4->Instances[0].MaterialIndex = 20;
 
 	mInstanceCount.push_back((unsigned int)UIRitem4->Instances.size());
 	mRenderItems[GAME].renderItems[BOARDBG].push_back(UIRitem4.get());
 	mRenderItems[GAME].allItems.push_back(std::move(UIRitem4));
+
+	auto UIRitem5 = std::make_unique<RenderItem>();
+	UIRitem5->World = MathHelper::Identity4x4();
+	UIRitem5->TexTransform = MathHelper::Identity4x4();
+	UIRitem5->ObjCBIndex = mObjectCount++;
+	UIRitem5->Mat = mMaterials["seafloor0"].get();
+	UIRitem5->Geo = mGeometries["shapeGeo"].get();
+	UIRitem5->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	UIRitem5->InstanceCount = 0;
+	UIRitem5->IndexCount = UIRitem5->Geo->DrawArgs["uiGrid"].IndexCount;
+	UIRitem5->StartIndexLocation = UIRitem5->Geo->DrawArgs["uiGrid"].StartIndexLocation;
+	UIRitem5->BaseVertexLocation = UIRitem5->Geo->DrawArgs["uiGrid"].BaseVertexLocation;
+
+	// 점수판 캐릭터 ui
+	UIRitem5->Instances.resize(10);
+	for (int i = 0; i < 10; ++i)
+	{
+		UIRitem5->Instances[i].UIPos = XMFLOAT4(-0.97f, 0.65f-(0.12f*i), -0.88f, 0.55f-(0.12f*(i)));
+		UIRitem5->Instances[i].UIUVPos = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+		UIRitem5->Instances[i].MaterialIndex = 21;
+		UIRitem5->Instances[i].IsDraw = 1;
+	}
+	mInstanceCount.push_back((unsigned int)UIRitem5->Instances.size());
+	mRenderItems[GAME].renderItems[BOARDCHAR].push_back(UIRitem5.get());
+	mRenderItems[GAME].allItems.push_back(std::move(UIRitem5));
 }
 
 void Game::BuildRenderItemsGame()
@@ -2589,6 +2616,15 @@ void Game::SetTeam(std::string name, unsigned char team, float x, float y, float
 		mRenderItems[GAME].renderItems[PLAYER][0]->Instances[id].IsDraw = -1;
 		mRenderItems[GAME].renderItems[UI][1]->Instances[0].MaterialIndex = teamTextureIndex;
 		mRenderItems[GAME].renderItems[UI][1]->Instances[0].UIPos = XMFLOAT4(-0.5f, 0.5f, 0.5f, -0.5f);
+
+		for (int i = 0; i < 10; ++i)
+		{
+			if(mIDSearch[i])
+				mRenderItems[GAME].renderItems[BOARDCHAR][0]->Instances[0].IsDraw = 1;
+			else
+				mRenderItems[GAME].renderItems[BOARDCHAR][0]->Instances[0].IsDraw = -1;
+		}
+
 		mPlayer.SetMousePos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
 		mScene = GAME;
 	}
@@ -3023,6 +3059,7 @@ void Game::ProcessPacket(char * ptr)
 		int id = mUserID[idbuff];
 		mPlayer.SetSurvival(id, false);
 		mPlayer.SetMoveState(id, STAND);
+		mRenderItems[GAME].renderItems[BOARDCHAR][0]->Instances[id].IsDraw = -1;
 		break;
 	}
 	case SC_TIMER:

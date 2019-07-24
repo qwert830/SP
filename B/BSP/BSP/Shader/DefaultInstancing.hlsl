@@ -594,6 +594,13 @@ float4 UI_PS(VertexOut pin) : SV_Target
     {
         diffuseAlbedo *= float4(1.0f, 1.0f, 1.0f, 0.5f);
     }
+    else if (pin.MatIndex ==21)
+    {
+        if( pin.IsDraw == 1)
+            diffuseAlbedo = float4(0.1f, 0.2f, 0.8f, 0.7f);
+        if( pin.IsDraw == -1)
+            diffuseAlbedo = float4(0.1f, 0.1f, 0.1f, 0.3f);
+    }
 
     return diffuseAlbedo;
 };
