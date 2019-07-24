@@ -73,10 +73,10 @@ cbuffer cbSkinned : register(b1)
     float4x4 gBoneTransforms[10][45];
 };
 
-Texture2D gDiffuseMap[20] : register(t0);
-Texture2D gShadowMap : register(t20);
-Texture2D gDepthResource : register(t21);
-Texture2D gBufferResource[3] : register(t22);
+Texture2D gDiffuseMap[22] : register(t0);
+Texture2D gShadowMap : register(t22);
+Texture2D gDepthResource : register(t23);
+Texture2D gBufferResource[3] : register(t24);
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
@@ -589,6 +589,17 @@ float4 UI_PS(VertexOut pin) : SV_Target
     else if (pin.MatIndex == 19)
     {
         diffuseAlbedo = float4(0.9f, 0.1f, 0.1f, 1.0f);
+    }
+    else if (pin.MatIndex == 20)
+    {
+        diffuseAlbedo *= float4(1.0f, 1.0f, 1.0f, 0.5f);
+    }
+    else if (pin.MatIndex ==21)
+    {
+        if( pin.IsDraw == 1)
+            diffuseAlbedo = float4(0.1f, 0.2f, 0.8f, 0.7f);
+        if( pin.IsDraw == -1)
+            diffuseAlbedo = float4(0.1f, 0.1f, 0.1f, 0.3f);
     }
 
     return diffuseAlbedo;

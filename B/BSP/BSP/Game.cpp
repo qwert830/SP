@@ -15,7 +15,7 @@
 const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = true;
+const bool testMode = false;
 
 float testTime = 0.0f;
 float testR = 0.0f;
@@ -2620,9 +2620,9 @@ void Game::SetTeam(std::string name, unsigned char team, float x, float y, float
 		for (int i = 0; i < 10; ++i)
 		{
 			if(mIDSearch[i])
-				mRenderItems[GAME].renderItems[BOARDCHAR][0]->Instances[0].IsDraw = 1;
+				mRenderItems[GAME].renderItems[BOARDCHAR][0]->Instances[i].IsDraw = 1;
 			else
-				mRenderItems[GAME].renderItems[BOARDCHAR][0]->Instances[0].IsDraw = -1;
+				mRenderItems[GAME].renderItems[BOARDCHAR][0]->Instances[i].IsDraw = -1;
 		}
 
 		mPlayer.SetMousePos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
@@ -3076,6 +3076,8 @@ void Game::ProcessPacket(char * ptr)
 		wcstombs(idbuff, dp->id, wcslen(dp->id) + 1);
 		int id = mUserID[idbuff];
 		mPlayer.SetSurvival(id, false);
+		
+		mRenderItems[GAME].renderItems[BOARDCHAR][0]->Instances[id].IsDraw = -1;
 
 		unsigned char t = mPlayer.GetPlayerTeam();
 		mPlayer.SetSurvival(0, false);
