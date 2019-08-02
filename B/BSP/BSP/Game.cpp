@@ -15,7 +15,7 @@
 const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = false;
+const bool testMode = true;
 
 float testTime = 0.0f;
 float testR = 0.0f;
@@ -3115,5 +3115,5 @@ void Game::PxMapSetting() {
 			mMapLoader.GetMapData(i).rotationY + 180,
 			PxVec3(100 * mMapLoader.GetMapData(i).scalingX, 100 * mMapLoader.GetMapData(i).scalingY, 100 * mMapLoader.GetMapData(i).scalingZ));
 	}
-
+	mPlayer.GetPx()->createBoxObj(PxVec3(0, -2, 0), 0, PxVec3(500, 0.5f, 500));
 }

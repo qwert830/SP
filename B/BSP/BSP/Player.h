@@ -18,6 +18,13 @@ struct WorldVecter
 	DirectX::XMFLOAT3 mPosition = { 0.0f, 0.0f, 0.0f };
 };
 
+struct Jump
+{
+	bool state = false;
+	float recentYpos = 0;
+	float jumpPower = 0;
+};
+
 class Player
 {
 private:
@@ -51,6 +58,7 @@ private:
 	POINT mMousePos;
 	PhysXModule* mPxMod;
 	PxCapsuleController* mCapsuleController[10];
+	Jump mJump[10];
 
 
 public:
