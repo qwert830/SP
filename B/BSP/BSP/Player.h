@@ -22,6 +22,7 @@ struct Jump
 {
 	bool state = false;
 	float recentYpos = 0;
+	float recentYpos2 = 0;
 	float jumpPower = 0;
 };
 
