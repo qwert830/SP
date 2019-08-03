@@ -97,6 +97,7 @@ public:
 	void SetMoveState(int index, unsigned char state);
 	void SetHit();
 
+	int GetAttackStateInt();
 	bool GetAttackState();
 	bool GetMoveStateDirty();
 	float GetHit();

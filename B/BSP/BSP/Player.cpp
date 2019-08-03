@@ -236,9 +236,9 @@ void Player::Update(const GameTimer& gt)
 			mVector[i].mPosition.x = mCapsuleController[i]->getPosition().x;
 			mVector[i].mPosition.y = mCapsuleController[i]->getPosition().y - 12;
 			mVector[i].mPosition.z = mCapsuleController[i]->getPosition().z;
-		//	mJump[i].recentYpos = mCapsuleController[i]->getPosition().y;
+			mJump[i].recentYpos = mCapsuleController[i]->getPosition().y;
 		}
-			mJump[0].recentYpos = mCapsuleController[0]->getPosition().y;
+			//mJump[0].recentYpos = mCapsuleController[0]->getPosition().y;
 	}
 
 }
@@ -250,7 +250,7 @@ void Player::AttackUpdate(const float & dt)
 		if (mLButtonDown)
 			mAttackState[0] = ATTACK::GUN;
 		else if (mRButtonDown)
-			mAttackState[0] = ATTACK::LASER;
+			mAttackState[0] = ATTACK::UNABLE_ATTACK;
 	}
 	
 	switch (mAttackState[0])
@@ -382,6 +382,11 @@ float Player::GetCurrentHP()
 float Player::GetMaxHP()
 {
 	return mMaxHP;
+}
+
+int Player::GetAttackStateInt()
+{
+	return mAttackState[0];
 }
 
 bool Player::GetAttackState()

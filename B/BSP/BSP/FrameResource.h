@@ -58,6 +58,10 @@ struct PassConstants
 	float Survival = 0.0f;
 	float Hit = 0.0f;
 	DirectX::XMFLOAT4 AmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
+	float AttackState = 0;
+	float pad1 = 0;
+	float pad2 = 0;
+	float pad3 = 0;
 
 	Light Lights[MaxLights];
 };
