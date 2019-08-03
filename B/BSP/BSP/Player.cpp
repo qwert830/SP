@@ -115,7 +115,7 @@ void Player::PlayerKeyBoardInput(const GameTimer & gt)
 		if (!mJump[0].state)
 		{
 			mJump[0].state = true;
-			mJump[0].jumpPower = 2;
+			mJump[0].jumpPower = 60;
 			mJump[0].recentYpos = -100;
 		}
 	}
@@ -237,8 +237,13 @@ void Player::Update(const GameTimer& gt)
 			mVector[i].mPosition.y = mCapsuleController[i]->getPosition().y - 12;
 			mVector[i].mPosition.z = mCapsuleController[i]->getPosition().z;
 			mJump[i].recentYpos = mCapsuleController[i]->getPosition().y;
+			if (mJump[i].state == false) {
+				if (fabs((float)mCapsuleController[i]->getPosition().y - mJump[i].recentYpos) < 0.001f) {
+					mJump[i].state = true;
+					mJump[i].jumpPower = 0;
+				}
+			}
 		}
-			//mJump[0].recentYpos = mCapsuleController[0]->getPosition().y;
 	}
 
 }
@@ -330,9 +335,11 @@ void Player::MoveUpdate(const float & dt, int i)
 	}
 	
 	if (mJump[i].state == true) {
-		mCapsuleController[i]->move(PxVec3(0, mJump[i].jumpPower, 0), 0.001f, dt, filter);
-		auto a = mCapsuleController[i]->getPosition().y;
-		mJump[i].jumpPower -= 10.0f * dt;
+		mCapsuleController[i]->move(PxVec3(0, mJump[i].jumpPower * dt, 0), 0.001f, dt, filter);
+		mJump[i].jumpPower -= 120 * dt; // 캐릭크기 24, 2m라고 상정, 5배인 10m/s를 중력이라고 가정하여 120.
+	}
+	else {
+		mCapsuleController[i]->move(PxVec3(0, -0.01f, 0), 0.001f, dt, filter);
 	}
 	if (fabs((float)mCapsuleController[i]->getPosition().y - mJump[i].recentYpos) < 0.001f) {
 		mJump[i].state = false;

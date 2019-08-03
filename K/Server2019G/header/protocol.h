@@ -33,7 +33,8 @@ enum move_direction {
 	ULEFT_DR,
 	URIGHT_DR,
 	DLEFT_DR,
-	DRIGHT_DR
+	DRIGHT_DR,
+	JUMP_DR
 };
 
 //무브디렉션이랑 겹치면 안됨. 패킷종류가 50개 넘으면 무브디렉션 시작점이든 패킷종류 시작점이든 둘중하날 바꿔야함.
