@@ -112,9 +112,12 @@ void Player::PlayerKeyBoardInput(const GameTimer & gt)
 
 	if (GetAsyncKeyState(VK_SPACE) & 0x8000)
 	{
-		mJump[0].state = true;
-		mJump[0].jumpPower = 5;
-		mJump[0].recentYpos = -100;
+		if (!mJump[0].state)
+		{
+			mJump[0].state = true;
+			mJump[0].jumpPower = 2;
+			mJump[0].recentYpos = -100;
+		}
 	}
 }
 
@@ -325,12 +328,14 @@ void Player::MoveUpdate(const float & dt, int i)
 		mCapsuleController[i]->move(PxVec3(-spdL.x + spdR.x, 0, -spdL.z + spdR.z)*0.5f, 0.001f, dt, filter);
 		break;
 	}
+	
 	if (mJump[i].state == true) {
 		mCapsuleController[i]->move(PxVec3(0, mJump[i].jumpPower, 0), 0.001f, dt, filter);
+		auto a = mCapsuleController[i]->getPosition().y;
 		mJump[i].jumpPower -= 10.0f * dt;
 	}
-	if (fabs(mCapsuleController[i]->getPosition().y - mJump[i].recentYpos) < 0.0000001f) {
-		//mJump[i].state = false;
+	if (fabs((float)mCapsuleController[i]->getPosition().y - mJump[i].recentYpos) < 0.001f) {
+		mJump[i].state = false;
 	}
 }
 
