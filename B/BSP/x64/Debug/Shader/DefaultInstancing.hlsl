@@ -64,6 +64,10 @@ cbuffer cbPass : register(b0)
     float Survival;
     float Hit;
     float4 gAmbientLight;
+    float AttackState;
+    float pad1;
+    float pad2;
+    float pad3;
 
     Light gLights[MaxLights];
 };
@@ -406,22 +410,26 @@ PS_GBUFFER_OUT DrawPS(VertexOut pin)
         discard;
 
     if(pin.MatIndex == 6 && pin.IsDraw >= 1000)
-        diffuseAlbedo.x += superheat / 100.0f;
-
-    if(pin.MatIndex == 3)
     {
-        if(pin.IsDraw == 11)
-        {
-            diffuseAlbedo.x = 1;
-        }
-        if(pin.IsDraw == 101)
-        {
-            diffuseAlbedo.z = 1;
-        }
+        if(AttackState == 3)
+            diffuseAlbedo.z += superheat / 100.0f;
+        else
+            diffuseAlbedo.x += superheat / 100.0f;
     }
+        if (pin.MatIndex == 3)
+        {
+            if (pin.IsDraw == 11)
+            {
+                diffuseAlbedo.x = 1;
+            }
+            if (pin.IsDraw == 101)
+            {
+                diffuseAlbedo.z = 1;
+            }
+        }
 
-    return PackGBuffer(diffuseAlbedo.xyz, pin.NormalW, fresnelR0.x, shininess, pos);
-};
+        return PackGBuffer(diffuseAlbedo.xyz, pin.NormalW, fresnelR0.x, shininess, pos);
+    };
 
 DeferredVSOut DVS(ShadowVertexIn vin, uint vertexID : SV_VertexID)
 {

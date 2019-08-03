@@ -343,9 +343,9 @@ void Player::MoveUpdate(const float & dt, int i)
 	{
 		mCapsuleController[i]->move(PxVec3(0, mJump[i].jumpPower * dt, 0), 0.001f, dt, filter);
 		mJump[i].jumpPower -= 300 * dt; // 캐릭크기 24, 2m라고 상정, 5배인 10m/s를 중력이라고 가정하여 120.
-		if (fabs((float)mCapsuleController[i]->getPosition().y - mJump[i].recentYpos) < 0.00000000000001f) 
+		if (fabs((float)mCapsuleController[i]->getPosition().y - mJump[i].recentYpos) < 0.0000000001f) 
 		{
-			if (fabs((float)mCapsuleController[i]->getPosition().y - mJump[i].recentYpos2) < 0.00000000000001f)
+			if (fabs((float)mCapsuleController[i]->getPosition().y - mJump[i].recentYpos2) < 0.0000000001f)
 			{
 				mJump[i].state = false;
 				mJump[i].recentstate = true;
@@ -395,7 +395,8 @@ void Player::SetCapsCont(const int idx, PxCapsuleController * caps)
 
 void Player::SetJumpstatus(const int idx, const Jump & setter)
 {
-	mJump[idx] = setter;
+	if (!mJump[idx].state)
+		mJump[idx] = setter;
 }
 
 float Player::GetSuperheat()

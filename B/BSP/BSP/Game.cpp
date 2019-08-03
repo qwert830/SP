@@ -3087,14 +3087,14 @@ void Game::ProcessPacket(char * ptr)
 		sc_jump_packet* jp = reinterpret_cast<sc_jump_packet*>(ptr);
 		char idbuff[10];
 		wcstombs(idbuff, jp->id, wcslen(jp->id) + 1);
-		string name = idbuff;
+		int id = mUserID[idbuff];
 		Jump temp;
 		temp.state = true;
 		temp.recentstate = false;
-		temp.jumpPower = 100;
+		temp.jumpPower = jp->power;
 		temp.recentYpos = -100;
 		temp.recentYpos2 = -200;
-		mPlayer.SetJumpstatus(mUserID[name], temp);
+		mPlayer.SetJumpstatus(id, temp);
 		break;
 	}
 	case SC_GAMEOVER_REDWIN:
