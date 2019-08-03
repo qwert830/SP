@@ -772,7 +772,7 @@ inline void ProcessPacket(int id, char *packet)
 		cs_jump_packet* cjp = reinterpret_cast<cs_jump_packet*>(packet);
 		sc_jump_packet p;
 		p.size = sizeof(sc_jump_packet);
-		p.type = packet[1];
+		p.type = SC_JUMP;
 		wcscpy(p.id, g_clients[id].m_ID.c_str());
 		p.x = cjp->x;
 		p.y = cjp->y;
