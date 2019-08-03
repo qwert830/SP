@@ -21,6 +21,7 @@ struct WorldVecter
 struct Jump
 {
 	bool state = false;
+	bool recentstate = false;
 	float recentYpos = 0;
 	float recentYpos2 = 0;
 	float jumpPower = 0;
@@ -97,6 +98,8 @@ public:
 	void SetSurvival(int index, const bool survival);
 	void SetMoveState(int index, unsigned char state);
 	void SetHit();
+	void SetCapsCont(const int idx, PxCapsuleController* caps);
+	void SetJumpstatus(const int idx, const Jump& setter);
 
 	int GetAttackStateInt();
 	bool GetAttackState();
@@ -112,7 +115,7 @@ public:
 	unsigned char GetPlayerTeam();
 	PhysXModule* GetPx();
 	PxCapsuleController* GetCapsCont(const int idx);
-	void SetCapsCont(const int idx, PxCapsuleController* caps);
+	Jump GetJumpstatus(const int idx);
 
 
 	DirectX::XMFLOAT3 GetPlayerLookVector();

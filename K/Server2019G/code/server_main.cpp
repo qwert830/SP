@@ -767,6 +767,22 @@ inline void ProcessPacket(int id, char *packet)
 		}
 		break;
 	}
+	case CS_JUMP:
+	{
+		cs_jump_packet* cjp = reinterpret_cast<cs_jump_packet*>(packet);
+		sc_jump_packet p;
+		p.size = sizeof(sc_jump_packet);
+		p.type = packet[1];
+		wcscpy(p.id, g_clients[id].m_ID.c_str());
+		p.x = cjp->x;
+		p.y = cjp->y;
+		p.z = cjp->z;
+		p.power = cjp->power;
+		for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
+			SendPacket(d, &p);
+		}
+	}
+	break;
 	case CS_ATTACK:
 	{
 		cs_attack_packet* packet_atk = reinterpret_cast<cs_attack_packet*>(packet);

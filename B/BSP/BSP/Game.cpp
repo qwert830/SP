@@ -15,7 +15,7 @@
 const float gameQuit = 3.0f;
 const float radian = (float)(3.141572f / 180.0f);
 
-const bool testMode = true;
+const bool testMode = false;
 
 float testTime = 0.0f;
 float testR = 0.0f;
@@ -443,6 +443,19 @@ void Game::Update(const GameTimer& gt)
 		{
 			SetRoom();
 		}
+	}
+
+	if (mPlayer.GetJumpstatus(0).recentstate != mPlayer.GetJumpstatus(0).state) {
+		DWORD iobyte;
+		cs_jump_packet* jp = reinterpret_cast<cs_jump_packet*>(send_buffer);
+		send_wsabuf.len = sizeof(cs_jump_packet);
+		jp->size = sizeof(cs_jump_packet);
+		jp->type = CS_PacketKind::CS_JUMP;
+		jp->x = mPlayer.GetCapsCont(0)->getPosition().x;
+		jp->y = mPlayer.GetCapsCont(0)->getPosition().y;
+		jp->z = mPlayer.GetCapsCont(0)->getPosition().z;
+		jp->power = mPlayer.GetJumpstatus(0).jumpPower;
+		WSASend(m_mysocket, &send_wsabuf, 1, &iobyte, 0, NULL, NULL);
 	}
 
 }
@@ -3067,6 +3080,21 @@ void Game::ProcessPacket(char * ptr)
 	{
 		sc_timer_packet* tp = reinterpret_cast<sc_timer_packet*>(ptr);
 		mTime = (float)tp->timer;
+		break;
+	}
+	case SC_JUMP:
+	{
+		sc_jump_packet* jp = reinterpret_cast<sc_jump_packet*>(ptr);
+		char idbuff[10];
+		wcstombs(idbuff, jp->id, wcslen(jp->id) + 1);
+		string name = idbuff;
+		Jump temp;
+		temp.state = true;
+		temp.recentstate = false;
+		temp.jumpPower = 100;
+		temp.recentYpos = -100;
+		temp.recentYpos2 = -200;
+		mPlayer.SetJumpstatus(mUserID[name], temp);
 		break;
 	}
 	case SC_GAMEOVER_REDWIN:

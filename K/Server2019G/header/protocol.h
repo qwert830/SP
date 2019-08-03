@@ -34,7 +34,6 @@ enum move_direction {
 	URIGHT_DR,
 	DLEFT_DR,
 	DRIGHT_DR,
-	JUMP_DR
 };
 
 //무브디렉션이랑 겹치면 안됨. 패킷종류가 50개 넘으면 무브디렉션 시작점이든 패킷종류 시작점이든 둘중하날 바꿔야함.
@@ -52,6 +51,7 @@ enum CS_PacketKind {
 	CS_MOVE,
 	CS_ANGLE,
 	CS_ATTACK,
+	CS_JUMP
 };
 
 enum SC_PacketKind {
@@ -73,6 +73,7 @@ enum SC_PacketKind {
 	SC_DEAD,
 	SC_ATTACK,
 	SC_TIMER,
+	SC_JUMP
 };
 #pragma pack (push, 1)
 // 클라이언트 -> 서버------------------------
@@ -130,6 +131,13 @@ struct cs_movestatus_packet {
 	unsigned char size;
 	unsigned char type;
 	float x, y, z;
+};
+
+struct cs_jump_packet {
+	unsigned char size;
+	unsigned char type;
+	float x, y, z;
+	float power;
 };
 // 서버 -> 클라이언트------------------------
 
@@ -212,6 +220,14 @@ struct sc_teaminfo_packet {
 	wchar_t id[10];
 	float x, y, z;
 	float r;
+};
+
+struct sc_jump_packet {
+	unsigned char size;
+	unsigned char type;
+	wchar_t id[10];
+	float x, y, z;
+	float power;
 };
 
 #pragma pack (pop)

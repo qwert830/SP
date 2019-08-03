@@ -115,6 +115,7 @@ void Player::PlayerKeyBoardInput(const GameTimer & gt)
 		if (!mJump[0].state)
 		{
 			mJump[0].state = true;
+			mJump[0].recentstate = false;
 			mJump[0].jumpPower = 100;
 			mJump[0].recentYpos = -100;
 			mJump[0].recentYpos2 = -200;
@@ -241,6 +242,7 @@ void Player::Update(const GameTimer& gt)
 			{
  				if ((float)mCapsuleController[i]->getPosition().y+0.001f < mJump[i].recentYpos) {
  					mJump[i].state = true;
+					mJump[i].recentstate = false;
 					mJump[i].jumpPower = 0;
 				}
 			}
@@ -346,6 +348,7 @@ void Player::MoveUpdate(const float & dt, int i)
 			if (fabs((float)mCapsuleController[i]->getPosition().y - mJump[i].recentYpos2) < 0.00000000000001f)
 			{
 				mJump[i].state = false;
+				mJump[i].recentstate = true;
 			}
 		}
 	}
@@ -380,9 +383,19 @@ PxCapsuleController * Player::GetCapsCont(const int idx)
 	return mCapsuleController[idx];
 }
 
+Jump Player::GetJumpstatus(const int idx)
+{
+	return mJump[idx];
+}
+
 void Player::SetCapsCont(const int idx, PxCapsuleController * caps)
 {
 	mCapsuleController[idx] = caps;
+}
+
+void Player::SetJumpstatus(const int idx, const Jump & setter)
+{
+	mJump[idx] = setter;
 }
 
 float Player::GetSuperheat()
