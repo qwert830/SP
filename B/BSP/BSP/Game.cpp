@@ -445,7 +445,7 @@ void Game::Update(const GameTimer& gt)
 		}
 	}
 
-	if (mPlayer.GetJumpstatus(0).recentstate != mPlayer.GetJumpstatus(0).state) {
+	if ((mPlayer.GetJumpstatus(0).recentstate != mPlayer.GetJumpstatus(0).state) && mPlayer.GetJumpstatus(0).state == true) {
 		DWORD iobyte;
 		cs_jump_packet* jp = reinterpret_cast<cs_jump_packet*>(send_buffer);
 		send_wsabuf.len = sizeof(cs_jump_packet);
