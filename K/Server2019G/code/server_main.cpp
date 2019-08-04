@@ -779,6 +779,7 @@ inline void ProcessPacket(int id, char *packet)
 		p.z = cjp->z;
 		p.power = cjp->power;
 		for (int d : g_rooms[g_clients[id].m_RoomNumber].m_JoinIdList) {
+			if (d == id) continue;
 			SendPacket(d, &p);
 		}
 	}

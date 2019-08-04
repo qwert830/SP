@@ -3140,7 +3140,7 @@ void Game::ProcessPacket(char * ptr)
 void Game::PxMapSetting() {
 	for (int i = 0; i < mMapLoader.GetSizeofMapData(); ++i) {
 		mPlayer.GetPx()->createBoxObj(
-			PxVec3(-mMapLoader.GetMapData(i).offsetX, mMapLoader.GetMapData(i).offsetY + (100 * mMapLoader.GetMapData(i).scalingY), -mMapLoader.GetMapData(i).offsetZ),
+			PxVec3(-mMapLoader.GetMapData(i).offsetX, mMapLoader.GetMapData(i).offsetY + (100 * mMapLoader.GetMapData(i).scalingY) -1, -mMapLoader.GetMapData(i).offsetZ),
 			mMapLoader.GetMapData(i).rotationY + 180,
 			PxVec3(100 * mMapLoader.GetMapData(i).scalingX, 100 * mMapLoader.GetMapData(i).scalingY, 100 * mMapLoader.GetMapData(i).scalingZ));
 	}
