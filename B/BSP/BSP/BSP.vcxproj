@@ -146,7 +146,7 @@
       <SDLCheck>false</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;_HAS_ITERATOR_DEBUGGING=0;_ITERATOR_DEBUG_LEVEL=0;WIN32;WIN64;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;_WINSOCK_DEPRECATED_NO_WARNINGS;PX_BUILD_NUMBER=0;PX_PHYSX_CHARACTER_STATIC_LIB;_HAS_EXCEPTIONS=0;PHYSX_PROFILE_SDK;PX_SUPPORT_PVD=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\kds25\Desktop\GP\SP\K\Server2019G\header;C:\Users\kds25\Desktop\GP\SP\K\Server2019G\physx\include;C:\Users\kds25\Desktop\GP\SP\K\Server2019G\physx\include\common;C:\Users\kds25\Desktop\GP\SP\K\Server2019G\physx\source\foundation\include;C:\Users\kds25\Desktop\GP\SP\K\Server2019G\physx\pxshared\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>physx\source\foundation\include;physx\include\common;physx\include;physx\pxshared\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
