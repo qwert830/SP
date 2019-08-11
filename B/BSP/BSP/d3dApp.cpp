@@ -609,6 +609,8 @@ void D3DApp::CreateSwapChain()
 		mCommandQueue.Get(),
 		&sd, 
 		mSwapChain.GetAddressOf()));
+
+	mdxgiFactory->MakeWindowAssociation(mhMainWnd, DXGI_MWA_NO_ALT_ENTER);
 }
 
 void D3DApp::FlushCommandQueue()
